@@ -1,3 +1,4 @@
+use super::creator_scene::CreatorScene;
 use assets::character::CharacterMeshPart;
 use bevy::{
     asset::{RenderAssetUsages, embedded_asset},
@@ -105,6 +106,7 @@ struct PreviewCamera;
 #[derive(Resource)]
 struct Preview {
     animations: [CreatorAnimations; 2],
+    scene: CreatorScene,
     profile: Option<CharacterProfile>,
     parts: Option<Arc<Vec<CharacterMeshPart>>>,
     surfaces: Vec<Surface>,
@@ -171,15 +173,17 @@ fn update(
         let Some(assets) = std::env::var_os("IW4L_SKATE_ASSETS") else {
             return;
         };
-        let root = Path::new(&assets).join("private/creator/animations");
-        let loaded = (|| -> Result<[CreatorAnimations; 2], String> {
-            Ok([
+        let assets = Path::new(&assets);
+        let root = assets.join("private/creator/animations");
+        let loaded = (|| -> Result<([CreatorAnimations; 2], CreatorScene), String> {
+            let animations = [
                 CreatorAnimations::load(&root.join("cac_edit_male.abin"))?,
                 CreatorAnimations::load(&root.join("cac_edit_female.abin"))?,
-            ])
+            ];
+            Ok((animations, CreatorScene::load(assets)?))
         })();
-        let animations = match loaded {
-            Ok(animations) => animations,
+        let (animations, scene) = match loaded {
+            Ok(data) => data,
             Err(error) => {
                 diag::warn!(World, "Skate creator preview unavailable: {error}");
                 return;
@@ -224,6 +228,7 @@ fn update(
         ));
         commands.insert_resource(Preview {
             animations,
+            scene,
             profile: None,
             parts: None,
             surfaces: Vec::new(),
@@ -402,11 +407,7 @@ fn update(
             part_matrices.push(matrices);
         }
         let aspect = window.physical_width().max(1) as f32 / window.physical_height().max(1) as f32;
-        let shift = Mat4::from_translation(Vec3::new(0.4, 0., 0.));
-        let clip_from_model = shift
-            * Mat4::perspective_infinite_reverse_rh(45f32.to_radians(), aspect, 0.05)
-            * Mat4::look_at_rh(Vec3::new(0., 0.9, 3.), Vec3::new(0., 0.9, 0.), Vec3::Y)
-            * Mat4::from_rotation_y(preview.rotation);
+        let clip_from_model = preview.scene.clip_from_model(aspect, preview.rotation);
         for output in &preview.surfaces {
             let surface = &parts[output.part].native.surfaces[output.surface];
             let matrices = &part_matrices[output.part];

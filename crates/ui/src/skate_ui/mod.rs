@@ -9,6 +9,7 @@ mod creator_menu;
 mod creator_preview;
 mod creator_renderer;
 mod creator_runtime;
+mod creator_scene;
 mod renderer;
 mod runtime;
 
