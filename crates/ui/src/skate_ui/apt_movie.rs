@@ -35,6 +35,7 @@ pub struct Movie {
     pub pending: VecDeque<(usize, u32)>,
     pub root: usize,
     pub text_assets: super::apt_text::TextAssets,
+    pub swatches: BTreeMap<usize, [f32; 3]>,
     states: BTreeMap<i32, Vec<DisplayList>>,
     exports: BTreeMap<String, i32>,
     bundle_exports: BTreeMap<String, BTreeMap<String, i32>>,
@@ -65,6 +66,7 @@ impl Movie {
             pending: VecDeque::new(),
             root: usize::MAX,
             text_assets: super::apt_text::TextAssets::load(json)?,
+            swatches: BTreeMap::new(),
             states,
             exports: json
                 .get("exports")

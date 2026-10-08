@@ -110,6 +110,18 @@ fn visit(
     if multiply[3] <= 0. && add[3] <= 0. {
         return Ok(());
     }
+    if vm.get(id, "_type").text() == "SwatchRenderComponent" {
+        let index = vm
+            .get(id, "_name")
+            .text()
+            .parse::<usize>()
+            .map_err(|_| "Invalid colour swatch index")?;
+        let rgb = movie.swatches.get(&index).ok_or("Missing colour swatch")?;
+        for i in 0..3 {
+            add[i] += multiply[i] * rgb[i];
+            multiply[i] = 0.;
+        }
+    }
     if vm.get(id, "_type").text() == "CustomButton" {
         let name = format!("button_{}.Texture", vm.get(id, "_test").text());
         let image = images

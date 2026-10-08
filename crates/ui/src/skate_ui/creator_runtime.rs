@@ -58,7 +58,11 @@ impl Bindings {
             && self.item(index).is_ok_and(|item| {
                 matches!(
                     item.choice,
-                    Choice::Page(_) | Choice::Gender | Choice::Morph(_) | Choice::Undo(_)
+                    Choice::Page(_)
+                        | Choice::Gender
+                        | Choice::Morph(_)
+                        | Choice::Undo(_)
+                        | Choice::EyeColour
                 )
             })
     }
@@ -153,7 +157,61 @@ impl Host for Bindings {
                 ))
             }
             ("Game", "CAC_GetOptionType") => Ok(Value::Text(self.item(index(0)?)?.kind.into())),
+            ("Game", "CAC_GetColours") => {
+                if !matches!(self.item(index(0)?)?.choice, Choice::EyeColour) {
+                    return Err("Creator item has no colour palette".into());
+                }
+                let colours = assets::character::local_library()
+                    .ok_or("Missing character library")?
+                    .eye_colours()?;
+                let array = vm.object(ObjectKind::Plain);
+                for (index, component) in colours.iter().flat_map(|c| c.swatch).enumerate() {
+                    vm.set(array, index.to_string(), Value::Number(component as f64))?;
+                }
+                vm.set(array, "length", Value::Number((colours.len() * 3) as f64))?;
+                Ok(Value::Object(array))
+            }
+            ("Game", "SwatchRenderer_ReserveIndex") => {
+                let available = (0..256)
+                    .find(|i| !self.movie.swatches.contains_key(i))
+                    .ok_or("Creator colour swatch limit")?;
+                self.movie.swatches.insert(available, [0.; 3]);
+                Ok(Value::Number(available as f64))
+            }
+            ("Game", "SwatchRenderer_SetColour") => {
+                let mut colour = [0.; 3];
+                for (i, component) in colour.iter_mut().enumerate() {
+                    let value = argument(i + 1)?.number();
+                    if !value.is_finite() || !(0. ..=1.).contains(&value) {
+                        return Err("Invalid creator swatch colour".into());
+                    }
+                    *component = value as f32;
+                }
+                *self
+                    .movie
+                    .swatches
+                    .get_mut(&index(0)?)
+                    .ok_or("Missing creator swatch")? = colour;
+                Ok(Value::Undefined)
+            }
+            ("Game", "SwatchRenderer_FreeIndex") => {
+                self.movie
+                    .swatches
+                    .remove(&index(0)?)
+                    .ok_or("Missing creator swatch")?;
+                Ok(Value::Undefined)
+            }
             ("Game", "CAC_GetIntegerValue" | "CAC_GetStringValue") => {
+                if matches!(self.item(index(0)?)?.choice, Choice::EyeColour) {
+                    if method != "CAC_GetIntegerValue" {
+                        return Err("Character colour has no text value".into());
+                    }
+                    return Ok(Value::Number(
+                        assets::character::local_library()
+                            .ok_or("Missing character library")?
+                            .eye_colour_index(&self.profile)? as f64,
+                    ));
+                }
                 if let Choice::Morph(target) = self.item(index(0)?)?.choice {
                     if method != "CAC_GetIntegerValue" {
                         return Err("Character morph has no text value".into());
@@ -447,6 +505,23 @@ impl Runtime {
                         target.into(),
                         (range.min + next * (range.max - range.min)).to_string(),
                     ]);
+                }
+            }
+            if matches!(
+                self.bindings.item(self.bindings.position.index)?.choice,
+                Choice::EyeColour
+            ) {
+                let library =
+                    assets::character::local_library().ok_or("Missing character library")?;
+                let colours = library.eye_colours()?;
+                let current = library.eye_colour_index(&self.bindings.profile)?;
+                let next = if key == "AptLeft" {
+                    current.saturating_sub(1)
+                } else {
+                    (current + 1).min(colours.len() - 1)
+                };
+                if next != current {
+                    self.bindings.edit = Some(vec!["eye_colour".into(), colours[next].key.clone()]);
                 }
             }
         }

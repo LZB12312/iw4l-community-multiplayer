@@ -131,7 +131,7 @@ fn edit_profile(
                 saved
             }
         }
-        "model" | "material" | "morph" => {
+        "model" | "material" | "morph" | "eye_colour" => {
             let profile = current
                 .profile
                 .as_deref()
@@ -139,7 +139,9 @@ fn edit_profile(
                 .map(Ok)
                 .unwrap_or_else(|| library.default_profile(true))?;
             let name = args.get(1).ok_or("Missing character part or morph.")?;
-            if operation == "morph" {
+            if operation == "eye_colour" {
+                library.with_eye_colour(&profile, name)?
+            } else if operation == "morph" {
                 let value = args
                     .get(2)
                     .ok_or("Missing morph value.")?

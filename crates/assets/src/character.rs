@@ -76,6 +76,22 @@ struct MorphParameter {
 struct NativeParameters {
     version: u32,
     morphs: Vec<MorphParameter>,
+    collections: Vec<NativeCollection>,
+}
+
+#[derive(Deserialize)]
+struct NativeCollection {
+    #[serde(rename = "class")]
+    class: String,
+    key: String,
+    parent: String,
+    fields: BTreeMap<String, serde_json::Value>,
+}
+
+pub struct CharacterColour {
+    pub key: String,
+    pub swatch: [f32; 3],
+    material: String,
 }
 
 type CachedCharacter = Result<Arc<Vec<CharacterMeshPart>>, String>;
@@ -376,6 +392,149 @@ impl CharacterLibrary {
         Ok(next)
     }
 
+    pub fn eye_colours(&self) -> Result<Vec<CharacterColour>, String> {
+        let mut colours = Vec::new();
+        for row in &self.parameters()?.collections {
+            if row.class != "cac_colour" || row.parent != "default_eye" {
+                continue;
+            }
+            let data = |name: &str, kind: &str| -> Result<&str, String> {
+                let field = row
+                    .fields
+                    .get(name)
+                    .ok_or("Missing character colour field")?;
+                if field["type"].as_str() != Some(kind) {
+                    return Err("Invalid character colour field type".into());
+                }
+                field["data"]
+                    .as_str()
+                    .ok_or("Missing character colour data".into())
+            };
+            let order = data("Hash_9C2DC17266699DD9", "EA::Reflection::Int32")?;
+            if order.len() != 8 {
+                return Err("Invalid character colour order".into());
+            }
+            let order = u32::from_str_radix(order, 16)
+                .map_err(|_| "Invalid character colour order")? as i32;
+            let vector = data("Hash_7827ED970A88B70C", "Math::Vector4")?;
+            if !vector.is_ascii() || vector.len() != 32 {
+                return Err("Invalid character colour swatch".into());
+            }
+            let mut swatch = [0.; 3];
+            for (i, component) in swatch.iter_mut().enumerate() {
+                *component = f32::from_bits(
+                    u32::from_str_radix(&vector[i * 8..i * 8 + 8], 16)
+                        .map_err(|_| "Invalid character colour swatch")?,
+                );
+                if !component.is_finite() || !(0. ..=1.).contains(component) {
+                    return Err("Character colour swatch is outside its range".into());
+                }
+            }
+            let material = data("Hash_AB0E65FA2F485ED8", "EA::Reflection::Text")?.to_owned();
+            if material.is_empty()
+                || row.key.is_empty()
+                || row.key.len() > 64
+                || !row
+                    .key
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            {
+                return Err("Invalid character colour identity".into());
+            }
+            colours.push((
+                order,
+                CharacterColour {
+                    key: row.key.clone(),
+                    swatch,
+                    material,
+                },
+            ));
+        }
+        colours.sort_by_key(|(order, _)| *order);
+        if colours.is_empty() || colours.len() > 64 || colours.windows(2).any(|w| w[0].0 == w[1].0)
+        {
+            return Err("Invalid character eye palette".into());
+        }
+        Ok(colours.into_iter().map(|(_, colour)| colour).collect())
+    }
+
+    pub fn eye_colour_index(&self, profile: &CharacterProfile) -> Result<usize, String> {
+        self.validate(profile)?;
+        let part = &profile.parts[CharacterSlot::Eyes as usize];
+        let colour = part
+            .materials
+            .iter()
+            .find_map(|id| {
+                self.manifest
+                    .materials
+                    .get(&String::from(*id))?
+                    .flags
+                    .get("EyeColour")
+            })
+            .ok_or("Character has no eye colour material")?;
+        self.eye_colours()?
+            .iter()
+            .position(|entry| &entry.material == colour)
+            .ok_or("Character eye colour is outside its palette".into())
+    }
+
+    pub fn with_eye_colour(
+        &self,
+        profile: &CharacterProfile,
+        key: &str,
+    ) -> Result<CharacterProfile, String> {
+        self.validate(profile)?;
+        let colour = self
+            .eye_colours()?
+            .into_iter()
+            .find(|c| c.key == key)
+            .ok_or("Unknown character eye colour")?;
+        let mut next = profile.clone();
+        let part = &mut next.parts[CharacterSlot::Eyes as usize];
+        let model = self
+            .manifest
+            .models
+            .get(&String::from(part.model))
+            .ok_or("Missing character eye model")?;
+        let mut changed = false;
+        for (group, material) in model.groups.iter().zip(&mut part.materials) {
+            let current = self
+                .manifest
+                .materials
+                .get(&String::from(*material))
+                .ok_or("Missing character eye material")?;
+            if !current.flags.contains_key("EyeColour") {
+                continue;
+            }
+            *material = group
+                .iter()
+                .copied()
+                .find(|id| {
+                    self.manifest
+                        .materials
+                        .get(&String::from(*id))
+                        .is_some_and(|info| {
+                            info.flags.get("EyeColour") == Some(&colour.material)
+                                && current
+                                    .flags
+                                    .iter()
+                                    .filter(|(name, _)| {
+                                        !matches!(name.as_str(), "EyeColour" | "IsDefault")
+                                    })
+                                    .all(|(name, value)| info.flags.get(name) == Some(value))
+                        })
+                })
+                .ok_or("Eye colour has no compatible character material")?;
+            changed = true;
+        }
+        if !changed {
+            return Err("Character has no eye colour material group".into());
+        }
+        part.palette = Some(colour.key);
+        self.validate(&next)?;
+        Ok(next)
+    }
+
     pub fn slot(name: &str) -> Option<CharacterSlot> {
         slots()
             .into_iter()
@@ -588,7 +747,7 @@ fn slots() -> [(CharacterSlot, &'static str); 18] {
         (Face, "Rostral"),
         (Feet, "Feet"),
         (Accessory, "Accessory"),
-        (Underwear, "Organ"),
+        (Eyes, "Organ"),
         (Deck, "SkateBoard"),
         (Trucks, "SkateTruck"),
         (Wheels, "SkateWheel"),

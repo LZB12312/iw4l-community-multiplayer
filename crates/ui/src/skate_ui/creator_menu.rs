@@ -22,6 +22,7 @@ pub enum Choice {
     Trucks,
     Wheels,
     Morph(&'static str),
+    EyeColour,
     Undo(UndoScope),
     Unavailable,
 }
@@ -417,8 +418,8 @@ impl Page {
                         Item {
                             label: "ID_CAC_EYES_COLOUR",
                             description: "",
-                            kind: "option",
-                            choice: Choice::Unavailable,
+                            kind: "color",
+                            choice: Choice::EyeColour,
                             male_only: false,
                         },
                         morph("ID_CAC_EYES_ROTATION", "local_eye_rotation"),

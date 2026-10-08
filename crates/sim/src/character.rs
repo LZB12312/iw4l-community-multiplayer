@@ -15,7 +15,7 @@ pub enum CharacterSlot {
     Face,
     Feet,
     Accessory,
-    Underwear,
+    Eyes,
     Deck,
     Trucks,
     Wheels,
