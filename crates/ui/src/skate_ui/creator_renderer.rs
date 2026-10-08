@@ -1,5 +1,6 @@
 use super::{
     apt_scene,
+    creator_preview::{PreviewPlugin, PreviewState},
     creator_runtime::{Key, Runtime},
     renderer::{ColorTransform, HudComposite, HudMaterial},
 };
@@ -48,15 +49,19 @@ struct Creator {
 }
 
 pub(crate) struct CreatorPlugin;
+#[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(super) struct CreatorUpdate;
 impl Plugin for CreatorPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<Setup>().add_systems(
-            Update,
-            (setup, update, render)
-                .chain()
-                .after(frame::PresentedPublished)
-                .in_set(frame::ClientSet::Present),
-        );
+        app.add_plugins(PreviewPlugin)
+            .init_resource::<Setup>()
+            .add_systems(
+                Update,
+                (setup, update.in_set(CreatorUpdate), render)
+                    .chain()
+                    .after(frame::PresentedPublished)
+                    .in_set(frame::ClientSet::Present),
+            );
     }
 }
 
@@ -252,6 +257,7 @@ fn update(
     window: Single<&Window, With<PrimaryWindow>>,
     mut images: ResMut<Assets<Image>>,
     mut composites: ResMut<Assets<HudComposite>>,
+    mut preview: ResMut<PreviewState>,
 ) {
     let input: Vec<_> = inputs.read().map(|message| message.key).collect();
     let results: Vec<_> = results.read().cloned().collect();
@@ -289,6 +295,7 @@ fn update(
         }
     }
     if !state.active {
+        preview.profile = None;
         creator.runtime = None;
         creator.accumulator = 0.;
         return;
@@ -352,16 +359,22 @@ fn update(
             .as_mut()
             .ok_or("Creator not open")?
             .advance(frames)?;
+        preview.profile = creator
+            .runtime
+            .as_ref()
+            .map(|runtime| runtime.bindings.profile.clone());
         Ok(())
     })();
     if let Err(error) = result {
         diag::warn!(World, "Original Skate creator stopped: {error}");
         creator.runtime = None;
+        preview.profile = None;
         state.available = false;
         state.active = false;
         menus.write(UiMenuRequest::Close(frame::SKATE_CREATOR_MENU.into()));
     } else if creator.runtime.as_ref().is_some_and(|r| r.bindings.closed) {
         creator.runtime = None;
+        preview.profile = None;
         state.active = false;
         menus.write(UiMenuRequest::Close(frame::SKATE_CREATOR_MENU.into()));
     }

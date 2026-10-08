@@ -6,6 +6,7 @@ mod apt_scene;
 mod apt_text;
 mod apt_vm;
 mod creator_menu;
+mod creator_preview;
 mod creator_renderer;
 mod creator_runtime;
 mod renderer;

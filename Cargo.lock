@@ -6728,11 +6728,13 @@ dependencies = [
  "bevy",
  "diag",
  "frame",
+ "half",
  "net",
  "serde",
  "serde_json",
  "session",
  "sim",
+ "skate-data",
 ]
 
 [[package]]

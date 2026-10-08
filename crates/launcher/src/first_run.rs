@@ -234,6 +234,8 @@ fn creator_ready(assets: &Path) -> bool {
         "private/customisation/library.json",
         "private/customisation/native.json",
         "private/creator/runtime/creator.json",
+        "private/creator/animations/cac_edit_male.abin",
+        "private/creator/animations/cac_edit_female.abin",
     ]
     .iter()
     .all(|file| assets.join(file).is_file())

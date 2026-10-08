@@ -3,6 +3,7 @@ import argparse
 import copy
 import hashlib
 import json
+import shutil
 import struct
 import sys
 from pathlib import Path
@@ -226,6 +227,14 @@ def main():
     sys.path[:0] = [str(engine), str(engine / 'tools')]
     prepare_library(game, assets)
     prepare_movie(game, assets)
+    for gender in ('male', 'female'):
+        name = 'cac_edit_' + gender + '.abin'
+        source = game / 'data/anim' / name
+        destination = assets / 'private/creator/animations' / name
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        pending = destination.with_suffix('.partial')
+        shutil.copyfile(source, pending)
+        pending.replace(destination)
 
 
 if __name__ == '__main__':
