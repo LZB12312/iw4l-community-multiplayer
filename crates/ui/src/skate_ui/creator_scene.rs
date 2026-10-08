@@ -1,3 +1,4 @@
+use super::creator_menu::Focus;
 use bevy::prelude::*;
 use serde::Deserialize;
 use serde_json::Value;
@@ -44,10 +45,11 @@ impl Catalogue {
     fn numbers<const N: usize>(
         &self,
         class: &str,
+        key: &str,
         name: &str,
         kind: &str,
     ) -> Result<[f32; N], String> {
-        let field = self.field(class, "default", name)?;
+        let field = self.field(class, key, name)?;
         if field.get("type").and_then(Value::as_str) != Some(kind) {
             return Err("Invalid creator scene field type".into());
         }
@@ -71,21 +73,46 @@ impl Catalogue {
         Ok(values)
     }
 
-    fn vector(&self, class: &str, name: &str) -> Result<Vec3, String> {
-        let values = self.numbers::<4>(class, name, "Math::Vector3")?;
+    fn vector(&self, class: &str, key: &str, name: &str) -> Result<Vec3, String> {
+        let values = self.numbers::<4>(class, key, name, "Math::Vector3")?;
         Ok(Vec3::new(values[0], values[1], values[2]))
     }
 
-    fn scalar(&self, class: &str, name: &str) -> Result<f32, String> {
-        Ok(self.numbers::<1>(class, name, "EA::Reflection::Float")?[0])
+    fn scalar(&self, class: &str, key: &str, name: &str) -> Result<f32, String> {
+        Ok(self.numbers::<1>(class, key, name, "EA::Reflection::Float")?[0])
     }
 }
 
-pub(super) struct CreatorScene {
+struct CreatorCamera {
     position: Vec3,
     aim: Vec3,
     up: Vec3,
     lens: f32,
+}
+
+impl CreatorCamera {
+    fn load(catalogue: &Catalogue, key: &str) -> Result<Self, String> {
+        let camera = Self {
+            position: catalogue.vector("cac_camera", key, "Hash_F323B5D55CA55A89")?,
+            aim: catalogue.vector("cac_camera", key, "Hash_F0FC2B540F11109E")?,
+            up: catalogue.vector("cac_camera", key, "Hash_513070D9CBBE801A")?,
+            lens: catalogue.scalar("cac_camera", key, "Hash_EFB7F7EF35801C19")?,
+        };
+        if !(0.01..180.).contains(&camera.lens)
+            || (camera.aim - camera.position).length_squared() < 1e-8
+            || (camera.aim - camera.position)
+                .cross(camera.up)
+                .length_squared()
+                < 1e-8
+        {
+            return Err("Degenerate creator scene camera".into());
+        }
+        Ok(camera)
+    }
+}
+
+pub(super) struct CreatorScene {
+    cameras: BTreeMap<Focus, CreatorCamera>,
     origin: Vec3,
     axis: Vec3,
     heading: f32,
@@ -100,31 +127,27 @@ impl CreatorScene {
             return Err("Unsupported creator scene catalogue".into());
         }
         let scene = Self {
-            position: catalogue.vector("cac_camera", "Hash_F323B5D55CA55A89")?,
-            aim: catalogue.vector("cac_camera", "Hash_F0FC2B540F11109E")?,
-            up: catalogue.vector("cac_camera", "Hash_513070D9CBBE801A")?,
-            lens: catalogue.scalar("cac_camera", "Hash_EFB7F7EF35801C19")?,
-            origin: catalogue.vector("cac_body", "Hash_6D2BEA1EFEA33425")?,
-            axis: catalogue.vector("cac_body", "Hash_B0BBDA4D1028889D")?,
+            cameras: Focus::ALL
+                .into_iter()
+                .map(|focus| {
+                    CreatorCamera::load(&catalogue, focus.key()).map(|camera| (focus, camera))
+                })
+                .collect::<Result<_, _>>()?,
+            origin: catalogue.vector("cac_body", "standing", "Hash_6D2BEA1EFEA33425")?,
+            axis: catalogue.vector("cac_body", "standing", "Hash_B0BBDA4D1028889D")?,
             heading: catalogue
-                .scalar("cac_body", "Hash_4591287983616615")?
+                .scalar("cac_body", "standing", "Hash_4591287983616615")?
                 .to_radians(),
         };
-        if !(0.01..180.).contains(&scene.lens)
-            || scene.axis.length_squared() < 1e-8
-            || (scene.aim - scene.position).length_squared() < 1e-8
-            || (scene.aim - scene.position)
-                .cross(scene.up)
-                .length_squared()
-                < 1e-8
-        {
-            return Err("Degenerate creator scene camera or transform".into());
+        if scene.axis.length_squared() < 1e-8 {
+            return Err("Degenerate creator scene transform".into());
         }
         Ok(scene)
     }
 
-    pub(super) fn clip_from_model(&self, aspect: f32, rotation: f32) -> Mat4 {
-        let angle = self.lens.to_radians() * std::f32::consts::FRAC_2_PI;
+    pub(super) fn clip_from_model(&self, aspect: f32, rotation: f32, focus: Focus) -> Mat4 {
+        let camera = &self.cameras[&focus];
+        let angle = camera.lens.to_radians() * std::f32::consts::FRAC_2_PI;
         let projection = Mat4::from_cols(
             Vec4::new(1. / (angle * aspect), 0., 0., 0.),
             Vec4::new(0., 1. / angle, 0., 0.),
@@ -132,7 +155,7 @@ impl CreatorScene {
             Vec4::new(0., 0., 0.05, 0.),
         );
         projection
-            * Mat4::look_at_rh(self.position, self.aim, self.up)
+            * Mat4::look_at_rh(camera.position, camera.aim, camera.up)
             * Mat4::from_rotation_translation(
                 Quat::from_axis_angle(self.axis.normalize(), self.heading + rotation),
                 self.origin,

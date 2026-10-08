@@ -2,7 +2,7 @@ use super::{
     apt_host::{self, MovieHost},
     apt_movie::Movie,
     apt_vm::{Host, ObjectKind, Value, Vm},
-    creator_menu::{Choice, Item, Page},
+    creator_menu::{Choice, Focus, Item, Page},
 };
 use sim::character::CharacterProfile;
 
@@ -25,6 +25,8 @@ struct Position {
 pub struct Bindings {
     pub movie: Movie,
     pub profile: CharacterProfile,
+    pub focus: Focus,
+    pub rotation_reset: u64,
     position: Position,
     parents: Vec<Position>,
     controller: Option<usize>,
@@ -316,6 +318,8 @@ impl Runtime {
         let mut bindings = Bindings {
             movie: Movie::load(source)?,
             profile,
+            focus: Focus::Standing,
+            rotation_reset: 0,
             position: Position {
                 page: Page::Main,
                 index: 0,
@@ -386,6 +390,10 @@ impl Runtime {
         }
         if matches!(key, Key::Back) {
             if let Some(parent) = self.bindings.parents.pop() {
+                if matches!(parent.page, Page::Main | Page::Body | Page::Merchandise) {
+                    self.bindings.focus = Focus::Standing;
+                }
+                self.bindings.rotation_reset = self.bindings.rotation_reset.wrapping_add(1);
                 self.bindings.position = parent;
                 self.bindings.error = None;
                 self.refresh()?;
@@ -425,6 +433,10 @@ impl Runtime {
             }
         }
         if let Some(page) = self.bindings.navigation.take() {
+            if let Some(focus) = page.focus() {
+                self.bindings.focus = focus;
+                self.bindings.rotation_reset = self.bindings.rotation_reset.wrapping_add(1);
+            }
             self.bindings.parents.push(self.bindings.position);
             self.bindings.position = Position {
                 page,

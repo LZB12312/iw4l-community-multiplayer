@@ -363,6 +363,10 @@ fn update(
             .runtime
             .as_ref()
             .map(|runtime| runtime.bindings.profile.clone());
+        if let Some(runtime) = creator.runtime.as_ref() {
+            preview.focus = runtime.bindings.focus;
+            preview.rotation_reset = runtime.bindings.rotation_reset;
+        }
         Ok(())
     })();
     if let Err(error) = result {

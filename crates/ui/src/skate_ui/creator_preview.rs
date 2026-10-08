@@ -1,4 +1,4 @@
-use super::creator_scene::CreatorScene;
+use super::{creator_menu::Focus, creator_scene::CreatorScene};
 use assets::character::CharacterMeshPart;
 use bevy::{
     asset::{RenderAssetUsages, embedded_asset},
@@ -26,6 +26,8 @@ const LAYER: usize = 29;
 #[derive(Resource, Default)]
 pub(super) struct PreviewState {
     pub profile: Option<CharacterProfile>,
+    pub focus: Focus,
+    pub rotation_reset: u64,
 }
 
 #[derive(Clone, Copy, Debug, ShaderType)]
@@ -115,6 +117,7 @@ struct Preview {
     composite: Handle<PreviewComposite>,
     seconds: f32,
     rotation: f32,
+    rotation_reset: u64,
     failed: bool,
     rebind: bool,
 }
@@ -237,6 +240,7 @@ fn update(
             composite,
             seconds: 0.,
             rotation: 0.,
+            rotation_reset: 0,
             failed: false,
             rebind: false,
         });
@@ -258,6 +262,7 @@ fn update(
     if !visible {
         preview.seconds = 0.;
         preview.rotation = 0.;
+        preview.rotation_reset = state.rotation_reset;
         return;
     }
     let result = (|| -> Result<(), String> {
@@ -367,6 +372,10 @@ fn update(
         }
         let delta = time.delta_secs().min(0.1);
         preview.seconds += delta;
+        if preview.rotation_reset != state.rotation_reset {
+            preview.rotation = 0.;
+            preview.rotation_reset = state.rotation_reset;
+        }
         if window.focused {
             let pad = active_pad.0.and_then(|e| gamepads.get(e).ok());
             let axis = pad.map_or(0., |p| {
@@ -407,7 +416,9 @@ fn update(
             part_matrices.push(matrices);
         }
         let aspect = window.physical_width().max(1) as f32 / window.physical_height().max(1) as f32;
-        let clip_from_model = preview.scene.clip_from_model(aspect, preview.rotation);
+        let clip_from_model = preview
+            .scene
+            .clip_from_model(aspect, preview.rotation, state.focus);
         for output in &preview.surfaces {
             let surface = &parts[output.part].native.surfaces[output.surface];
             let matrices = &part_matrices[output.part];

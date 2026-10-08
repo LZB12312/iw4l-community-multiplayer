@@ -69,6 +69,21 @@ fn morph_menu(title: &'static str, items: &'static [Item]) -> Menu {
 }
 
 impl Page {
+    pub fn focus(self) -> Option<Focus> {
+        match self {
+            Self::Main | Self::Body | Self::Merchandise => Some(Focus::Standing),
+            Self::BodyShape => Some(Focus::Body),
+            Self::Face => Some(Focus::Head),
+            Self::Eyes => Some(Focus::Eyes),
+            Self::Brow => Some(Focus::Brow),
+            Self::Nose => Some(Focus::Nose),
+            Self::Jaw => Some(Focus::Jaw),
+            Self::Mouth => Some(Focus::Mouth),
+            Self::Chin => Some(Focus::Chin),
+            Self::Accessories | Self::Skateboards => None,
+        }
+    }
+
     pub fn menu(self) -> Menu {
         match self {
             Self::Main => Menu {
@@ -458,4 +473,45 @@ impl Page {
             ),
         }
     }
+}
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Focus {
+    #[default]
+    Standing,
+    Body,
+    Head,
+    Eyes,
+    Brow,
+    Nose,
+    Jaw,
+    Mouth,
+    Chin,
+}
+
+impl Focus {
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Standing => "standing",
+            Self::Body => "body",
+            Self::Head => "head",
+            Self::Eyes => "eyes",
+            Self::Brow => "brow",
+            Self::Nose => "nose",
+            Self::Jaw => "jaw",
+            Self::Mouth => "mouth",
+            Self::Chin => "chin",
+        }
+    }
+
+    pub const ALL: [Self; 9] = [
+        Self::Standing,
+        Self::Body,
+        Self::Head,
+        Self::Eyes,
+        Self::Brow,
+        Self::Nose,
+        Self::Jaw,
+        Self::Mouth,
+        Self::Chin,
+    ];
 }
