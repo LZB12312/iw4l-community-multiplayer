@@ -349,6 +349,33 @@ impl CharacterLibrary {
         Ok(next)
     }
 
+    pub fn with_saved_morphs(
+        &self,
+        profile: &CharacterProfile,
+        saved: &CharacterProfile,
+    ) -> Result<CharacterProfile, String> {
+        self.validate(profile)?;
+        self.validate(saved)?;
+        if profile.male != saved.male {
+            return Err("Character snapshot has a different gender".into());
+        }
+        let mut next = profile.clone();
+        for parameter in &self.parameters()?.morphs {
+            let value = saved
+                .morphs
+                .get(&parameter.target)
+                .ok_or("Character snapshot is missing a morph")?;
+            let range = self.morph_range(&parameter.target)?;
+            next.morphs.insert(
+                parameter.target.clone(),
+                CharacterScalar::new(value.value().clamp(range.min, range.max))
+                    .ok_or("Invalid character snapshot morph")?,
+            );
+        }
+        self.validate(&next)?;
+        Ok(next)
+    }
+
     pub fn slot(name: &str) -> Option<CharacterSlot> {
         slots()
             .into_iter()

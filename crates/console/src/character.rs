@@ -110,6 +110,27 @@ fn edit_profile(
             };
             library.default_profile(male)?
         }
+        "restore" | "restore_morphs" => {
+            let encoded = args.get(1).ok_or("Missing character snapshot.")?;
+            if encoded.len() > 65536 {
+                return Err("Character snapshot is too large.".into());
+            }
+            let saved: sim::character::CharacterProfile =
+                serde_json::from_str(encoded).map_err(|_| "Invalid character snapshot.")?;
+            library.validate(&saved)?;
+            let profile = current
+                .profile
+                .as_deref()
+                .ok_or("Missing current character profile.")?;
+            if profile.male != saved.male {
+                return Err("Character snapshot has a different gender.".into());
+            }
+            if operation == "restore_morphs" {
+                library.with_saved_morphs(profile, &saved)?
+            } else {
+                saved
+            }
+        }
         "model" | "material" | "morph" => {
             let profile = current
                 .profile

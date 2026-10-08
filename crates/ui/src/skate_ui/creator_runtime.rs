@@ -2,7 +2,7 @@ use super::{
     apt_host::{self, MovieHost},
     apt_movie::Movie,
     apt_vm::{Host, ObjectKind, Value, Vm},
-    creator_menu::{Choice, Focus, Item, Page},
+    creator_menu::{Choice, Focus, Item, Page, UndoScope},
 };
 use sim::character::CharacterProfile;
 
@@ -27,12 +27,14 @@ pub struct Bindings {
     pub profile: CharacterProfile,
     pub focus: Focus,
     pub rotation_reset: u64,
+    snapshot: CharacterProfile,
     position: Position,
     parents: Vec<Position>,
     controller: Option<usize>,
     navigation: Option<Page>,
     edit: Option<Vec<String>>,
     pending: Option<u64>,
+    pending_snapshot: bool,
     error: Option<String>,
     pub closed: bool,
 }
@@ -56,7 +58,7 @@ impl Bindings {
             && self.item(index).is_ok_and(|item| {
                 matches!(
                     item.choice,
-                    Choice::Page(_) | Choice::Gender | Choice::Morph(_)
+                    Choice::Page(_) | Choice::Gender | Choice::Morph(_) | Choice::Undo(_)
                 )
             })
     }
@@ -225,9 +227,12 @@ impl Host for Bindings {
             }
             ("Game", "CAC_GetButtonHelpTextA") => Ok(Value::Text(
                 if self.enabled(self.position.index)
-                    && self
-                        .item(self.position.index)
-                        .is_ok_and(|item| matches!(item.choice, Choice::Page(_) | Choice::Gender))
+                    && self.item(self.position.index).is_ok_and(|item| {
+                        matches!(
+                            item.choice,
+                            Choice::Page(_) | Choice::Gender | Choice::Undo(_)
+                        )
+                    })
                 {
                     "ID_COMMON_SELECT"
                 } else {
@@ -257,6 +262,16 @@ impl Host for Bindings {
                                 "gender".into(),
                                 if self.profile.male { "female" } else { "male" }.into(),
                             ])
+                        }
+                        Choice::Undo(scope) => {
+                            self.edit = Some(vec![
+                                match scope {
+                                    UndoScope::Appearance => "restore",
+                                    UndoScope::Morphs => "restore_morphs",
+                                }
+                                .into(),
+                                serde_json::to_string(&self.snapshot).map_err(|e| e.to_string())?,
+                            ]);
                         }
                         _ => {}
                     }
@@ -317,6 +332,7 @@ impl Runtime {
         }
         let mut bindings = Bindings {
             movie: Movie::load(source)?,
+            snapshot: profile.clone(),
             profile,
             focus: Focus::Standing,
             rotation_reset: 0,
@@ -330,6 +346,7 @@ impl Runtime {
             navigation: None,
             edit: None,
             pending: None,
+            pending_snapshot: false,
             error: None,
             closed: false,
         };
@@ -394,6 +411,7 @@ impl Runtime {
                     self.bindings.focus = Focus::Standing;
                 }
                 self.bindings.rotation_reset = self.bindings.rotation_reset.wrapping_add(1);
+                self.bindings.snapshot = self.bindings.profile.clone();
                 self.bindings.position = parent;
                 self.bindings.error = None;
                 self.refresh()?;
@@ -433,6 +451,7 @@ impl Runtime {
             }
         }
         if let Some(page) = self.bindings.navigation.take() {
+            self.bindings.snapshot = self.bindings.profile.clone();
             if let Some(focus) = page.focus() {
                 self.bindings.focus = focus;
                 self.bindings.rotation_reset = self.bindings.rotation_reset.wrapping_add(1);
@@ -447,6 +466,10 @@ impl Runtime {
             self.refresh()?;
         }
         if let Some(edit) = self.bindings.edit.take() {
+            self.bindings.pending_snapshot = matches!(
+                edit.first().map(String::as_str),
+                Some("gender" | "restore" | "restore_morphs")
+            );
             self.bindings.pending = Some(request_id);
             return Ok(Some(edit));
         }
@@ -465,7 +488,11 @@ impl Runtime {
         self.bindings.pending = None;
         if result.is_ok() {
             self.bindings.profile = profile.clone();
+            if self.bindings.pending_snapshot {
+                self.bindings.snapshot = profile.clone();
+            }
         }
+        self.bindings.pending_snapshot = false;
         self.bindings.error = result.as_ref().err().cloned();
         self.bindings.position.index = self
             .bindings
@@ -495,6 +522,9 @@ impl Runtime {
         if self.bindings.pending.is_none() && self.bindings.profile != *profile {
             if !profile.valid() {
                 return Err("Invalid creator profile".into());
+            }
+            if self.bindings.profile.male != profile.male {
+                self.bindings.snapshot = profile.clone();
             }
             self.bindings.profile = profile.clone();
             self.bindings.position.index = self

@@ -22,7 +22,14 @@ pub enum Choice {
     Trucks,
     Wheels,
     Morph(&'static str),
+    Undo(UndoScope),
     Unavailable,
+}
+
+#[derive(Clone, Copy)]
+pub enum UndoScope {
+    Appearance,
+    Morphs,
 }
 
 #[derive(Clone, Copy)]
@@ -55,8 +62,13 @@ const UNDO: Item = Item {
     label: "ID_CAC_MORPHING_UNDO",
     description: "",
     kind: "option",
-    choice: Choice::Unavailable,
+    choice: Choice::Undo(UndoScope::Appearance),
     male_only: false,
+};
+
+const UNDO_MORPHS: Item = Item {
+    choice: Choice::Undo(UndoScope::Morphs),
+    ..UNDO
 };
 
 fn morph_menu(title: &'static str, items: &'static [Item]) -> Menu {
@@ -396,7 +408,7 @@ impl Page {
             },
             Self::BodyShape => morph_menu(
                 "ID_CAC_BODY_SHAPE_TITLE",
-                &const { [morph("ID_CAC_BODY_SHAPE_SIZE", "fat"), UNDO] },
+                &const { [morph("ID_CAC_BODY_SHAPE_SIZE", "fat"), UNDO_MORPHS] },
             ),
             Self::Eyes => morph_menu(
                 "ID_CAC_EYES_TITLE",
