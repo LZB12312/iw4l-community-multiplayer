@@ -1,3 +1,17 @@
+# Whats new here?
+
+This build compared to the original rust mashup adds multiple new features, these are:
+
+A semi-working multiplayer - emphasis on semi
+
+Hall of meat integration - this works great!
+
+Sound effects for the board/skate mode - works almost entirely as it should do
+
+Support for skate 3 character models in-game, along with the original skate 3 character creator. - The skate 3 character replacement works, some bugs with the character creator need to be ironed out.
+
+
+
 # IW4L Community Multiplayer
 
 
