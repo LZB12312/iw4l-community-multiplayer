@@ -1,5 +1,7 @@
 # IW4L Community Multiplayer
 
+
+(Multiplayer is currently untested, it may not completely or be broken entirely. It is an independent matchmaker from the steam matchmaker meaning I'm still ironing stuff out.)
 Host and join friends through `Multiplayer.exe`, with independent matchmaking,
 UPnP hosting, authenticated invitations and in-launcher GitHub updates. The same
 portable package supports hosting and joining. Skater outfits stay synchronized
