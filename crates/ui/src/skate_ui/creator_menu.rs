@@ -2,10 +2,13 @@
 pub enum Page {
     Main,
     Body,
+    BodyShape,
     Merchandise,
     Accessories,
     Skateboards,
     Face,
+    Eyes,
+    Brow,
     Nose,
     Jaw,
     Mouth,
@@ -140,7 +143,7 @@ impl Page {
                         label: "ID_CAC_BODY_SHAPE_TITLE",
                         description: "",
                         kind: "option",
-                        choice: Choice::Unavailable,
+                        choice: Choice::Page(Page::BodyShape),
                         male_only: false,
                     },
                     Item {
@@ -336,14 +339,14 @@ impl Page {
                         label: "ID_CAC_EYES_TITLE",
                         description: "",
                         kind: "option",
-                        choice: Choice::Unavailable,
+                        choice: Choice::Page(Page::Eyes),
                         male_only: false,
                     },
                     Item {
                         label: "ID_CAC_BROW_TITLE",
                         description: "",
                         kind: "option",
-                        choice: Choice::Unavailable,
+                        choice: Choice::Page(Page::Brow),
                         male_only: false,
                     },
                     Item {
@@ -376,6 +379,46 @@ impl Page {
                     },
                 ],
             },
+            Self::BodyShape => morph_menu(
+                "ID_CAC_BODY_SHAPE_TITLE",
+                &const { [morph("ID_CAC_BODY_SHAPE_SIZE", "fat"), UNDO] },
+            ),
+            Self::Eyes => morph_menu(
+                "ID_CAC_EYES_TITLE",
+                &const {
+                    [
+                        Item {
+                            label: "ID_CAC_EYES_COLOUR",
+                            description: "",
+                            kind: "option",
+                            choice: Choice::Unavailable,
+                            male_only: false,
+                        },
+                        morph("ID_CAC_EYES_ROTATION", "local_eye_rotation"),
+                        morph("ID_CAC_EYES_WIDTH", "local_eye_width"),
+                        morph("ID_CAC_EYES_HEIGHT", "local_eye_height"),
+                        UNDO,
+                    ]
+                },
+            ),
+            Self::Brow => morph_menu(
+                "ID_CAC_BROW_TITLE",
+                &const {
+                    [
+                        Item {
+                            label: "ID_CAC_BROW_STYLE",
+                            description: "",
+                            kind: "option",
+                            choice: Choice::Unavailable,
+                            male_only: false,
+                        },
+                        morph("ID_CAC_BROW_PROFILE", "local_brows_depth"),
+                        morph("ID_CAC_BROW_ROTATION", "local_brows_rotation"),
+                        morph("ID_CAC_BROW_HEIGHT", "local_brows_height"),
+                        UNDO,
+                    ]
+                },
+            ),
             Self::Nose => morph_menu(
                 "ID_CAC_NOSE_TITLE",
                 &const {

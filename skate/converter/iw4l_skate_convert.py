@@ -128,12 +128,16 @@ def main():
     parser.add_argument('--hall-of-meat-only', action='store_true')
     parser.add_argument('--audio-only', action='store_true')
     parser.add_argument('--creator-only', action='store_true')
+    parser.add_argument('--assets', type=Path)
     args = parser.parse_args()
+    if args.assets is not None and not args.creator_only:
+        parser.error('--assets is only supported with --creator-only')
     try:
         if args.creator_only:
             if not args.xex.is_file() or args.xex.name.lower() != 'default.xex':
                 raise RuntimeError('Select an extracted Skate 3 default.xex.')
-            prepare_creator(absolute_path(args.xex).parent, absolute_path(args.out) / 'assets')
+            assets = absolute_path(args.assets) if args.assets is not None else absolute_path(args.out) / 'assets'
+            prepare_creator(absolute_path(args.xex).parent, assets)
         elif args.audio_only:
             if not args.xex.is_file() or args.xex.name.lower() != 'default.xex':
                 raise RuntimeError('Select an extracted Skate 3 default.xex.')

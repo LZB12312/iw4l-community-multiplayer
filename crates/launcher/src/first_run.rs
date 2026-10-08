@@ -38,8 +38,9 @@ pub fn prepare() -> Result<(), String> {
     {
         Some(assets) => assets,
         None => match convert_skate(&root)? {
-            Some(assets) => {
+            Some((assets, xex)) => {
                 env.set("IW4L_SKATE_ASSETS", &assets);
+                env.set("IW4L_SKATE_XEX", &xex);
                 env.write(&env_path)?;
                 assets
             }
@@ -50,6 +51,7 @@ pub fn prepare() -> Result<(), String> {
             }
         },
     };
+    prepare_creator(&root, &assets, &mut env, &env_path)?;
     assets::skate_board::ensure(&assets)
         .map_err(|error| format!("Could not prepare the skateboard: {error}"))
 }
@@ -65,7 +67,8 @@ pub fn fail(message: &str) -> ! {
 
 fn mw2_ready(path: &Path) -> bool {
     path.is_dir()
-        && assets::find_zone_file(&asset_transport::GamesRoot(path.to_owned()), "iw4:mp_rust").is_ok()
+        && assets::find_zone_file(&asset_transport::GamesRoot(path.to_owned()), "iw4:mp_rust")
+            .is_ok()
 }
 
 fn locate_mw2() -> Result<PathBuf, String> {
@@ -145,7 +148,7 @@ fn skate_ready(assets: &Path) -> bool {
 }
 
 /// The converted Skate 3 data, or none when the player plays without it.
-fn convert_skate(root: &Path) -> Result<Option<PathBuf>, String> {
+fn convert_skate(root: &Path) -> Result<Option<(PathBuf, PathBuf)>, String> {
     let converter = root.join("skate").join("iw4l-skate-convert.exe");
     if !converter.is_file() {
         return Err(format!(
@@ -168,7 +171,7 @@ fn convert_skate(root: &Path) -> Result<Option<PathBuf>, String> {
         return Ok(None);
     }
     let out = root.join("skate-data");
-    loop {
+    let xex = loop {
         let Some(xex) = rfd::FileDialog::new()
             .set_title("Select your Skate 3 default.xex")
             .add_filter("Skate 3 default.xex", &["xex"])
@@ -177,14 +180,14 @@ fn convert_skate(root: &Path) -> Result<Option<PathBuf>, String> {
             return Ok(None);
         };
         println!("Converting Skate 3 data from {}", xex.display());
-        match run_converter(&converter, &xex, &out) {
-            Ok(()) => break,
+        match run_converter(&converter, &xex, &out, None) {
+            Ok(()) => break xex,
             Err(error) => inform(&format!("{error}\n\nSelect default.xex again.")),
         }
-    }
+    };
     let assets = out.join("assets");
     if skate_ready(&assets) {
-        Ok(Some(assets))
+        Ok(Some((assets, xex)))
     } else {
         Err(format!(
             "The Skate 3 conversion finished but {} is incomplete.",
@@ -195,12 +198,18 @@ fn convert_skate(root: &Path) -> Result<Option<PathBuf>, String> {
 
 /// Runs the converter with its progress echoed to this console, returning the
 /// converter's own error line when it fails.
-fn run_converter(converter: &Path, xex: &Path, out: &Path) -> Result<(), String> {
-    let mut child = Command::new(converter)
-        .arg("--xex")
-        .arg(xex)
-        .arg("--out")
-        .arg(out)
+fn run_converter(
+    converter: &Path,
+    xex: &Path,
+    out: &Path,
+    creator_assets: Option<&Path>,
+) -> Result<(), String> {
+    let mut command = Command::new(converter);
+    command.arg("--xex").arg(xex).arg("--out").arg(out);
+    if let Some(assets) = creator_assets {
+        command.arg("--creator-only").arg("--assets").arg(assets);
+    }
+    let mut child = command
         .stdout(Stdio::piped())
         .spawn()
         .map_err(|error| format!("Could not start the Skate 3 converter: {error}"))?;
@@ -218,6 +227,54 @@ fn run_converter(converter: &Path, xex: &Path, out: &Path) -> Result<(), String>
         return Ok(());
     }
     Err(failure.unwrap_or_else(|| format!("The Skate 3 converter stopped ({status}).")))
+}
+
+fn creator_ready(assets: &Path) -> bool {
+    [
+        "private/customisation/library.json",
+        "private/customisation/native.json",
+        "private/creator/runtime/creator.json",
+    ]
+    .iter()
+    .all(|file| assets.join(file).is_file())
+}
+
+fn prepare_creator(
+    root: &Path,
+    assets: &Path,
+    env: &mut EnvFile,
+    env_path: &Path,
+) -> Result<(), String> {
+    if creator_ready(assets) || env.get("IW4L_SKATE_CREATOR") == Some("off") {
+        return Ok(());
+    }
+    let xex = env
+        .get("IW4L_SKATE_XEX")
+        .map(PathBuf::from)
+        .filter(|path| path.is_file());
+    let xex = match xex {
+        Some(xex) => Some(xex),
+        None => {
+            inform(
+                "Your Skate cache needs the original character creator files. Select your extracted Skate 3 default.xex to prepare them. Cancel to keep playing with the existing cache.",
+            );
+            rfd::FileDialog::new()
+                .set_title("Prepare the original Skate character creator")
+                .add_filter("Skate 3 default.xex", &["xex"])
+                .pick_file()
+        }
+    };
+    let Some(xex) = xex else {
+        env.set_value("IW4L_SKATE_CREATOR", "off");
+        return env.write(env_path);
+    };
+    let converter = root.join("skate/iw4l-skate-convert.exe");
+    run_converter(&converter, &xex, &root.join("skate-data"), Some(assets))?;
+    if !creator_ready(assets) {
+        return Err("Character creator preparation finished with missing files.".into());
+    }
+    env.set("IW4L_SKATE_XEX", &xex);
+    env.write(env_path)
 }
 
 fn inform(message: &str) {
