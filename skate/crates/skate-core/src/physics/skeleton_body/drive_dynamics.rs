@@ -1,6 +1,3 @@
-//! BoneDrives::EnableDrive82BECCE0 and mode-five interpolation82BECFB8.
-//! A bone shares its interpolation counter between the LOCAL and LOCAL_ROOT
-//! channels. Dispatch order is therefore observable even within one tick.
 use crate::physics::drive_parameters::{RetailDriveDynamics, RetailDriveParams, RetailDriveType};
 
 const FREQUENCY: f32 = f32::from_bits(0x426F_FFFF);
@@ -50,7 +47,9 @@ impl Default for BoneDriveDynamics {
                 linear: RetailDriveParams::DISABLED,
                 angular: RetailDriveParams::DISABLED,
             }; 2],
-            mode: 0, strengths: [0.0; 2], transition_counter: 0.0,
+            mode: 0,
+            strengths: [0.0; 2],
+            transition_counter: 0.0,
             transition_active: false,
         }
     }
@@ -58,15 +57,23 @@ impl Default for BoneDriveDynamics {
 impl BoneDriveDynamics {
     pub fn enable(&mut self, channel: usize, strength: f32, settings: BoneDriveSettings) {
         assert!(channel < 2);
-        if self.mode > 5 { return; }
-        if self.mode != 5 { self.transition_active = false; }
+        if self.mode > 5 {
+            return;
+        }
+        if self.mode != 5 {
+            self.transition_active = false;
+        }
         let animation = settings.animation[channel];
         let dynamics = match self.mode {
             0 => RetailDriveDynamics {
-                linear: hard(animation.linear_displacement * FREQUENCY,
-                    animation.linear_strength * FREQUENCY_SQUARED),
-                angular: hard(animation.angular_displacement * FREQUENCY,
-                    animation.angular_strength * FREQUENCY_SQUARED),
+                linear: hard(
+                    animation.linear_displacement * FREQUENCY,
+                    animation.linear_strength * FREQUENCY_SQUARED,
+                ),
+                angular: hard(
+                    animation.angular_displacement * FREQUENCY,
+                    animation.angular_strength * FREQUENCY_SQUARED,
+                ),
             },
             1 => RetailDriveDynamics {
                 linear: hard(HARD_VELOCITY, HARD_STRENGTH),
@@ -74,21 +81,34 @@ impl BoneDriveDynamics {
             },
             2 => RetailDriveDynamics {
                 linear: hard(0.0, 0.0),
-                angular: hard(animation.angular_displacement * FREQUENCY,
-                    animation.angular_strength * FREQUENCY_SQUARED),
+                angular: hard(
+                    animation.angular_displacement * FREQUENCY,
+                    animation.angular_strength * FREQUENCY_SQUARED,
+                ),
             },
             3 => RetailDriveDynamics {
                 linear: soft(0.0, 0.0, 0.0),
-                angular: soft(settings.collision_soft_displacement * strength, 200.0,
-                    (settings.collision_soft_strength * strength) * FREQUENCY_SQUARED),
+                angular: soft(
+                    settings.collision_soft_displacement * strength,
+                    200.0,
+                    (settings.collision_soft_strength * strength) * FREQUENCY_SQUARED,
+                ),
             },
             4 => RetailDriveDynamics {
-                linear: if strength <= 0.5 { soft(0.0, 0.0, 0.0) } else {
-                    soft((settings.ragdoll_soft_displacement * strength) * 0.5, 200.0,
-                        (strength * settings.ragdoll_soft_strength) * FREQUENCY_SQUARED)
+                linear: if strength <= 0.5 {
+                    soft(0.0, 0.0, 0.0)
+                } else {
+                    soft(
+                        (settings.ragdoll_soft_displacement * strength) * 0.5,
+                        200.0,
+                        (strength * settings.ragdoll_soft_strength) * FREQUENCY_SQUARED,
+                    )
                 },
-                angular: soft(settings.ragdoll_soft_displacement * strength, 200.0,
-                    (strength * settings.ragdoll_soft_strength) * FREQUENCY_SQUARED),
+                angular: soft(
+                    settings.ragdoll_soft_displacement * strength,
+                    200.0,
+                    (strength * settings.ragdoll_soft_strength) * FREQUENCY_SQUARED,
+                ),
             },
             5 => {
                 if !self.transition_active {
@@ -102,7 +122,7 @@ impl BoneDriveDynamics {
                     linear: interpolate(settings.transition_linear, strength, progress),
                     angular: interpolate(settings.transition_angular, strength, progress),
                 }
-            },
+            }
             _ => unreachable!(),
         };
         self.channels[channel] = dynamics;
@@ -110,25 +130,33 @@ impl BoneDriveDynamics {
 }
 
 fn hard(velocity: f32, strength: f32) -> RetailDriveParams {
-    RetailDriveParams { spring_or_max_velocity: velocity, damping: 0.0,
-        max_strength: strength, drive_type: RetailDriveType::HardDrive }
+    RetailDriveParams {
+        spring_or_max_velocity: velocity,
+        damping: 0.0,
+        max_strength: strength,
+        drive_type: RetailDriveType::HardDrive,
+    }
 }
 fn soft(spring: f32, damping: f32, strength: f32) -> RetailDriveParams {
-    RetailDriveParams { spring_or_max_velocity: spring, damping,
-        max_strength: strength, drive_type: RetailDriveType::SoftDrive }
+    RetailDriveParams {
+        spring_or_max_velocity: spring,
+        damping,
+        max_strength: strength,
+        drive_type: RetailDriveType::SoftDrive,
+    }
 }
 fn interpolate(settings: DriveInterpolation, strength: f32, progress: f32) -> RetailDriveParams {
-    // Original82BED100..114 are scalar fmadds (primary59,extended29).
-    // The retained older pseudocode expands them to multiply+add expressions.
     let spring0 = settings.spring[0] * strength;
     let strength0 = settings.strength[0] * strength;
     let spring = (settings.spring[1] * strength - spring0).mul_add(progress, spring0);
     let force = (settings.strength[1] * strength - strength0).mul_add(progress, strength0);
-    let damping = (settings.damping[1] - settings.damping[0]).mul_add(progress, settings.damping[0]);
+    let damping =
+        (settings.damping[1] - settings.damping[0]).mul_add(progress, settings.damping[0]);
     let nonnegative = |value| if value >= 0.0 { value } else { 0.0 };
     RetailDriveParams {
         spring_or_max_velocity: nonnegative(spring) * FREQUENCY,
         max_strength: nonnegative(force) * FREQUENCY_SQUARED,
-        damping: nonnegative(damping), drive_type: RetailDriveType::HardDrive,
+        damping: nonnegative(damping),
+        drive_type: RetailDriveType::HardDrive,
     }
 }

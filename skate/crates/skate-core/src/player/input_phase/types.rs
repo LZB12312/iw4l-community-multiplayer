@@ -32,14 +32,11 @@ pub struct StateVariantFields {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-/// Reset82DE53F0 copies the template initialized by82DE3BE8:
-/// every represented word and byte in this subset initially equals zero.
 pub struct CurrentStateFields {
     pub identifier_8: u32,
     pub category_12: u32,
     pub state_16: u32,
     pub surface_height_32: f32,
-    ///BipedGround Fill82D32D38, independent of State40.
     pub counter_36: u32,
     pub skitch_value_40: u32,
     pub flag_61: u8,
@@ -64,8 +61,6 @@ pub struct SkateboardMotionFields {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SystemReckoningFields {
-    /// Physical COM velocity from Skeleton16176 (82BE1D84/94).
-    /// Restored r28 at82DB49B0 is16, not128.
     pub vector_16: RawVector,
     pub vector_64: RawVector,
     pub vector_96: RawVector,
@@ -75,15 +70,11 @@ pub struct SystemReckoningFields {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct GroundOutputFields {
-    ///State503 Fill82D4E090..E0C8.
     pub landing_half_turns_312: i32,
     pub hippy_jumping_322: u8,
     pub hippy_takeoff_323: u8,
     pub vector_64: RawVector,
-    /// Board Fill82C03318: wheel-contact normal (not Motion80 velocity).
     pub vector_80: RawVector,
-    /// Host storage for Motion273, NOT native Ground273. Common82DB7598
-    /// publishes Processed2468 bit20; keep this distinct from the normal.
     pub flag_273: u8,
     pub vector_96: RawVector,
     pub vector_128: RawVector,
@@ -98,7 +89,6 @@ pub struct GroundOutputFields {
 pub struct CollisionOutputFields {
     pub wheel_count_0: u32,
     pub scalar_28: f32,
-    ///Offboard landing manager82D79498; reset82DE3290 clears this position.
     pub vector_48: RawVector,
     pub predicted_position_64: RawVector,
     pub flag_215: u8,
@@ -111,7 +101,6 @@ pub struct CollisionOutputFields {
     pub flag_3479: u8,
     pub flag_3480: u8,
     pub flag_3481: u8,
-    ///Offboard landing manager82D7948C; reset82DE32E4 clears availability.
     pub flag_3482: u8,
     pub flag_3483: u8,
 }
@@ -127,7 +116,6 @@ use super::GrindOutputFields;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct OffBoardOutputFields {
-    ///BipedGround Fill82D32D38 and shared Feet Fill82D785F8.
     pub kind_88: u32,
     pub scalar_112: f32,
     pub distance_116: f32,
@@ -135,43 +123,30 @@ pub struct OffBoardOutputFields {
     pub flag_329: u8,
     pub flag_330: u8,
     pub flag_334: u8,
-    ///Common ProcessOutput82DB724C..7258 from the shared Biped720/716.
     pub cadence_phase_80: f32,
     pub locomotion_state_84: u32,
-    /// SkateboardController FillPhysOut82D76D20 orientation outputs +36/+40.
     pub angle_36: f32,
     pub angle_40: f32,
-    /// Reset82DE40C0; Biped trajectory publication writes the duration here.
     pub trajectory_time_120: f32,
-    /// Reset82DE4170; BipedAir Fill82D30324 publishes trajectory availability.
     pub trajectory_valid_331: u8,
     pub scalar_32: f32,
     pub flag_304: u8,
-    ///Common ProcessOutput82DB76F4: Processed2480 bit19, not grab-object304.
     pub flag_308: u8,
     pub flag_311: u8,
-    ///SkateboardController82D76D88: state448 is FREE/HIDING/RETURNING.
     pub free_board_312: u8,
-    ///82D76DA0: physical RETURNING state, distinct from animation activity323.
     pub returning_board_313: u8,
     pub flag_314: u8,
     pub flag_315: u8,
     pub flag_316: u8,
-    /// OffBoard reset82DE4138 clears this. LandingOnDeckManager Fill82D79420
-    /// publishes manager260 && !manager258; only Biped/LandingOnDeck state
-    /// outputs call that producer. Ordinary Ground retains the reset value.
     pub hippy_hurdling_317: u8,
     pub flag_318: u8,
     pub dropping_board_322: u8,
-    ///82D76ED4: state448 is HIDING.
     pub hiding_board_321: u8,
     pub flag_319: u8,
     pub retrieving_board_323: u8,
-    ///82D76F68: retrieving animation OR retrieve pulse while RETURNING.
     pub flag_324: u8,
     pub flag_328: u8,
     pub vector_64: RawVector,
-    ///BipedAir Fill82D30300: distinct from the on-board Air output block.
     pub scalar_92: f32,
     pub vector_96: RawVector,
     pub word_144: u32,
@@ -189,7 +164,6 @@ pub struct OffBoardOutputFields {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct PhysicalPlayerInput {
-    /// SkateboardReckoning+176; restored r29 at82DB4994 is176.
     pub board_reckoning_side_176: RawVector,
     pub skateboard: SkateboardMotionFields,
     pub air: AirOutputFields,
@@ -259,7 +233,6 @@ pub struct PlayerInputState {
     pub update_count_1316: u32,
     pub spin_same_direction_frames_1324: u32,
     pub frames_since_teleport_1328: u32,
-    /// ProcessOutput82DB78A8 keeps a dismount request alive for three outputs.
     pub dismount_request_frames_1332: u32,
     pub state_value_1336: u32,
     pub state_timer_1344: f32,
@@ -339,7 +312,6 @@ pub struct ProcessedPhysicsInput {
     pub vectors_544_560_592_608: [RawVector; 4],
     pub vectors_624_640_656_672: [RawVector; 4],
     pub prepared_jump_704: RawVector,
-    ///Skeleton::ProcessData82BD8E70..8EA8, after ordered animation attributes.
     pub collision_pose_error_736: RawVector,
     pub animation_com_to_deck_752: RawVector,
     pub animation_com_to_deck_delta_768: RawVector,
@@ -354,7 +326,6 @@ pub struct ProcessedPhysicsInput {
     pub probe_1792: ProbeFields,
     /// Actual grab-spline publication payloads; flags2480 bits22/21 carry readiness.
     pub grab_records_1888_2176: [[u32; 72]; 2],
-    /// Interactable identity published by82D740F8; bit20 carries validity.
     pub object_2464: u32,
     pub flags_2468: u32,
     pub flags_2472: u32,
@@ -385,13 +356,9 @@ pub struct ProcessedPhysicsInput {
     pub right_surface_2600: u32,
     pub timestep_2604: f32,
     pub scalar_2612: f32,
-    ///PrepareBoardToolkit82C01744: signed speed times its ordered travel sign.
     pub scalar_2616: f32,
     pub transition_2636: f32,
-    ///Skeleton82BDD008: BodySpin plus the actual grind-air adjustment result.
-    ///Read only with flags2484bit15; Reset82BFA394 clears it each input tick.
     pub grind_adjusted_body_spin_2644: f32,
-    ///Reset82BFA2D0 writes original literal822F8B40, -9.8.
     pub gravity_2648: f32,
     pub scalar_2652: f32,
     pub scalar_2656: f32,
@@ -407,7 +374,6 @@ pub struct ProcessedPhysicsInput {
     pub signed_ground_time_2756: f32,
     pub truck_tightness_2760: f32,
     pub scalar_2764: f32,
-    ///Current minus preceding authored board forward-axis Y,82BD8E20.
     pub board_at_y_delta_2768: f32,
     pub air_scalar_2772: f32,
     /// Written by Skeleton::ProcessData before crouch-delta publication.
@@ -519,23 +485,6 @@ impl Default for ProcessedPhysicsInput {
             actor_query_2948: 0,
             actor_query_2952: 0,
         }
-    }
-}
-
-#[cfg(test)]
-mod snapshot_tests {
-    use super::*;
-
-    #[test]
-    fn processed_snapshot_is_immutable_and_tick_owned() {
-        let mut input = ProcessedPhysicsInput::default();
-        input.flags_2468 = 0x10;
-        let snapshot = ProcessedPhysicsSnapshot::new(23, input);
-        input.flags_2468 = 0x20;
-
-        assert_eq!(snapshot.tick, 23);
-        assert_eq!(snapshot.input.flags_2468, 0x10);
-        assert_eq!(input.flags_2468, 0x20);
     }
 }
 

@@ -1,4 +1,3 @@
-//! SkeletonIK::SolvePhysical82BF1480. Physical joint centers, not drive targets.
 use super::{
     drive::{Geometry, line_mapping, normalize_safe},
     math::cross,

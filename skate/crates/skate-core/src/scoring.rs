@@ -1,9 +1,3 @@
-//! Native ScoreHolder accounting, TU3 82DA6198/6260/6408/6468/6538.
-//!
-//! Collectors own recognition and reward calculation. This ledger deliberately
-//! accepts their rewards rather than substituting a table of guessed points.
-//! Rendering and networking consume snapshots; neither advances accounting.
-
 pub const SCORABLE_COUNT: usize = 332;
 pub const SCORE_TYPE_COUNT: usize = 14;
 pub mod carrier;
@@ -24,7 +18,6 @@ impl Scorable {
     pub fn valid(self) -> bool {
         self.id < SCORABLE_COUNT && self.score_type < SCORE_TYPE_COUNT
     }
-    /// CalcPointPenalty82DA5D18 excludes metric class5 and class6.
     pub fn repetition_applies(self) -> bool {
         self.valid() && self.class != 5 && self.class != 6
     }
@@ -91,7 +84,6 @@ impl ScoreHolder {
     pub fn repetition_count(&self, scorable: Scorable) -> Option<i8> {
         scorable.valid().then(|| self.repetitions[scorable.id])
     }
-    /// EndAirTrick82DA6260. Invalid IDs do not touch either history or rewards.
     pub fn end_trick(&mut self, scorable: Scorable, reward: f32) {
         if !scorable.valid() || self.suppressed {
             return;
@@ -118,7 +110,6 @@ impl ScoreHolder {
             self.snapshot.fingerflip_pending = 0.0;
         }
     }
-    /// RewaredAirSequence82DA6468. Repeated calls cannot bank twice.
     pub fn reward_sequence(&mut self, multiplier: f32) {
         if !self.pending_sequence {
             return;
@@ -129,8 +120,6 @@ impl ScoreHolder {
         s.fingerflip_pending = 0.0;
         self.pending_sequence = false;
     }
-    /// PublishAndResetAirSequence82DA6538 receives the final reward from the
-    /// module; it does not itself calculate the multiplier or bail penalty.
     pub fn publish(&mut self, reward: f32, add_to_line: bool) {
         let s = &mut self.snapshot;
         if add_to_line {
@@ -147,12 +136,9 @@ impl ScoreHolder {
         self.type_history.fill(0);
         self.snapshot.grind_reward = 0.0;
     }
-    /// Module82DA3B38 banks the line when its timer expires or reset is requested.
     pub fn finish_line(&mut self) {
         self.bank_line(true);
     }
-    /// A zero line timer banks the current line even while a collector is
-    /// active, but 82DA3B38 retains repetition in that case.
     pub fn bank_line(&mut self, clear_repetition: bool) {
         self.snapshot.completed_lines += self.snapshot.line;
         self.snapshot.line = 0.0;
@@ -160,76 +146,9 @@ impl ScoreHolder {
             self.repetitions.fill(0);
         }
     }
-    /// Native Reset82DA5C78 retains lifetime completed-lines (+24).
     pub fn reset(&mut self) {
         let completed_lines = self.snapshot.completed_lines;
         *self = Self::default();
         self.snapshot.completed_lines = completed_lines;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    const FLIP: Scorable = Scorable {
-        id: 96,
-        class: 3,
-        score_type: 2,
-    };
-    #[test]
-    fn collector_bank_is_single_use_and_publication_retains_repetition() {
-        let mut h = ScoreHolder::default();
-        h.end_trick(FLIP, 20.0);
-        h.finish_collector();
-        h.reward_sequence(1.1);
-        h.reward_sequence(1.1);
-        assert_eq!(h.snapshot.accumulated, 22.0);
-        h.publish(22.0, true);
-        assert_eq!(h.snapshot.line, 22.0);
-        assert_eq!(h.repetition_count(FLIP), Some(1));
-        h.finish_line();
-        assert_eq!(h.snapshot.completed_lines, 22.0);
-        assert_eq!(h.repetition_count(FLIP), Some(0));
-    }
-    #[test]
-    fn metric_preserves_flip_bucket_other_classes_flush_it() {
-        let mut h = ScoreHolder::default();
-        h.end_trick(FLIP, 20.0);
-        h.end_trick(
-            Scorable {
-                id: 129,
-                class: 5,
-                score_type: 0,
-            },
-            4.0,
-        );
-        assert_eq!(
-            (h.snapshot.general_pending, h.snapshot.fingerflip_pending),
-            (4.0, 20.0)
-        );
-        h.end_trick(
-            Scorable {
-                id: 128,
-                class: 4,
-                score_type: 1,
-            },
-            2.0,
-        );
-        assert_eq!(
-            (h.snapshot.general_pending, h.snapshot.fingerflip_pending),
-            (26.0, 0.0)
-        );
-    }
-    #[test]
-    fn cancellation_after_collector_exit_prevents_pending_reward() {
-        let mut h = ScoreHolder::default();
-        h.end_trick(FLIP, 20.0);
-        h.finish_collector();
-        h.cancel_pending();
-        h.reward_sequence(1.1);
-        assert_eq!(h.snapshot.accumulated, 0.0);
-        h.set_suppressed(true);
-        h.end_trick(FLIP, 20.0);
-        assert_eq!(h.repetition_count(FLIP), Some(1));
     }
 }

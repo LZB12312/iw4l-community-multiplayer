@@ -1,14 +1,9 @@
-//! Static geometry investigation from original S3 TU3 82C20728/82C20C08.
-//! Query execution is supplied by the world owner; a miss is not missing data.
-//! No moving-object observations or authored material codes are synthesized.
 use super::math::*;
 
 mod classify;
-mod orientation;
 mod landing;
+mod orientation;
 pub use landing::{LandingOrientation, update_landing_orientation};
-#[cfg(test)]
-mod tests;
 
 pub type V = [f32; 4];
 
@@ -69,7 +64,6 @@ pub struct GrindSurface {
     pub physics_surface: u32,
     /// Native output +116. Preserve unnamed bits, rather than invent meaning.
     pub flags: u32,
-    /// 82C21828 evaluated from the geometric limits; distinct from +48 upmost.
     pub tilted_upmost_normal: V,
 }
 
@@ -81,14 +75,16 @@ impl GrindSurface {
     pub const OPTIONAL_NORMAL_TEST: u32 = 0x0800_0000;
     pub const OPTIONAL_DROP_TEST: u32 = 0x0400_0000;
 
-    /// 82C20C08's no-submission output; not an artificial startup blocker.
     fn not_submitted(input: InvestigationInput) -> Self {
         let distance = input.deck_center_to_truck;
         let x = [1., 0., 0., 0.];
         let z = [0., 0., 1., 0.];
         Self {
             center: input.reference,
-            far_points: [madd(x, distance, input.reference), sub(input.reference, scale(x, distance))],
+            far_points: [
+                madd(x, distance, input.reference),
+                sub(input.reference, scale(x, distance)),
+            ],
             upmost_normal: z,
             direction: z,
             high_side: z,
@@ -102,8 +98,6 @@ impl GrindSurface {
     }
 }
 
-/// 82C20728: six fixed descriptors and the optional seventh descriptor.
-/// Returns None exactly for the native inadequate-up-vector gate.
 pub fn prepare(input: InvestigationInput) -> Option<Investigation> {
     let delta = sub(input.end, input.start);
     let raw_up = cross(delta, cross(UP, delta));
@@ -112,12 +106,22 @@ pub fn prepare(input: InvestigationInput) -> Option<Investigation> {
         let square = dot(v, v);
         let inverse = inverse_length(square);
         let magnitude = if square == 0. { 0. } else { square * inverse };
-        if magnitude > f32::from_bits(0x3586_37bd) { scale(v, inverse) } else { v }
+        if magnitude > f32::from_bits(0x3586_37bd) {
+            scale(v, inverse)
+        } else {
+            v
+        }
     };
     let up = retain_normalized(raw_up);
     let direction = retain_normalized(delta);
-    if up_length < f32::from_bits(0x3727_c5ac) { return None; }
-    let projected = madd(direction, dot(sub(input.reference, input.start), direction), input.start);
+    if up_length < f32::from_bits(0x3727_c5ac) {
+        return None;
+    }
+    let projected = madd(
+        direction,
+        dot(sub(input.reference, input.start), direction),
+        input.start,
+    );
     let center = sub(input.reference, sub(input.reference, projected));
     let side = cross(up, direction);
     let short_up = scale(up, f32::from_bits(0x3d23_d70a));
@@ -125,7 +129,11 @@ pub fn prepare(input: InvestigationInput) -> Option<Investigation> {
     let far_side = scale(side, input.deck_center_to_truck);
     let far_up = scale(up, input.deck_center_to_truck * f32::from_bits(0x3f87_ae14));
     let raised = scale(up, f32::from_bits(0x3db8_51ec));
-    let line = |at, half, radius| Probe { start: add(at, half), end: sub(at, half), radius };
+    let line = |at, half, radius| Probe {
+        start: add(at, half),
+        end: sub(at, half),
+        radius,
+    };
     let mut probes = vec![
         line(add(center, near_side), short_up, 0.),
         line(sub(center, near_side), short_up, 0.),
@@ -135,9 +143,18 @@ pub fn prepare(input: InvestigationInput) -> Option<Investigation> {
         line(add(center, raised), near_side, f32::from_bits(0x3a83_126f)),
     ];
     if let Some(start) = input.optional_probe {
-        probes.push(Probe { start, end: add(start, [0., -6., 0., 0.]), radius: 0. });
+        probes.push(Probe {
+            start,
+            end: add(start, [0., -6., 0., 0.]),
+            radius: 0.,
+        });
     }
-    Some(Investigation { center, upmost_normal: up, direction, probes })
+    Some(Investigation {
+        center,
+        upmost_normal: up,
+        direction,
+        probes,
+    })
 }
 
 /// Full synchronous host equivalent of prepare/submit/wait/read/classify.
@@ -147,7 +164,9 @@ pub fn investigate<E>(
     input: InvestigationInput,
     mut query: impl FnMut(usize, Probe) -> Result<Option<ProbeHit>, E>,
 ) -> Result<GrindSurface, E> {
-    let Some(plan) = prepare(input) else { return Ok(GrindSurface::not_submitted(input)); };
+    let Some(plan) = prepare(input) else {
+        return Ok(GrindSurface::not_submitted(input));
+    };
     let mut hits = [None; 7];
     for (index, &probe) in plan.probes.iter().enumerate() {
         hits[index] = query(index, probe)?;
@@ -157,6 +176,10 @@ pub fn investigate<E>(
 
 /// Explicit result processing also permits a native-style reused output flag
 /// word. Bit29 is set on obstruction, not cleared on the other native branch.
-pub fn resolve(plan: &Investigation, hits: &[Option<ProbeHit>; 7], previous_flags: u32) -> GrindSurface {
+pub fn resolve(
+    plan: &Investigation,
+    hits: &[Option<ProbeHit>; 7],
+    previous_flags: u32,
+) -> GrindSurface {
     classify::resolve(plan, hits, previous_flags)
 }

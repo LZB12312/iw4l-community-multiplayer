@@ -1,4 +1,3 @@
-//! Contact-list infill82D82498, normal correction82D82940/82D82AF0.
 use super::analyzer_math::{clamp_normal, madd, plane_segment};
 use super::profile::sort;
 use super::{ContactSample, Input, Samples, dot, length, scale, sub};
@@ -60,8 +59,6 @@ pub(super) fn insert_obstacles(input: Input, s: &mut Samples) {
                 let q = s.other[maximum];
                 s.insert(input, q.position, q.normal, 1, q.sort_distance, 1);
             }
-            // 82D82498 advances once more at the outer for-loop increment,
-            // after the equal-forward-distance group has already advanced i.
             i += 1;
         }
     }

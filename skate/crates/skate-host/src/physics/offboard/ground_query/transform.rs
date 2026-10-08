@@ -48,7 +48,6 @@ pub(super) fn overlaps(a: Bounds, b: Bounds) -> bool {
 pub(super) fn matches(a: i32, b: i32) -> bool {
     a == -1 || b == -1 || a == b
 }
-//82ACA4E0..550: face is formed from decoded WORLD vertices and refined twice.
 pub(super) fn face([a, b, c]: [Vector3; 3]) -> Vector3 {
     let u = sub(b, a);
     let v = sub(c, a);

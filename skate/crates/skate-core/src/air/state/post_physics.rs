@@ -1,5 +1,3 @@
-//! TU3 PhysicsAir post-physics update (`0x82D34DD8`).
-
 use super::{data::PhysicsAirState, runtime::PhysicsAirRuntime};
 
 /// Latches the first strict downward board velocity, then always runs the air

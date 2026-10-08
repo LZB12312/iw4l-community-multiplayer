@@ -1,6 +1,3 @@
-//! TU3 EScorableID enum metadata, table820862A8 (332 x24 bytes).
-//! Numeric class/type relationships and native identifier spellings only.
-//! Points, localization, timers and UI assets are loaded from owned data.
 pub const IDENTIFIERS: [(&str, u32, usize); 332] = [
     ("fspowerslide", 0, 9),                  // 0
     ("bspowerslide", 0, 9),                  // 1

@@ -1,10 +1,8 @@
-//! Complete contact traversal and classification of TU3 82BD4A30.
 use super::collision_feedback::*;
 use super::collision_vector::{
     add, clamp_length, cross, dot, length, normalize, scale, sub, transform,
 };
 
-// Original read-only table820CFCB0. Part0 is not a region participant.
 const REGIONS: [usize; 24] = [
     usize::MAX,
     0,
@@ -298,7 +296,6 @@ impl SkeletonCollisionFeedback {
             };
         }
     }
-    /// Original82BD5770 calls GetPartTransform, not animation-pose lookup.
     fn check_conflicting(&self, input: &SkeletonCollisionInput<'_>) -> bool {
         for (i, a) in self.regions.iter().enumerate() {
             let Some(part_a) = a.part else {

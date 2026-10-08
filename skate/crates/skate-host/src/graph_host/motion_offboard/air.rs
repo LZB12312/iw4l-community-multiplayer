@@ -1,4 +1,3 @@
-//! Offboard animation lifecycle:82BB9F48/A070 and82BBACC0/ACE0/B418.
 use crate::graph_host::motion_animation::MotionAnimation;
 use skate_core::{
     animation::{
@@ -96,7 +95,7 @@ impl State {
                 self.first = false;
             }
             Operation::Tweak(clips) => {
-                const CHANNEL: &str = "AirBodyTweak"; //82F87578
+                const CHANNEL: &str = "AirBodyTweak";
                 if phase == 0 {
                     self.ticks = 0;
                     self.into = false;

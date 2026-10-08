@@ -1,4 +1,3 @@
-//! Begin82BB0A30: live set/apply/query, including partial output on a miss.
 use skate_core::animation::{
     output::attributes::{AnimationAttribute, AttributeName, MotionGraphAttribute},
     playback_parameters::{AttributeSink, SettableAttribute},

@@ -1,6 +1,3 @@
-//! Complete TU3 8258DC10 direction-to-angular-vector operation, shared by
-//! normal rig framing and avoidance. Input Y is consumed directly, not normalized.
-
 use super::{
     normalize_angle,
     vector_tracker::{length, refined_reciprocal},
@@ -35,8 +32,6 @@ fn clamp(value: f32) -> f32 {
     if 1.0 < lower { 1.0 } else { lower }
 }
 
-// Native inline asin polynomial: 822F9820/30/40, radicand822FB840.
-// Keep it before the acos subtraction used by the separate82453298 operation.
 fn asin_lane(value: f32) -> f32 {
     let a = value.abs();
     let cube = (value * value) * a;

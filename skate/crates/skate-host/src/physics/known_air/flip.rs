@@ -1,4 +1,3 @@
-//! Original Reckoning ResetBodyFlip82D8E9E0 / BeginBodyFlip82D8EAB0.
 use super::{math::*, runtime::Runtime};
 use skate_core::physics::skeleton_animation_record::IDENTITY;
 impl Runtime<'_> {

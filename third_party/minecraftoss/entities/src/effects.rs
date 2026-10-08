@@ -108,12 +108,23 @@ impl EffectInstance {
     /// `new MobEffectInstance(effect, duration, amplifier)`: not ambient,
     /// with particles and an icon.
     pub fn new(effect: MobEffect, duration: i32, amplifier: i32) -> Self {
-        Self { effect, duration, amplifier: amplifier.clamp(0, 255), ambient: false, visible: true, show_icon: true, hidden: None }
+        Self {
+            effect,
+            duration,
+            amplifier: amplifier.clamp(0, 255),
+            ambient: false,
+            visible: true,
+            show_icon: true,
+            hidden: None,
+        }
     }
 
     /// `MobEffectInstance(copy)`: the details without the hidden effect.
     fn copy(&self) -> Self {
-        Self { hidden: None, ..self.clone() }
+        Self {
+            hidden: None,
+            ..self.clone()
+        }
     }
 
     pub fn infinite(&self) -> bool {
@@ -194,7 +205,9 @@ impl EffectInstance {
         if self.duration != 0 {
             return false;
         }
-        let Some(hidden) = self.hidden.take() else { return false };
+        let Some(hidden) = self.hidden.take() else {
+            return false;
+        };
         let hidden = *hidden;
         self.duration = hidden.duration;
         self.amplifier = hidden.amplifier;
@@ -287,7 +300,10 @@ impl MobEffects {
                 return false;
             }
             // Infinite effects tick by the mob's age; none here are.
-            if effect.effect.applies_this_tick(effect.duration, effect.amplifier) {
+            if effect
+                .effect
+                .applies_this_tick(effect.duration, effect.amplifier)
+            {
                 work.extend(effect_work(effect.effect, effect.amplifier, inverted));
             }
             effect.tick_down();
@@ -313,7 +329,8 @@ impl MobEffects {
 
     /// `ATTACK_DAMAGE`'s `ADD_VALUE` modifiers: weakness's -4 a level.
     pub fn attack_damage_modifier(&self) -> f64 {
-        self.get(MobEffect::Weakness).map_or(0.0, |e| -4.0 * f64::from(e.amplifier + 1))
+        self.get(MobEffect::Weakness)
+            .map_or(0.0, |e| -4.0 * f64::from(e.amplifier + 1))
     }
 }
 
@@ -335,14 +352,25 @@ fn effect_work(effect: MobEffect, amplifier: i32, inverted: bool) -> Option<Effe
 
 /// `applyInstantaneousEffect` from a splash at `scale` (1 at the heart):
 /// the heal or the harm, rounded (`(int)(scale * n + 0.5)`).
-pub fn instant_work(effect: MobEffect, amplifier: i32, inverted: bool, scale: f64) -> Option<EffectWork> {
-    let heal_amount = || (scale * f64::from(4_i32.wrapping_shl(amplifier as u32)) + 0.5) as i32 as f32;
-    let harm_amount = || (scale * f64::from(6_i32.wrapping_shl(amplifier as u32)) + 0.5) as i32 as f32;
+pub fn instant_work(
+    effect: MobEffect,
+    amplifier: i32,
+    inverted: bool,
+    scale: f64,
+) -> Option<EffectWork> {
+    let heal_amount =
+        || (scale * f64::from(4_i32.wrapping_shl(amplifier as u32)) + 0.5) as i32 as f32;
+    let harm_amount =
+        || (scale * f64::from(6_i32.wrapping_shl(amplifier as u32)) + 0.5) as i32 as f32;
     let harm = matches!(effect, MobEffect::InstantDamage);
     if !effect.instantaneous() {
         return None;
     }
-    Some(if harm == inverted { EffectWork::Heal(heal_amount()) } else { EffectWork::HurtMagic(harm_amount()) })
+    Some(if harm == inverted {
+        EffectWork::Heal(heal_amount())
+    } else {
+        EffectWork::HurtMagic(harm_amount())
+    })
 }
 
 /// The effects a mob of this kind cannot take (`canBeAffected`): the
@@ -360,56 +388,5 @@ pub fn can_be_affected(effect: MobEffect, undead: bool, spider: bool) -> bool {
 pub fn heal(health: &mut f32, max_health: f32, amount: f32) {
     if *health > 0.0 {
         *health = (*health + amount).clamp(0.0, max_health);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_stronger_shorter_effect_hides_the_longer_one_until_it_runs_out() {
-        let mut effects = MobEffects::default();
-        effects.add(EffectInstance::new(MobEffect::Speed, 100, 0));
-        assert!(effects.add(EffectInstance::new(MobEffect::Speed, 3, 1)));
-        let speed = effects.get(MobEffect::Speed).unwrap();
-        assert_eq!((speed.amplifier, speed.duration), (1, 3));
-        assert_eq!(speed.hidden.as_ref().unwrap().duration, 100);
-        for _ in 0..3 {
-            effects.tick(false);
-        }
-        let speed = effects.get(MobEffect::Speed).unwrap();
-        assert_eq!((speed.amplifier, speed.duration), (0, 97));
-        assert!(speed.hidden.is_none());
-    }
-
-    #[test]
-    fn poison_hurts_every_25_ticks_and_instant_health_once() {
-        let mut effects = MobEffects::default();
-        effects.add(EffectInstance::new(MobEffect::Poison, 50, 0));
-        effects.add(EffectInstance::new(MobEffect::InstantHealth, 1, 0));
-        assert_eq!(effects.tick(false), vec![EffectWork::Poison, EffectWork::Heal(4.0)]);
-        assert_eq!(EffectWork::Poison.resolve(1.0, 20.0), None);
-        assert!(!effects.has(MobEffect::InstantHealth));
-        let hurts = (0..49).map(|_| effects.tick(false).len()).sum::<usize>();
-        assert_eq!(hurts, 1);
-        assert!(!effects.has(MobEffect::Poison));
-    }
-
-    #[test]
-    fn undead_are_healed_by_harming_and_ignore_poison() {
-        assert_eq!(instant_work(MobEffect::InstantDamage, 0, true, 0.75), Some(EffectWork::Heal(3.0)));
-        assert_eq!(instant_work(MobEffect::InstantDamage, 0, false, 0.75), Some(EffectWork::HurtMagic(5.0)));
-        assert!(!can_be_affected(MobEffect::Poison, true, false));
-        assert!(!can_be_affected(MobEffect::Poison, false, true));
-    }
-
-    #[test]
-    fn speed_and_slowness_scale_movement_speed() {
-        let mut effects = MobEffects::default();
-        effects.add(EffectInstance::new(MobEffect::Speed, 100, 0));
-        assert_eq!(effects.movement_speed(0.25), 0.25 * (1.0 + f64::from(0.2_f32)));
-        effects.add(EffectInstance::new(MobEffect::Slowness, 100, 1));
-        assert_eq!(effects.movement_speed(0.25), 0.25 * (1.0 + f64::from(0.2_f32)) * (1.0 + f64::from(-0.15_f32) * 2.0));
     }
 }

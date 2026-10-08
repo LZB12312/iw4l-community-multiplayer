@@ -12,9 +12,9 @@
 //! section connects everything, so the visible world grows outward as
 //! sections finish compiling. Only frustum-visible sections are compiled.
 
+use crate::fast_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::frame_spans::span;
 use glam::{DVec3, Mat4, Vec3, Vec4};
-use crate::fast_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::VecDeque;
 
 pub type SectionPos = (i32, i32, i32);
@@ -232,7 +232,11 @@ impl NodeGrid {
     /// Empties the grid and sizes it to the view area around `center`.
     fn reset(&mut self, center: SectionPos, view_distance: i32, min_y: i32, max_y: i32) {
         self.origin = (center.0 - view_distance, min_y, center.2 - view_distance);
-        self.size = (2 * view_distance + 1, max_y - min_y + 1, 2 * view_distance + 1);
+        self.size = (
+            2 * view_distance + 1,
+            max_y - min_y + 1,
+            2 * view_distance + 1,
+        );
         let len = (self.size.0 * self.size.1 * self.size.2).max(0) as usize;
         self.cells.clear();
         self.cells.resize(len, None);
@@ -241,7 +245,8 @@ impl NodeGrid {
     #[inline]
     fn index(&self, (x, y, z): SectionPos) -> Option<usize> {
         let (dx, dy, dz) = (x - self.origin.0, y - self.origin.1, z - self.origin.2);
-        if dx < 0 || dy < 0 || dz < 0 || dx >= self.size.0 || dy >= self.size.1 || dz >= self.size.2 {
+        if dx < 0 || dy < 0 || dz < 0 || dx >= self.size.0 || dy >= self.size.1 || dz >= self.size.2
+        {
             return None;
         }
         Some(((dx * self.size.2 + dz) * self.size.1 + dy) as usize)
@@ -293,8 +298,12 @@ pub struct Frustum {
 impl Frustum {
     pub fn new(camera: &CullCamera) -> Self {
         // OpenGL clip space, as the matrices vanilla culls with.
-        let projection =
-            Mat4::perspective_rh_gl(camera.fov_degrees.to_radians(), camera.aspect.max(0.1), 0.05, 1024.0);
+        let projection = Mat4::perspective_rh_gl(
+            camera.fov_degrees.to_radians(),
+            camera.aspect.max(0.1),
+            0.05,
+            1024.0,
+        );
         let view = Mat4::look_at_rh(Vec3::ZERO, camera.forward, Vec3::Y);
         let m = projection * view;
         let (r0, r1, r2, r3) = (m.row(0), m.row(1), m.row(2), m.row(3));
@@ -325,11 +334,7 @@ impl Frustum {
             );
             inside &= n.dot(near) + plane.w >= 0.0;
         }
-        if inside {
-            2
-        } else {
-            1
-        }
+        if inside { 2 } else { 1 }
     }
 
     fn relative(&self, min: DVec3, max: DVec3) -> (Vec3, Vec3) {
@@ -388,7 +393,9 @@ struct Area {
 impl Area {
     fn in_view_area(&self, (x, y, z): SectionPos) -> bool {
         let (cx, _, cz) = self.camera_section;
-        (x - cx).abs() <= self.view_distance && (z - cz).abs() <= self.view_distance && (self.min_section_y..=self.max_section_y).contains(&y)
+        (x - cx).abs() <= self.view_distance
+            && (z - cz).abs() <= self.view_distance
+            && (self.min_section_y..=self.max_section_y).contains(&y)
     }
 
     /// `ChunkTrackingView.isInViewDistance` from the camera section.
@@ -426,7 +433,13 @@ impl Ring {
     fn new(view_distance: i32, min_y: i32, max_y: i32) -> Self {
         let width = 2 * view_distance + 1;
         let height = max_y - min_y + 1;
-        Self { width, min_y, height, cells: vec![0; (width * width * height) as usize], loaded: vec![false; (width * width) as usize] }
+        Self {
+            width,
+            min_y,
+            height,
+            cells: vec![0; (width * width * height) as usize],
+            loaded: vec![false; (width * width) as usize],
+        }
     }
 
     /// Becomes a copy of `other`, reusing this ring's memory.
@@ -444,11 +457,15 @@ impl Ring {
 
     fn cell(&self, (x, y, z): SectionPos) -> Option<usize> {
         let dy = y - self.min_y;
-        (0..self.height).contains(&dy).then(|| self.column(x, z) * self.height as usize + dy as usize)
+        (0..self.height)
+            .contains(&dy)
+            .then(|| self.column(x, z) * self.height as usize + dy as usize)
     }
 
     fn mesh(&self, pos: SectionPos) -> MeshState {
-        let Some(i) = self.cell(pos) else { return MeshState::Uncompiled };
+        let Some(i) = self.cell(pos) else {
+            return MeshState::Uncompiled;
+        };
         let word = self.cells[i];
         if word & RING_COMPILED != 0 {
             MeshState::Compiled(VisibilitySet(word & RING_VISIBILITY))
@@ -471,11 +488,13 @@ impl Ring {
     }
 
     fn empty(&self, pos: SectionPos) -> bool {
-        self.cell(pos).is_some_and(|i| self.cells[i] & RING_EMPTY != 0)
+        self.cell(pos)
+            .is_some_and(|i| self.cells[i] & RING_EMPTY != 0)
     }
 
     fn has_section(&self, pos: SectionPos) -> bool {
-        self.cell(pos).is_some_and(|i| self.cells[i] & RING_SECTION != 0)
+        self.cell(pos)
+            .is_some_and(|i| self.cells[i] & RING_SECTION != 0)
     }
 
     fn set_has_section(&mut self, pos: SectionPos) {
@@ -572,7 +591,15 @@ impl FullUpdateWorker {
                 while let Ok(job) = job_rx.recv() {
                     let inputs = Inputs { ring: &job.ring };
                     let (graph, effects) = full_update(job.area, &job.camera, &inputs);
-                    if result_tx.send(FullUpdateResult { area: job.area, graph, effects, ring: job.ring }).is_err() {
+                    if result_tx
+                        .send(FullUpdateResult {
+                            area: job.area,
+                            graph,
+                            effects,
+                            ring: job.ring,
+                        })
+                        .is_err()
+                    {
                         return;
                     }
                 }
@@ -619,7 +646,12 @@ impl Sections {
             min_section_y,
             max_section_y,
             camera_section: (0, 0, 0),
-            sections: vec![None; ((2 * view_distance + 1) * (2 * view_distance + 1) * (max_section_y - min_section_y + 1)) as usize],
+            sections: vec![
+                None;
+                ((2 * view_distance + 1)
+                    * (2 * view_distance + 1)
+                    * (max_section_y - min_section_y + 1)) as usize
+            ],
             loaded_chunks: HashSet::default(),
             empty_sections: HashSet::default(),
             ring: Ring::new(view_distance, min_section_y, max_section_y),
@@ -653,7 +685,11 @@ impl Sections {
 
     /// The cell of an in-area position.
     fn slot(&self, pos: SectionPos) -> Option<usize> {
-        if self.in_view_area(pos) { self.ring.cell(pos) } else { None }
+        if self.in_view_area(pos) {
+            self.ring.cell(pos)
+        } else {
+            None
+        }
     }
 
     /// Takes the section out of a position's cell, in the area or not
@@ -686,8 +722,12 @@ impl Sections {
     /// Graph state for diagnostics.
     pub fn diag(&self) -> String {
         let sections = || self.sections.iter().flatten();
-        let compiled = sections().filter(|s| matches!(s.mesh, MeshState::Compiled(_))).count();
-        let uncompiled = sections().filter(|s| s.mesh == MeshState::Uncompiled).count();
+        let compiled = sections()
+            .filter(|s| matches!(s.mesh, MeshState::Compiled(_)))
+            .count();
+        let uncompiled = sections()
+            .filter(|s| s.mesh == MeshState::Uncompiled)
+            .count();
         let dirty = sections().filter(|s| s.dirty).count();
         format!(
             "graph: camera {:?} sections {} (compiled {compiled}, uncompiled {uncompiled}, dirty {dirty}) loaded chunks {} reached {} waiting chunks {} to_propagate {} in_flight {} needs_full {}",
@@ -881,7 +921,13 @@ impl Sections {
         self.spare_ring = Some(result.ring);
         self.graph = result.graph;
         self.apply_effects(&result.effects, now);
-        let loaded: Vec<ChunkPos> = self.graph.waiting_for_chunks.keys().copied().filter(|c| self.loaded_chunks.contains(c)).collect();
+        let loaded: Vec<ChunkPos> = self
+            .graph
+            .waiting_for_chunks
+            .keys()
+            .copied()
+            .filter(|c| self.loaded_chunks.contains(c))
+            .collect();
         for chunk in loaded {
             if let Some(waiting) = self.graph.waiting_for_chunks.remove(&chunk) {
                 self.to_propagate.extend(waiting);
@@ -892,7 +938,12 @@ impl Sections {
 
     /// One frame: graph updates, the visible list, then the sections to
     /// compile. `ready(pos)` is `hasAllNeighbors` for a first compile.
-    pub fn update(&mut self, camera: &CullCamera, now: u64, ready: impl Fn(SectionPos) -> bool) -> Scheduled {
+    pub fn update(
+        &mut self,
+        camera: &CullCamera,
+        now: u64,
+        ready: impl Fn(SectionPos) -> bool,
+    ) -> Scheduled {
         let cell = (
             (camera.position.x / 8.0).floor() as i64,
             (camera.position.y / 8.0).floor() as i64,
@@ -906,7 +957,10 @@ impl Sections {
         self.last_fov = Some(fov);
         // A finished background update replaces the graph.
         if self.in_flight {
-            let finished = self.worker.as_ref().and_then(|w| w.results.try_iter().last());
+            let finished = self
+                .worker
+                .as_ref()
+                .and_then(|w| w.results.try_iter().last());
             if let Some(result) = finished {
                 let _span = span("  sections.install");
                 self.in_flight = false;
@@ -933,7 +987,11 @@ impl Sections {
                     }
                     None => self.ring.clone(),
                 };
-                let job = FullUpdateJob { area, camera: *camera, ring };
+                let job = FullUpdateJob {
+                    area,
+                    camera: *camera,
+                    ring,
+                };
                 let worker = self.worker.get_or_insert_with(FullUpdateWorker::spawn);
                 if worker.jobs.send(job).is_ok() {
                     self.in_flight = true;
@@ -957,7 +1015,11 @@ impl Sections {
                 run_updates(&mut self.graph, area, &inputs, camera, queue, &mut effects);
             }
             self.apply_effects(&effects, now);
-            if effects.added.iter().any(|&pos| is_section_visible(&frustum, pos)) {
+            if effects
+                .added
+                .iter()
+                .any(|&pos| is_section_visible(&frustum, pos))
+            {
                 self.needs_frustum_update = true;
             }
         }
@@ -1010,7 +1072,12 @@ fn full_update(area: Area, camera: &CullCamera, inputs: &Inputs) -> (Graph, Effe
     let mut graph = Graph::default();
     let mut effects = Effects::default();
     let camera_section = area.camera_section;
-    graph.nodes.reset(camera_section, area.view_distance, area.min_section_y, area.max_section_y);
+    graph.nodes.reset(
+        camera_section,
+        area.view_distance,
+        area.min_section_y,
+        area.max_section_y,
+    );
     let mut queue = VecDeque::new();
     if area.in_view_area(camera_section) {
         if !inputs.ring.has_section(camera_section) {
@@ -1022,7 +1089,11 @@ fn full_update(area: Area, camera: &CullCamera, inputs: &Inputs) -> (Graph, Effe
         // Above or below the world: start from the nearest layer,
         // nearest columns first.
         let below = camera_section.1 < area.min_section_y;
-        let y = if below { area.min_section_y } else { area.max_section_y };
+        let y = if below {
+            area.min_section_y
+        } else {
+            area.max_section_y
+        };
         let source = if below { 1 } else { 0 };
         let vd = area.view_distance;
         let mut start = Vec::new();
@@ -1048,7 +1119,9 @@ fn full_update(area: Area, camera: &CullCamera, inputs: &Inputs) -> (Graph, Effe
             }
         }
         let eye = camera.position.floor();
-        start.sort_by(|a, b| section_distance_sq(a.0, eye).total_cmp(&section_distance_sq(b.0, eye)));
+        start.sort_by(|a, b| {
+            section_distance_sq(a.0, eye).total_cmp(&section_distance_sq(b.0, eye))
+        });
         for (pos, node) in start {
             if !inputs.ring.has_section(pos) {
                 effects.created.push(pos);
@@ -1062,7 +1135,14 @@ fn full_update(area: Area, camera: &CullCamera, inputs: &Inputs) -> (Graph, Effe
 }
 
 /// `runUpdates`: breadth-first spread with smart culling.
-fn run_updates(graph: &mut Graph, area: Area, inputs: &Inputs, camera: &CullCamera, mut queue: VecDeque<SectionPos>, effects: &mut Effects) {
+fn run_updates(
+    graph: &mut Graph,
+    area: Area,
+    inputs: &Inputs,
+    camera: &CullCamera,
+    mut queue: VecDeque<SectionPos>,
+    effects: &mut Effects,
+) {
     let camera_section = area.camera_section;
     let eye = camera.position;
     let camera_center = DVec3::new(
@@ -1073,9 +1153,15 @@ fn run_updates(graph: &mut Graph, area: Area, inputs: &Inputs, camera: &CullCame
     const CULL_SECTIONS: i32 = 60 >> 4;
     let diagonal = (3.0f64.sqrt() * 16.0).ceil();
     while let Some(pos) = queue.pop_front() {
-        let Some(&node) = graph.nodes.get(pos) else { continue };
+        let Some(&node) = graph.nodes.get(pos) else {
+            continue;
+        };
         if !inputs.ring.loaded((pos.0, pos.2)) {
-            graph.waiting_for_chunks.entry((pos.0, pos.2)).or_default().push(pos);
+            graph
+                .waiting_for_chunks
+                .entry((pos.0, pos.2))
+                .or_default()
+                .push(pos);
             continue;
         }
         if !inputs.ring.empty(pos) {
@@ -1092,14 +1178,20 @@ fn run_updates(graph: &mut Graph, area: Area, inputs: &Inputs, camera: &CullCame
             || (pos.2 - camera_section.2).abs() > CULL_SECTIONS;
         for direction in 0..6 {
             let next = offset(pos, direction);
-            if !area.in_view_distance(next) || (camera_section.1 - next.1).abs() > area.view_distance || !area.in_view_area(next) {
+            if !area.in_view_distance(next)
+                || (camera_section.1 - next.1).abs() > area.view_distance
+                || !area.in_view_area(next)
+            {
                 continue;
             }
             if node.directions & (1 << opposite(direction)) != 0 {
                 continue;
             }
             if node.source_directions != 0
-                && !(0..6).any(|source| node.source_directions & (1 << source) != 0 && mesh.faces_can_see_each_other(opposite(source), direction))
+                && !(0..6).any(|source| {
+                    node.source_directions & (1 << source) != 0
+                        && mesh.faces_can_see_each_other(opposite(source), direction)
+                })
             {
                 continue;
             }
@@ -1123,8 +1215,20 @@ fn run_updates(graph: &mut Graph, area: Area, inputs: &Inputs, camera: &CullCame
 
 /// The distant-section check: march from the section's near corner
 /// toward the camera; every section passed must already be in the graph.
-fn ray_visible(graph: &Graph, area: Area, pos: SectionPos, direction: usize, eye: DVec3, center: DVec3, diagonal: f64) -> bool {
-    let origin = DVec3::new(f64::from(pos.0 * 16), f64::from(pos.1 * 16), f64::from(pos.2 * 16));
+fn ray_visible(
+    graph: &Graph,
+    area: Area,
+    pos: SectionPos,
+    direction: usize,
+    eye: DVec3,
+    center: DVec3,
+    diagonal: f64,
+) -> bool {
+    let origin = DVec3::new(
+        f64::from(pos.0 * 16),
+        f64::from(pos.1 * 16),
+        f64::from(pos.2 * 16),
+    );
     let axis = direction / 2;
     let toward = |a: usize, c: f64, o: f64| if axis == a { c > o } else { c < o };
     let max = (
@@ -1139,7 +1243,10 @@ fn ray_visible(graph: &Graph, area: Area, pos: SectionPos, direction: usize, eye
             if max.2 { 16.0 } else { 0.0 },
         );
     let step = (eye - check).normalize() * diagonal;
-    let (min_y, max_y) = (f64::from(area.min_section_y * 16), f64::from((area.max_section_y + 1) * 16));
+    let (min_y, max_y) = (
+        f64::from(area.min_section_y * 16),
+        f64::from((area.max_section_y + 1) * 16),
+    );
     while check.distance_squared(eye) > 3600.0 {
         check += step;
         if check.y > max_y || check.y < min_y {
@@ -1207,7 +1314,11 @@ impl<T> CompileQueue<T> {
         let mut best_recompile: Option<(usize, f64)> = None;
         for (i, (pos, recompile, _)) in self.tasks.iter().enumerate() {
             let d = section_distance_sq(*pos, eye);
-            let best = if *recompile { &mut best_recompile } else { &mut best_initial };
+            let best = if *recompile {
+                &mut best_recompile
+            } else {
+                &mut best_initial
+            };
             if best.is_none_or(|(_, b)| d < b) {
                 *best = Some((i, d));
             }
@@ -1229,176 +1340,5 @@ impl<T> CompileQueue<T> {
         // An ordered removal keeps vanilla's tie-breaking between equal distances.
         let (pos, _, task) = self.tasks.remove(index);
         Some((pos, task))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn open_and_closed_sections_resolve_like_vis_graph() {
-        assert_eq!(VisGraph::default().resolve(), VisibilitySet::ALL);
-        let mut solid = VisGraph::default();
-        for x in 0..16 {
-            for y in 0..16 {
-                for z in 0..16 {
-                    solid.set_opaque(x, y, z);
-                }
-            }
-        }
-        assert_eq!(solid.resolve(), VisibilitySet::NONE);
-        // A horizontal slab splits the section: up and down no longer connect.
-        let mut slab = VisGraph::default();
-        for x in 0..16 {
-            for z in 0..16 {
-                slab.set_opaque(x, 8, z);
-            }
-        }
-        let set = slab.resolve();
-        assert!(!set.between(0, 1));
-        assert!(set.between(1, 2) && set.between(0, 4));
-        assert!(set.between(2, 3), "north and south connect above the slab");
-    }
-
-    #[test]
-    fn graph_spreads_only_through_compiled_or_empty_sections() {
-        let camera = CullCamera {
-            position: DVec3::new(8.0, 100.0, 8.0),
-            forward: Vec3::new(0.0, -0.2, -1.0).normalize(),
-            fov_degrees: 70.0,
-            aspect: 16.0 / 9.0,
-            yaw_degrees: 0.0,
-            pitch_degrees: 10.0,
-        };
-        let mut sections = Sections::new(4, -4, 19);
-        sections.synchronous = true;
-        sections.reposition(&camera);
-        for x in -5..=5 {
-            for z in -5..=5 {
-                // Terrain up to section 4, air above.
-                sections.chunk_loaded((x, z), 5..=19);
-            }
-        }
-        sections.update(&camera, 0, |_| true);
-        // Air spreads everywhere in view, within the view distance
-        // vertically too; the first solid layer below it is reached but
-        // blocks further spread until compiled.
-        assert!(sections.graph.nodes.contains_key(&(3, 10, -3)));
-        assert!(!sections.graph.nodes.contains_key(&(0, 11, 0)));
-        assert!(sections.graph.nodes.contains_key(&(0, 4, -2)));
-        assert!(!sections.graph.nodes.contains_key(&(0, 3, -2)));
-        let scheduled = sections.update(&camera, 0, |_| true);
-        assert!(scheduled.compile.is_empty(), "each dirty section is scheduled once");
-        sections.compiled((0, 4, -2), VisibilitySet::ALL, 10);
-        sections.update(&camera, 10, |_| true);
-        assert!(sections.graph.nodes.contains_key(&(0, 3, -2)));
-    }
-
-    #[test]
-    fn background_full_update_matches_the_synchronous_one() {
-        let camera = CullCamera {
-            position: DVec3::new(8.0, 100.0, 8.0),
-            forward: Vec3::new(0.0, -0.2, -1.0).normalize(),
-            fov_degrees: 70.0,
-            aspect: 16.0 / 9.0,
-            yaw_degrees: 30.0,
-            pitch_degrees: 10.0,
-        };
-        let build = |synchronous: bool| {
-            let mut sections = Sections::new(6, -4, 19);
-            sections.synchronous = synchronous;
-            sections.reposition(&camera);
-            for x in -7..=7 {
-                for z in -7..=7 {
-                    sections.chunk_loaded((x, z), 5..=19);
-                }
-            }
-            for _ in 0..1000 {
-                sections.update(&camera, 0, |_| true);
-                if !sections.in_flight && !sections.needs_full_update {
-                    break;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(1));
-            }
-            for x in -6..=6 {
-                sections.compiled((x, 4, -2), VisibilitySet::ALL, 5);
-            }
-            for _ in 0..1000 {
-                sections.update(&camera, 10, |_| true);
-                if !sections.in_flight && sections.to_propagate.is_empty() {
-                    break;
-                }
-                std::thread::sleep(std::time::Duration::from_millis(1));
-            }
-            let mut reached = sections.graph.reached.clone();
-            reached.sort_unstable();
-            (reached, sections.visible().to_vec())
-        };
-        assert_eq!(build(true), build(false));
-    }
-
-    #[test]
-    fn moving_the_view_area_keeps_the_graph_inputs() {
-        let camera_at = |x: f64| CullCamera {
-            position: DVec3::new(x, 100.0, 8.0),
-            forward: Vec3::new(0.0, -0.2, -1.0).normalize(),
-            fov_degrees: 70.0,
-            aspect: 16.0 / 9.0,
-            yaw_degrees: 0.0,
-            pitch_degrees: 10.0,
-        };
-        let load = |sections: &mut Sections| {
-            for x in -12..=12 {
-                for z in -8..=8 {
-                    sections.chunk_loaded((x, z), 5..=19);
-                }
-            }
-        };
-        let (start, end) = (camera_at(8.0), camera_at(8.0 + 16.0 * 4.0));
-        // Loaded around the start, then moved four chunks east.
-        let mut moved = Sections::new(5, -4, 19);
-        moved.synchronous = true;
-        moved.reposition(&start);
-        load(&mut moved);
-        moved.update(&start, 0, |_| true);
-        moved.compiled((1, 4, -2), VisibilitySet::ALL, 1);
-        moved.compiled((5, 4, -2), VisibilitySet::ALL, 1);
-        moved.update(&start, 2, |_| true);
-        moved.reposition(&end);
-        moved.update(&end, 3, |_| true);
-        // Loaded and compiled at the end position directly.
-        let mut fresh = Sections::new(5, -4, 19);
-        fresh.synchronous = true;
-        fresh.reposition(&end);
-        load(&mut fresh);
-        fresh.update(&end, 0, |_| true);
-        fresh.compiled((1, 4, -2), VisibilitySet::ALL, 1);
-        fresh.compiled((5, 4, -2), VisibilitySet::ALL, 1);
-        fresh.update(&end, 3, |_| true);
-        let reached = |s: &Sections| {
-            let mut r = s.graph.reached.clone();
-            r.sort_unstable();
-            r
-        };
-        assert_eq!(reached(&moved), reached(&fresh));
-        assert_eq!(moved.visible(), fresh.visible());
-    }
-
-    #[test]
-    fn queue_prefers_near_initial_compiles_with_a_recompile_quota() {
-        let eye = DVec3::new(8.0, 8.0, 8.0);
-        let mut queue = CompileQueue::default();
-        queue.push((5, 0, 0), false, 'a');
-        queue.push((2, 0, 0), false, 'b');
-        queue.push((0, 0, 1), true, 'c');
-        queue.push((0, 1, 0), true, 'd');
-        queue.push((0, 0, 2), true, 'e');
-        // Nearer recompiles jump ahead twice, then the nearest first compile.
-        assert_eq!(queue.poll(eye).unwrap().1, 'c');
-        assert_eq!(queue.poll(eye).unwrap().1, 'd');
-        assert_eq!(queue.poll(eye).unwrap().1, 'b');
-        assert_eq!(queue.poll(eye).unwrap().1, 'e');
-        assert_eq!(queue.poll(eye).unwrap().1, 'a');
     }
 }

@@ -8,8 +8,6 @@ fn dot3(a: [f32; 4], b: [f32; 4]) -> f32 {
     dot(a[..3].try_into().unwrap(), b[..3].try_into().unwrap())
 }
 
-/// Complete TU3 82AC6EE8. Region codes are before=1, interior=2, after=3.
-/// The upper-end comparison tests all four length lanes; equality is interior.
 pub fn closest_feature_segment(segment: &[u32; 16], point: &mut [u32; 4]) -> u32 {
     let origin = load(segment, 0);
     let direction = load(segment, 4);
@@ -29,9 +27,6 @@ pub fn closest_feature_segment(segment: &[u32; 16], point: &mut [u32; 4]) -> u32
     if after { 3 } else { 2 }
 }
 
-/// Complete TU3 82ACC160 point/face helper. `face_is_a` selects its two native
-/// destination pointers within the prism; normal and untouched records survive.
-/// The face header receives the selected edge index and segment-region code.
 pub fn intersect_point_face(
     output: &mut FeaturePrism,
     face: &mut MaximumFeature,

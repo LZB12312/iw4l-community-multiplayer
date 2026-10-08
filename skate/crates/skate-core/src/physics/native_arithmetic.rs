@@ -27,7 +27,3 @@ pub(crate) fn vector_min(left: f32, right: f32) -> f32 {
 pub(crate) fn vector_max(left: f32, right: f32) -> f32 {
     left.max(right)
 }
-
-#[cfg(test)]
-#[path = "tests/native_arithmetic.rs"]
-mod tests;

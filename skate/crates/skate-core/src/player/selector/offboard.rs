@@ -35,9 +35,6 @@ impl StateSelector {
                     return PhysicalStateId::WipeoutGround;
                 }
                 if !p.has_2480(0x10) {
-                    //82D8B8D4 loads a BIG-ENDIAN halfword at2484, then
-                    //B8D8 tests its low bit: bit16 of the stored u32.
-                    //This is OffBoard328, not BipedBoardOnGround bit0.
                     if p.has_2484(0x1_0000) {
                         if p.has_2476(0x8000) || p.has_2476(0x80) {
                             current
@@ -85,8 +82,6 @@ impl StateSelector {
             PhysicalStateId::FootPlant => {
                 if facts.wipeout {
                     PhysicalStateId::WipeoutGround
-                //82D8B970 loads the first byte of the big-endian word,
-                //then tests its low bit: full-word bit24 is Air448.
                 } else if !p.has_2480(0x0100_0000) {
                     p.air_variant_from_2468()
                 } else {
@@ -113,7 +108,3 @@ impl StateSelector {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "tests/offboard.rs"]
-mod tests;

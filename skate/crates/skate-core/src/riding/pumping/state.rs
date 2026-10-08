@@ -26,9 +26,6 @@ pub struct PumpingState {
 }
 
 impl PumpingState {
-    /// TU3 82D8F1A0. Does not initialize bytes +77..80 or +82 onward; those
-    /// are outside this owned state and must be preserved by any binary adapter.
-    /// Ground Enter 82D378DC and Exit 82D37B58 both call this reset.
     pub fn reset(&mut self) {
         *self = Self::reset_state();
     }
@@ -54,8 +51,6 @@ impl PumpingState {
         }
     }
 
-    /// Inline FillPhysOut at 82DB6FA8..7000. Read after Update; force assembly
-    /// consumes pump_acceleration earlier, within Ground Update 82D38800.
     pub fn physics_output(&self) -> PumpingOutput {
         PumpingOutput {
             compression: 0.0,

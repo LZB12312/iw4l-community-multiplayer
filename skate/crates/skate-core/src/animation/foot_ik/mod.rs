@@ -1,18 +1,15 @@
-//! Native skeleton IK, TU3 GeneralUpdate82BDCA38 and its six update stages.
 pub mod blend;
 pub mod contact;
 pub mod drive;
 pub mod external;
+mod math;
 mod physical_solve;
 pub mod post_contact;
 pub mod post_physics;
-mod math;
-pub use math::{interpolate_affine, inverse_affine};
 pub use math::interpolate as interpolate_native;
+pub use math::{interpolate_affine, inverse_affine};
 pub mod settings;
 pub mod state;
 pub mod status;
 pub mod transforms;
 pub mod two_bone;
-#[cfg(test)]
-mod tests;

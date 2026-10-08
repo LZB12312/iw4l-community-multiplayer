@@ -1,4 +1,3 @@
-//!82D33E30: jump launch or ordered foot/brake/friction/collision forces.
 use super::*;
 use skate_core::{
     air::ground_jump::{self, GroundJumpInput},
@@ -13,7 +12,6 @@ use skate_core::{
 };
 
 pub(super) fn set_drag(physics: &mut GamePhysics, drag: f32) {
-    //BodySetLinearDrag82D9CD60 multiplies by native59.999996, for all seven parts.
     for body in physics.board.bodies_mut() {
         body.inertia.linear_drag = drag * DRAG_FREQUENCY;
     }
@@ -93,8 +91,6 @@ pub(super) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
         skater
             .trajectory
             .update(input, &physics.world, grind_context)?;
-        //Launch82D678DC stores packet at1920;128 is selector2048. Update's
-        //second pass may replace that retained launch velocity before this read.
         skater.ground_animation.launch_velocity = skater
             .trajectory
             .selector

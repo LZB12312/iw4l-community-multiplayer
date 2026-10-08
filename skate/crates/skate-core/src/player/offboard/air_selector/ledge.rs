@@ -1,5 +1,3 @@
-//! Air-only ledge correction82D6D4D0, filtering82C1F310, six-line82C20728.
-//! Candidate0 only. Closest-point/plane formulas read from82E09D28/09DF0.
 use super::{Candidate, Context, DT, Vector, math::*};
 use crate::{
     air::trajectory::{Prediction, Trajectory},
@@ -36,8 +34,6 @@ pub fn search(
         narrow_forward: false,
     })
 }
-///82C1F310 removes a parallel edge only with native separation, overlap,
-/// reference-distance and oriented-height tests. Retains provider order.
 pub fn filter_edges(edges: &[Edge], reference: Vector) -> Vec<Edge> {
     let directions: Vec<_> = edges
         .iter()
@@ -84,8 +80,6 @@ pub fn filter_edges(edges: &[Edge], reference: Vector) -> Vec<Edge> {
         .take(40)
         .collect()
 }
-///82D60C80/B98: exact discriminant branches, larger root for two roots.
-/// No generic epsilon-linear fallback, positive clamp, or duration rejection.
 pub fn plane_time(t: Trajectory, point: Vector, normal: Vector) -> Option<f32> {
     let a = dot(normal, scale(t.acceleration, 0.5));
     let b = dot(normal, t.velocity);
@@ -123,7 +117,6 @@ fn angle(new: Vector, old: Vector, up: Vector) -> f32 {
     if !(aa > 0.0001 && bb > 0.0001) {
         return 0.;
     }
-    //8296EC98 uses ONE refinement, not the two-refinement generic normalize.
     let a = scale(
         a,
         crate::physics::board_motion_output::inverse_length_squared(aa, 1),
@@ -239,7 +232,6 @@ pub fn choose(
     }
     best
 }
-///82C20530 clears byte64: Air does not append Ground's downward seventh line.
 pub fn lines(adjustment: Adjustment, half_wheelbase: f32) -> Option<[Line; 6]> {
     let edge = adjustment.edge;
     let delta = sub(lanes(edge.end), lanes(edge.start));
@@ -271,8 +263,6 @@ pub fn lines(adjustment: Adjustment, half_wheelbase: f32) -> Option<[Line; 6]> {
         line(add(center, scale(up, 0.09)), near, 0.001),
     ])
 }
-///82C20C08: return1 after consuming a submitted batch, even with six misses.
-///The general grind-classification output is temporary and discarded by Air.
 pub fn consume_lines(hits: &[Option<LineHit>]) -> Result<(), &'static str> {
     if hits.len() != 6 {
         Err("BipedAir ledge completion requires exactly six lines")

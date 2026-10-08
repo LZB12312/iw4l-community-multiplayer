@@ -1,4 +1,3 @@
-//! ACSsetData_job (TU3 0x828D80B8), expressed in bones and typed allocations.
 use super::buffers::{BoneBuffers, BoneSlice, BufferError, PoseBuffers};
 use crate::animation::output::{NativeMatrix, Sqt};
 
@@ -23,7 +22,6 @@ pub enum SetDataCommand {
     Sqt(CopyCommand<Sqt>),
     Matrix(CopyCommand<NativeMatrix>),
 }
-/// 828D7E08 uses the low byte of numExtBones when the encoded byte is zero.
 pub fn resolve_set_count(encoded_count: u8, external_bone_count: u32) -> u8 {
     if encoded_count == 0 {
         external_bone_count as u8

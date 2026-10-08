@@ -263,8 +263,157 @@ impl SimWorld {
         }
     }
 
+    pub fn set_skate_damage_settings(&mut self, tolerance: u32, window: u32, impulse: f32) {
+        let impulse = if impulse.is_finite() {
+            impulse.clamp(0., 4.)
+        } else {
+            1.
+        };
+        let runtime = self.ecs.resource_mut::<crate::script::Runtime>();
+        let mut runtime = runtime;
+        for (name, value) in [
+            ("skate_damage_tolerance", tolerance.min(1000).to_string()),
+            ("skate_damage_window_ms", window.clamp(50, 5000).to_string()),
+            ("skate_damage_impulse", impulse.to_string()),
+        ] {
+            runtime.dvars.insert(name.into(), value);
+            runtime.server_info.insert(name.into());
+        }
+    }
+
     pub fn set_external_motion(&mut self, id: ClientId, enabled: bool) {
-        if enabled { self.frame().external_motion.insert(id); } else { self.frame().external_motion.remove(&id); }
+        if enabled {
+            self.frame().external_motion.insert(id);
+        } else {
+            self.frame().external_motion.remove(&id);
+        }
+    }
+
+    pub fn set_presentation(
+        &mut self,
+        id: ClientId,
+        appearance: crate::CharacterAppearance,
+        skate: Option<crate::SkatePose>,
+    ) {
+        if !appearance.valid() {
+            return;
+        }
+        let meta = self.client_meta(id);
+        let life = meta.map_or(0, |m| m.life_sequence.0);
+        if skate
+            .as_ref()
+            .is_some_and(|pose| !pose.valid() || pose.life != life)
+        {
+            return;
+        }
+        let alive = self.player(id).is_some_and(|p| p.pm_type == 0);
+        let collision = skate
+            .as_ref()
+            .filter(|pose| {
+                pose.collision_sequence != 0
+                    && meta.and_then(|m| m.skate.as_ref()).is_none_or(|previous| {
+                        pose.tick >= previous.tick
+                            && pose.collision_sequence != previous.collision_sequence
+                    })
+            })
+            .map(|pose| {
+                (
+                    pose.collision_speed,
+                    pose.collision_normal,
+                    pose.collision_native,
+                )
+            });
+        if let Some(pose) = &skate
+            && meta
+                .and_then(|m| m.skate.as_ref())
+                .is_some_and(|previous| pose.tick < previous.tick)
+        {
+            return;
+        }
+        if !alive {
+            let impact = meta.map(|m| m.skate_damage.impact);
+            if let Some(pose) = &skate
+                && impact.is_some_and(|i| i.lethal && i.sequence == pose.impact)
+            {
+                let mut frame = self.frame();
+                let now = frame
+                    .ecs()
+                    .resource::<crate::script::Runtime>()
+                    .last_tick
+                    .unwrap_or(Tick(0))
+                    .0;
+                let impact = impact.unwrap();
+                if now
+                    .wrapping_sub(impact.tick)
+                    .saturating_mul(crate::MATCH_TICK_MS)
+                    <= 5000
+                {
+                    let pool = frame.corpses_mut();
+                    if let Some((i, slot)) = pool
+                        .slots
+                        .iter()
+                        .enumerate()
+                        .find(|(_, s)| s.occupied && s.victim == id && s.life == life)
+                        && pose.root[12..15]
+                            .iter()
+                            .zip(slot.tr_base)
+                            .all(|(a, b)| (*a - b).abs() < 4096.)
+                    {
+                        pool.skates[i] = Some(pose.clone());
+                    }
+                }
+            }
+            self.set_external_motion(id, false);
+            if self.player(id).is_some() {
+                let mut frame = self.frame();
+                let meta = frame.client_meta_mut(id);
+                meta.appearance = appearance;
+                meta.skate = None;
+            }
+            return;
+        }
+        if let Some(pose) = &skate {
+            if !pose.valid() {
+                return;
+            }
+            self.set_origin(id, [pose.root[12], pose.root[13], pose.root[14]]);
+        }
+        self.set_external_motion(id, skate.is_some());
+        let mut frame = self.frame();
+        let meta = frame.client_meta_mut(id);
+        meta.appearance = appearance;
+        meta.skate = skate;
+        if let Some((speed, normal, native)) = collision {
+            let floor = if normal[2] > 0.5 { 6. } else { 4.5 };
+            let amount = ((speed - floor).max(0.).powi(2) * 4.).clamp(0., 1000.) as i32;
+            let amount = if native { amount.max(35) } else { amount };
+            let sequence = frame
+                .client_meta(id)
+                .map_or(0, |m| m.skate_damage.impact.sequence);
+            crate::script_player::record_skate_damage(
+                &mut frame,
+                id,
+                amount,
+                Some(normal),
+                false,
+                if normal[2] > 0.5 {
+                    "left_leg_upper"
+                } else {
+                    "torso_upper"
+                },
+            );
+            let bailed = frame
+                .client_meta(id)
+                .is_some_and(|m| m.skate_damage.impact.sequence != sequence);
+            if bailed {
+                frame.client_meta_mut(id).skate_damage.impact.impulse = [0.; 3];
+            }
+            diag::info!(
+                Sim,
+                "Skate collision client={} speed={speed:.2} damage={amount} bail={bailed}",
+                id.0
+            );
+        }
     }
 
     pub fn set_origin(&mut self, id: ClientId, origin: [f32; 3]) -> bool {

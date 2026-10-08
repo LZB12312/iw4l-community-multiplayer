@@ -1,4 +1,3 @@
-//! tTrajectory and complete PredictionResults8276C9D8/8276DBE0.
 use super::math::{IDENTITY, STEP, Transform, UP, Vector, ZERO, reciprocal};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Trajectory {
@@ -19,7 +18,6 @@ impl Trajectory {
         core::array::from_fn(|i| self.acceleration[i].mul_add(time, self.velocity[i]))
     }
     pub fn highest_position(self) -> (Vector, f32) {
-        //82D2CCA0: downward velocity or nonnegative gravity has no apex.
         if self.velocity[1] < 0.0 || self.acceleration[1] >= 0.0 {
             (self.position, 0.0)
         } else {
@@ -62,7 +60,6 @@ impl QueryResult {
     pub fn valid(self) -> bool {
         self.contact_time >= 0.0
     }
-    ///PredictionResults::GetLandingNormal82D2D9E8.
     pub fn suggested_normal(self) -> Vector {
         if self.valid() {
             self.landing_normal

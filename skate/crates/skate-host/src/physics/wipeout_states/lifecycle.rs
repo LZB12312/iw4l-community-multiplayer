@@ -1,4 +1,3 @@
-//! Original Wipeout Enter82D3B5E8 and Exit82D3B990.
 use super::*;
 use crate::physics::{GamePhysics, SkaterRuntime};
 use skate_core::{

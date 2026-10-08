@@ -96,8 +96,6 @@ pub(super) fn advance(
                         switched: p.flags_2468 & 0x0010_0000 != 0,
                     },
                 )?;
-                //82D40890 blends from the current physical board, not the
-                //preceding target;82D40A98 adds noise after that blend.
                 let mut target_frame = orientation::blend(board_frame, target.frame);
                 if target.noise_amount > 0. {
                     let draws = skater.grind.take_orientation_noise();
@@ -217,7 +215,6 @@ pub(super) fn advance(
         }
     }
     if family == Family::Darkslide {
-        // Darkslide contact82D41194..1234 alone writes classification104 here.
         state.output.classification_104 = if manager.geometry.kind_1464 == 2 {
             if dot3(manager.geometry.high_side_1440, toolkit.effective[2]) > 0. {
                 2

@@ -1,6 +1,3 @@
-//! Andale Clip timing: 0x82D25A00, 0x825902C0, 0x827B8BD8,
-//! 0x827B8C38, 0x827B8B90; attribute status 0x82D264C0.
-
 #[derive(Clone, Copy, Debug)]
 pub struct ClipClock {
     pub frames: f32,
@@ -93,8 +90,6 @@ impl ClipClock {
         }
     }
 
-    /// 0x82D25C20/24, called when pose evaluation's update-history flag is set.
-    /// Advancing time alone does not perform this commit in the elapsed mode.
     pub fn commit_evaluation(&mut self) {
         self.previous_time = self.time;
         self.loops_since_evaluation = 0;

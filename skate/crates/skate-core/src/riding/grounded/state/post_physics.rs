@@ -1,5 +1,3 @@
-//! `PhysState_PhysicsGround::UpdatePostPhysics` (`82D387A8`).
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GroundPostPhysicsStage {
     CheckForGroundWipeout,
@@ -12,8 +10,6 @@ pub struct GroundPostPhysicsError<E> {
     pub source: E,
 }
 
-/// Wipeout::CheckForGroundWipeout82D8F9E0 and board path82C05EC0.
-/// There is deliberately no empty implementation.
 pub trait GroundPostPhysicsServices {
     type Error;
 

@@ -1,4 +1,3 @@
-//! Original TU3 InitPerAnim82E88FA8 and UnPackHeaderBits82E8A780.
 use std::ops::Range;
 
 #[derive(Clone, Debug)]
@@ -88,7 +87,6 @@ impl Header {
                     return Err("VBR constant dictionary index out of bounds".into());
                 }
                 let value = f32::from_bits(u32_at(bytes, dictionary + index * 4)?);
-                // Original scalar fmadds82E8A804..878, including constants.
                 constants.push(value.mul_add(channel.range, channel.min));
             }
         }
@@ -131,7 +129,6 @@ impl Header {
         }
         let block_start = cursor;
         let mut blocks = Vec::with_capacity(block_count);
-        // Vector_ExtractPackedNVBR82D1E0E4..118 accumulates u16 block sizes.
         let mut displacement = 0u16;
         for block in 0..block_count {
             let size = u16_at(bytes, size_table + 2 * block)?;

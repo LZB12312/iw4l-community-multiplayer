@@ -1,5 +1,7 @@
 #![forbid(unsafe_code)]
 
+mod credentials;
+
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Write};
@@ -83,6 +85,10 @@ enum ConnTask {
 }
 
 enum Command {
+    Init {
+        directory: PathBuf,
+        server_name: String,
+    },
     Serve {
         bind: SocketAddr,
         cert: PathBuf,
@@ -386,6 +392,10 @@ impl ServiceState {
 #[tokio::main]
 async fn main() -> Result<()> {
     match parse_args()? {
+        Command::Init {
+            directory,
+            server_name,
+        } => credentials::create(&directory, &server_name),
         Command::Serve { bind, cert, key } => serve(bind, &cert, &key).await,
         Command::Status(target) => tokio::time::timeout(CLI_DEADLINE, status(&target))
             .await
@@ -401,7 +411,8 @@ fn parse_args() -> Result<Command> {
     let mut args = std::env::args().skip(1);
     let command = args
         .next()
-        .ok_or("usage: iw4l-master serve|status|list|print-unit ...")?;
+        .ok_or("usage: iw4l-master init|serve|status|list|print-unit ...")?;
+    let mut directory = None;
     let mut bind = None;
     let mut cert = None;
     let mut key = None;
@@ -417,6 +428,7 @@ fn parse_args() -> Result<Command> {
             .next()
             .ok_or_else(|| format!("missing value for {flag}"))?;
         match flag.as_str() {
+            "--directory" => directory = Some(PathBuf::from(value)),
             "--bind" => bind = Some(value.parse()?),
             "--cert" => cert = Some(PathBuf::from(value)),
             "--key" => key = Some(PathBuf::from(value)),
@@ -431,6 +443,10 @@ fn parse_args() -> Result<Command> {
         }
     }
     match command.as_str() {
+        "init" => Ok(Command::Init {
+            directory: directory.ok_or("init requires --directory PATH")?,
+            server_name: server_name.unwrap_or_else(|| "iw4l-community".to_owned()),
+        }),
         "serve" => Ok(Command::Serve {
             bind: bind.ok_or("serve requires --bind HOST:PORT")?,
             cert: cert.ok_or("serve requires --cert PATH")?,

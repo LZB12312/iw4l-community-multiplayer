@@ -1,4 +1,3 @@
-//! Complete82D79420 writes into caller-owned physical output fields.
 use super::Owner;
 use skate_core::player::input_phase::OffBoardOutputFields;
 

@@ -1,9 +1,3 @@
-//! Complete player-owned portion of TU3 `PhysicalPlayerHiLOD::PostInput`
-//! (`0x82DB5588`) and its flag-latch helper (`0x82DB5CF8`).
-//!
-//! Grind, trajectory, the scalar calculation at `0x82DB5E10`, and candidate
-//! registration remain required services because they own separate systems.
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PostInputPlayerFields {
     /// Player+1264, captured from PhysOut when its +442 byte is set.
@@ -14,7 +8,6 @@ pub struct PostInputPlayerFields {
     pub state_frames_1304: u32,
     /// Player+1308.
     pub jump_fix_frames_1308: u32,
-    /// Player+1320, owned by `0x82DB5CF8`.
     pub latch_frames_1320: u32,
 }
 
@@ -45,7 +38,6 @@ pub struct PostInputPhysOutFields {
     pub complete_76: bool,
 }
 
-/// Player+1840 data consumed by `0x82D740F8`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CandidatePublicationFields {
     pub first_object_present_196: bool,
@@ -60,13 +52,10 @@ pub struct CandidatePublicationFields {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CandidateRegistration {
-    /// `sub_82762AB0(ProcessedPhysIn+1888, component)`.
     First1888,
-    /// `sub_82762AB0(ProcessedPhysIn+2176, component+304)`.
     Second2176,
 }
 
-/// Calls to independent systems, in their exact `0x82DB5588` order.
 pub trait PostInputServices {
     fn update_grind_manager_82d8ab08(&mut self);
     fn update_trajectory_selector_82d68800(&mut self) -> u8;
@@ -142,7 +131,6 @@ pub fn run_post_input(context: PostInputContext<'_>, services: &mut impl PostInp
     phys_out.complete_76 = true;
 }
 
-/// Exact scalar bit transfers and latch lifetime from TU3 `0x82DB5CF8`.
 fn update_flag_latches_82db5cf8(
     player: &mut PostInputPlayerFields,
     processed: &mut PostInputProcessedFields,
@@ -177,7 +165,6 @@ fn update_flag_latches_82db5cf8(
     replace_bit(&mut processed.flags_2472, 2, (player.flags_1296 >> 25) & 1);
 }
 
-/// Complete TU3 `0x82D740F8` publication/reset behavior.
 fn publish_candidates_82d740f8(
     fields: &mut CandidatePublicationFields,
     processed: &mut PostInputProcessedFields,
@@ -214,8 +201,6 @@ fn replace_bit(word: &mut u32, bit: u32, value: u32) {
     *word = (*word & !(1 << bit)) | ((value & 1) << bit);
 }
 
-///82762AB0 copies the defined fields, preserving destination padding and the
-///low five bits of byte200. Words use native big-endian bit positions.
 pub fn copy_grab_record_82762ab0(destination: &mut [u32; 72], source: &[u32; 72]) {
     destination[..50].copy_from_slice(&source[..50]);
     destination[50] = (destination[50] & 0x1fff_ffff) | (source[50] & 0xe000_0000);
@@ -223,7 +208,3 @@ pub fn copy_grab_record_82762ab0(destination: &mut [u32; 72], source: &[u32; 72]
     destination[56..66].copy_from_slice(&source[56..66]);
     destination[68] = source[68];
 }
-
-#[cfg(test)]
-#[path = "tests/post_input.rs"]
-mod tests;

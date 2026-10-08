@@ -75,7 +75,6 @@ impl Default for Manager {
     }
 }
 impl Manager {
-    ///82D78B28: notably does NOT clear proposed96 or outstanding query262.
     pub fn reset(&mut self) {
         self.trajectory_32 = EMPTY;
         self.elapsed_160 = 0.;
@@ -96,7 +95,6 @@ impl Manager {
         self.publish_moving_contact_261 = false;
     }
 
-    ///82D78C38: preserve the native correction sign and positive-frame guard.
     pub fn correct_trajectory(&mut self, com: Vector) {
         let error = sub(self.trajectory_32.position_at(self.elapsed_160), com);
         let remaining = frames(self.time_to_land_244);
@@ -106,7 +104,6 @@ impl Manager {
         }
     }
 
-    ///82D79420. None means no write to skeleton3482/48, not clear those fields.
     pub fn fill(&self) -> FillOutput {
         FillOutput {
             can_land_316: self.can_land_256 && !self.blocked_258,

@@ -8,7 +8,6 @@ use super::{
     runtime::KnownAirRuntime,
 };
 
-/// `PhysState_KnownAir::UpdatePostPhysics`, TU3 `0x82D36590`.
 pub fn update_post_physics(
     state: &mut KnownAirState,
     frame: &KnownAirFrame,
@@ -27,7 +26,6 @@ pub fn update_post_physics(
     check_upside_down_falling_wipeout(state, frame, mode, settings, request, runtime);
 }
 
-/// `PhysState_KnownAir::CheckUpsideDownFallingWipeout`, TU3 `0x82D36650`.
 pub fn check_upside_down_falling_wipeout(
     state: &KnownAirState,
     frame: &KnownAirFrame,

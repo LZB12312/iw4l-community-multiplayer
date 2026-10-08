@@ -1,4 +1,3 @@
-//! Wipeout300 Fill82D3EEE8 writes the shared completed physical packet.
 use super::super::SkaterRuntime;
 
 pub(super) fn publish(skater: &mut SkaterRuntime) {

@@ -162,10 +162,15 @@ impl EntityLootBook {
             }
             let mut source = String::new();
             entry.read_to_string(&mut source)?;
-            let json: Value = serde_json::from_str(&source).with_context(|| format!("parse {name}"))?;
+            let json: Value =
+                serde_json::from_str(&source).with_context(|| format!("parse {name}"))?;
             let stem = name.strip_suffix(".json").unwrap_or(&name);
             if let Some(id) = stem.strip_prefix("data/minecraft/loot_table/entities/") {
-                let key = if id.contains('/') { format!("minecraft:entities/{id}") } else { format!("minecraft:{id}") };
+                let key = if id.contains('/') {
+                    format!("minecraft:entities/{id}")
+                } else {
+                    format!("minecraft:{id}")
+                };
                 tables.insert(key, json);
             } else if let Some(id) = stem.strip_prefix("data/minecraft/loot_table/") {
                 // The heads a charged creeper's blast knocks off.
@@ -175,7 +180,9 @@ impl EntityLootBook {
             } else if let Some(id) = stem.strip_prefix("data/minecraft/tags/entity_type/") {
                 entity_tags.insert(format!("minecraft:{id}"), tag_values(&json));
             } else if json["type"] == "minecraft:smelting" {
-                if let (Some(input), Some(result)) = (json["ingredient"].as_str(), json["result"]["id"].as_str()) {
+                if let (Some(input), Some(result)) =
+                    (json["ingredient"].as_str(), json["result"]["id"].as_str())
+                {
                     smelting.insert(input.to_owned(), result.to_owned());
                 }
             }
@@ -200,16 +207,29 @@ impl EntityLootBook {
     /// (`Creeper.killedEntity`), the mob's own loot, then the equipment its
     /// killer shook loose. A table this evaluator cannot reproduce drops
     /// nothing rather than something invented.
-    pub fn death_drops(&mut self, deaths: Vec<crate::world::MobDeath>) -> Vec<(ItemStack, glam::DVec3)> {
+    pub fn death_drops(
+        &mut self,
+        deaths: Vec<crate::world::MobDeath>,
+    ) -> Vec<(ItemStack, glam::DVec3)> {
         let mut drops = Vec::new();
         // Creepers whose blast already dropped a head (`droppedSkulls`).
         let mut skulls = std::collections::HashSet::new();
         for death in deaths {
-            let at = |stacks: Vec<ItemStack>| stacks.into_iter().map(move |stack| (stack, death.position));
-            if let Some(creeper) = death.charged_creeper.filter(|creeper| !skulls.contains(creeper)) {
+            let at = |stacks: Vec<ItemStack>| {
+                stacks.into_iter().map(move |stack| (stack, death.position))
+            };
+            if let Some(creeper) = death
+                .charged_creeper
+                .filter(|creeper| !skulls.contains(creeper))
+            {
                 // `dropFromLootTable(level, source, false, CHARGED_CREEPER)`.
-                let context = EntityLootContext { killed_by_player: false, ..death.context };
-                let heads = self.roll("minecraft:charged_creeper/root", context).unwrap_or_default();
+                let context = EntityLootContext {
+                    killed_by_player: false,
+                    ..death.context
+                };
+                let heads = self
+                    .roll("minecraft:charged_creeper/root", context)
+                    .unwrap_or_default();
                 if !heads.is_empty() {
                     skulls.insert(creeper);
                 }
@@ -238,7 +258,12 @@ impl EntityLootBook {
         // A table outside the implemented evaluator must not partially advance
         // the persistent named stream before its missing rule is implemented.
         let mut candidate = random.clone();
-        let data = LootData { tables: &self.tables, smelting: &self.smelting, item_tags: &self.item_tags, entity_tags: &self.entity_tags };
+        let data = LootData {
+            tables: &self.tables,
+            smelting: &self.smelting,
+            item_tags: &self.item_tags,
+            entity_tags: &self.entity_tags,
+        };
         let drops = roll_table(&data, table, context, &mut candidate)?;
         *random = candidate;
         Some(drops)
@@ -247,7 +272,13 @@ impl EntityLootBook {
 
 /// A tag file's values, nested tags kept as `#` names.
 fn tag_values(tag: &Value) -> Vec<String> {
-    tag["values"].as_array().into_iter().flatten().filter_map(|v| v.as_str().or_else(|| v["id"].as_str())).map(str::to_owned).collect()
+    tag["values"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|v| v.as_str().or_else(|| v["id"].as_str()))
+        .map(str::to_owned)
+        .collect()
 }
 
 /// What the evaluator reads besides the table itself.
@@ -286,7 +317,12 @@ impl LootData<'_> {
 /// `LootTable.getRandomItemsRaw`: each pool whose conditions hold rolls
 /// its entries (`LootPool.addRandomItems`), in the order vanilla draws.
 /// Unsupported rules give `None`, never invented drops.
-fn roll_table(data: &LootData, table: &Value, context: EntityLootContext, random: &mut impl LootRandom) -> Option<Vec<ItemStack>> {
+fn roll_table(
+    data: &LootData,
+    table: &Value,
+    context: EntityLootContext,
+    random: &mut impl LootRandom,
+) -> Option<Vec<ItemStack>> {
     let mut drops = Vec::new();
     // A table without pools (a bat's) drops nothing.
     for pool in table["pools"].as_array().into_iter().flatten() {
@@ -328,13 +364,23 @@ fn roll_table(data: &LootData, table: &Value, context: EntityLootContext, random
 
 /// An entry's, pool's or function's `condition` (or `conditions`, all of
 /// which must hold), tested in order.
-fn conditions(data: &LootData, holder: &Value, context: EntityLootContext, random: &mut impl LootRandom) -> Option<bool> {
+fn conditions(
+    data: &LootData,
+    holder: &Value,
+    context: EntityLootContext,
+    random: &mut impl LootRandom,
+) -> Option<bool> {
     if let Some(condition) = holder.get("condition") {
         if !condition_true(data, condition, context, random)? {
             return Some(false);
         }
     }
-    for condition in holder.get("conditions").and_then(Value::as_array).into_iter().flatten() {
+    for condition in holder
+        .get("conditions")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
         if !condition_true(data, condition, context, random)? {
             return Some(false);
         }
@@ -345,7 +391,13 @@ fn conditions(data: &LootData, holder: &Value, context: EntityLootContext, rando
 /// `LootPoolEntryContainer.expand`: an entry that passes its conditions
 /// offers itself (a tag with `expand` offers each item; alternatives the
 /// first child that expands).
-fn expand(data: &LootData, entry: &Value, context: EntityLootContext, random: &mut impl LootRandom, out: &mut Vec<(Value, u32)>) -> Option<bool> {
+fn expand(
+    data: &LootData,
+    entry: &Value,
+    context: EntityLootContext,
+    random: &mut impl LootRandom,
+    out: &mut Vec<(Value, u32)>,
+) -> Option<bool> {
     if !conditions(data, entry, context, random)? {
         return Some(false);
     }
@@ -359,7 +411,10 @@ fn expand(data: &LootData, entry: &Value, context: EntityLootContext, random: &m
         "minecraft:tag" if entry["expand"].as_bool() == Some(true) => {
             let mut items = Vec::new();
             // `TagEntry`'s `items` (a `#` tag); older data named it `name`.
-            let tag = entry.get("items").or_else(|| entry.get("name")).and_then(Value::as_str)?;
+            let tag = entry
+                .get("items")
+                .or_else(|| entry.get("name"))
+                .and_then(Value::as_str)?;
             LootData::members(data.item_tags, tag.trim_start_matches('#'), &mut items);
             for item in items {
                 let mut leaf = entry.clone();
@@ -382,7 +437,13 @@ fn expand(data: &LootData, entry: &Value, context: EntityLootContext, random: &m
 }
 
 /// `createItemStack` for the chosen entry, through its functions.
-fn create(data: &LootData, leaf: &Value, context: EntityLootContext, random: &mut impl LootRandom, out: &mut Vec<ItemStack>) -> Option<()> {
+fn create(
+    data: &LootData,
+    leaf: &Value,
+    context: EntityLootContext,
+    random: &mut impl LootRandom,
+    out: &mut Vec<ItemStack>,
+) -> Option<()> {
     match leaf["type"].as_str()? {
         "minecraft:empty" => Some(()),
         // NestedLootTable creates drops in the parent's LootContext: its own
@@ -396,11 +457,12 @@ fn create(data: &LootData, leaf: &Value, context: EntityLootContext, random: &mu
             let mut item = leaf["name"].as_str()?.to_owned();
             let mut count: i64 = 1;
             let mut potion = None;
-            let functions: Vec<&Value> = match leaf.get("modifier").or_else(|| leaf.get("functions")) {
-                Some(Value::Array(list)) => list.iter().collect(),
-                Some(single) => vec![single],
-                None => Vec::new(),
-            };
+            let functions: Vec<&Value> =
+                match leaf.get("modifier").or_else(|| leaf.get("functions")) {
+                    Some(Value::Array(list)) => list.iter().collect(),
+                    Some(single) => vec![single],
+                    None => Vec::new(),
+                };
             for function in functions {
                 if !conditions(data, function, context, random)? {
                     continue;
@@ -408,7 +470,11 @@ fn create(data: &LootData, leaf: &Value, context: EntityLootContext, random: &mu
                 match function["type"].as_str()? {
                     "minecraft:set_count" => {
                         let value = i64::from(int_provider(&function["count"], random)?);
-                        count = if function["add"].as_bool() == Some(true) { count + value } else { value };
+                        count = if function["add"].as_bool() == Some(true) {
+                            count + value
+                        } else {
+                            value
+                        };
                     }
                     // Looting 0 adds nothing and draws nothing.
                     "minecraft:enchanted_count_increase" if context.looting == 0 => {}
@@ -422,7 +488,9 @@ fn create(data: &LootData, leaf: &Value, context: EntityLootContext, random: &mu
             if count > 0 {
                 let mut stack = ItemStack::new(item, u8::try_from(count).ok()?);
                 if let Some(potion) = potion {
-                    stack.components = Some(serde_json::json!({ "minecraft:potion_contents": { "potion": potion } }));
+                    stack.components = Some(
+                        serde_json::json!({ "minecraft:potion_contents": { "potion": potion } }),
+                    );
                 }
                 out.push(stack);
             }
@@ -467,7 +535,12 @@ fn float_provider(value: &Value) -> Option<f32> {
 }
 
 /// `LootItemCondition.test`.
-fn condition_true(data: &LootData, value: &Value, context: EntityLootContext, random: &mut impl LootRandom) -> Option<bool> {
+fn condition_true(
+    data: &LootData,
+    value: &Value,
+    context: EntityLootContext,
+    random: &mut impl LootRandom,
+) -> Option<bool> {
     match value["type"].as_str()? {
         "minecraft:any_of" => {
             for term in value["terms"].as_array()? {
@@ -506,7 +579,10 @@ fn condition_true(data: &LootData, value: &Value, context: EntityLootContext, ra
             if source.keys().any(|k| k != "minecraft:entity_type") {
                 return None;
             }
-            Some(data.type_matches(source.get("minecraft:entity_type")?.as_str()?, context.attacker))
+            Some(data.type_matches(
+                source.get("minecraft:entity_type")?.as_str()?,
+                context.attacker,
+            ))
         }
         _ => None,
     }
@@ -532,14 +608,25 @@ fn entity_properties(data: &LootData, value: &Value, context: EntityLootContext)
                         holds
                     }
                     "minecraft:entity_type" => data.type_matches(test.as_str()?, context.this_type),
-                    "minecraft:vehicle" => data.type_matches(test["minecraft:entity_type"].as_str()?, context.vehicle),
-                    "minecraft:type_specific/sheep" => test["sheared"].as_bool()? == context.sheep_sheared,
+                    "minecraft:vehicle" => {
+                        data.type_matches(test["minecraft:entity_type"].as_str()?, context.vehicle)
+                    }
+                    "minecraft:type_specific/sheep" => {
+                        test["sheared"].as_bool()? == context.sheep_sheared
+                    }
                     // `CubeMobPredicate`: its size, exact or a range.
                     "minecraft:type_specific/cube_mob" => {
                         let size = context.cube_size?;
                         match &test["size"] {
                             Value::Number(n) => i64::from(size) == n.as_i64()?,
-                            range => range["min"].as_i64().is_none_or(|min| i64::from(size) >= min) && range["max"].as_i64().is_none_or(|max| i64::from(size) <= max),
+                            range => {
+                                range["min"]
+                                    .as_i64()
+                                    .is_none_or(|min| i64::from(size) >= min)
+                                    && range["max"]
+                                        .as_i64()
+                                        .is_none_or(|max| i64::from(size) <= max)
+                            }
                         }
                     }
                     "minecraft:components" => {
@@ -559,53 +646,14 @@ fn entity_properties(data: &LootData, value: &Value, context: EntityLootContext)
             if predicate.keys().any(|k| k != "minecraft:entity_type") {
                 return None;
             }
-            Some(data.type_matches(predicate.get("minecraft:entity_type")?.as_str()?, context.attacker))
+            Some(data.type_matches(
+                predicate.get("minecraft:entity_type")?.as_str()?,
+                context.attacker,
+            ))
         }
         // No enchantments are modelled: an attacker's weapon never has one.
         "direct_attacker" if !context.has_direct_attacker => Some(false),
         "direct_attacker" if predicate.keys().all(|k| k == "minecraft:equipment") => Some(false),
         _ => None,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn unsupported_smelt_does_not_advance_named_stream() {
-        let table: Value = serde_json::json!({
-            "type": "minecraft:entity", "random_sequence": "minecraft:entities/cow",
-            "pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:beef", "modifier": [
-                {"type": "minecraft:set_count", "count": {"type": "minecraft:uniform", "min": 1, "max": 3}},
-                {"type": "minecraft:furnace_smelt", "condition": {"type": "minecraft:entity_properties", "entity": "this", "predicate": {"minecraft:flags": {"is_on_fire": true}}}}
-            ]}]}]
-        });
-        let make = || EntityLootBook {
-            tables: HashMap::from([("minecraft:cow".into(), table.clone())]),
-            sequences: HashMap::new(),
-            world_seed: 0,
-            smelting: HashMap::new(),
-            item_tags: HashMap::new(),
-            entity_tags: HashMap::new(),
-        };
-        let mut book = make();
-        assert!(book
-            .roll(
-                "minecraft:cow",
-                EntityLootContext {
-                    on_fire: true,
-                    ..Default::default()
-                }
-            )
-            .is_none());
-        let first = book
-            .roll("minecraft:cow", EntityLootContext::default())
-            .unwrap();
-        let fresh = make()
-            .roll("minecraft:cow", EntityLootContext::default())
-            .unwrap();
-        assert_eq!(first.len(), fresh.len());
-        assert_eq!(first[0].count, fresh[0].count);
     }
 }

@@ -1,4 +1,3 @@
-//! TU3 `PointGraph` scalar evaluator, `0x82481E10`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PointGraph<const N: usize> {
     pub x: [f32; N],

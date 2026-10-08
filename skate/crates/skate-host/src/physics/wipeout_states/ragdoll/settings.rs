@@ -1,4 +1,3 @@
-//! Authored inputs to normal82BE58A8 and ragdoll82BE59A8/6D60.
 use skate_core::physics::contact::RetailContactMaterial;
 use skate_data::{collections::Collections, physics_skeleton::PhysicsSkeleton};
 use std::path::Path;

@@ -39,7 +39,6 @@ impl Parameter {
             scale: attributes
                 .get("scale")
                 .map(|value| f32::from_bits(value.float_bits)),
-            // Both TU3 constructors82BA23C0/82BA1768 default this to true.
             on_update: attributes.boolean_byte("onUpdate", 1) != 0,
             filters: [
                 filter(
@@ -52,14 +51,12 @@ impl Parameter {
                 filter(attributes.text("mirrorFilter")),
             ],
             angle_filter: filter(attributes.text("angleFilter")),
-            //BoardAdjust82BA2A90 passes true as the constructor default.
             negate_on_mirror: attributes.boolean_byte("negateOnMirror", 1) != 0,
         }
     }
 }
 
 fn filter(value: Option<&str>) -> u32 {
-    // TU382F847C0..82F84850 initialize the names consumed by82BA0A48.
     match value {
         Some("negate") => 1,
         Some("abs") => 2,
@@ -82,7 +79,10 @@ pub enum ActionOperation {
     CreateMgTimeIntent,
     CreateConstMgIntent,
     BoardAdjust,
-    CreateTrickIntentFromGesture { group: crate::input::gesture_catalog::Group, override_name: Option<String> },
+    CreateTrickIntentFromGesture {
+        group: crate::input::gesture_catalog::Group,
+        override_name: Option<String>,
+    },
     JuiceHook,
     BodyFlippingSignal,
     /// Diagnostic presentation is owned by this host and has no intent effect.
@@ -168,7 +168,10 @@ impl OperationFactory for ActionFactory {
             } else {
                 if kind == OperationKind::Behavior && name == "CreateTrickIntentFromGesture" {
                     ActionOperation::CreateTrickIntentFromGesture {
-                        group: crate::input::gesture_catalog::Group::parse(attributes.text("group").unwrap_or("Square")).map_err(ActionFactoryError)?,
+                        group: crate::input::gesture_catalog::Group::parse(
+                            attributes.text("group").unwrap_or("Square"),
+                        )
+                        .map_err(ActionFactoryError)?,
                         override_name: attributes.text("override").map(str::to_owned),
                     }
                 } else if kind == OperationKind::Behavior && name == "PrintText2D" {

@@ -30,7 +30,6 @@ use skate_data::collections::Collections;
 /// They cannot be inferred from the board body's center of mass or its up axis.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RidingPoseInputs {
-    /// Skeleton11008 -> Processed752 in82BD8918.
     pub com_to_deck: Vector3,
     ///Processed2812, supplied by the actual PhysBodySpin animation attribute.
     pub body_spin: f32,
@@ -53,7 +52,6 @@ pub(crate) struct RidingOutputs {
     pending_wheel_queries: Option<[Option<WheelLineHit>; 4]>,
 }
 impl RidingOutputs {
-    ///Board82C0D680 resets CollisionInfo and both probes, preserving7692.
     pub fn reset_for_teleport(&mut self) {
         let elapsed = self.ground.time_without_wheel_contact;
         let drag = self.ground.wheel_angular_drag;
@@ -62,8 +60,6 @@ impl RidingOutputs {
         self.ground.wheel_angular_drag = drag;
         self.wheel_lines = WheelLineState::default();
         self.probes.reset_results();
-        //Original82C0D680 preserves query handles203C..2050. EndBoard
-        //still consumes the batch submitted before this input-phase reset.
     }
     pub fn load(
         data: &Collections,
@@ -134,7 +130,6 @@ impl RidingOutputs {
         })
     }
 
-    ///Original82DB5E10 reads current Processed464.y and2612 after Skeleton.
     pub fn update_input_heading(&mut self, normal_y: f32, speed: f32) -> f32 {
         self.heading_adjust_factor = self.speed_settings.calculate(normal_y, speed);
         self.heading_adjust_factor
@@ -144,9 +139,6 @@ impl RidingOutputs {
         self.heading_adjust_factor
     }
 
-    ///Ground preupdate82D37C50 ->82D38018 submits82D4E250. The host computes
-    ///that job directly: its heading seed, BodySpin, up filters, full transform,
-    ///dynamic lean and tilt. This must complete before ground forces consume it.
     pub fn update_ground_reckoning(
         &mut self,
         board: &BoardRuntime,
@@ -157,10 +149,19 @@ impl RidingOutputs {
         processed: &skate_core::player::input_phase::ProcessedPhysicsInput,
     ) {
         let deck = board.part_transforms()[BodyId::Deck.index()];
-        // Ordinary ground riding follows the physical deck (82D4E250).
         self.update_ground_reckoning_with_heading(
-            board, pose, processed_flags_2468, animation_balance, coffin, processed,
-            [deck.basis.columns[2][0], deck.basis.columns[2][1], deck.basis.columns[2][2], 0.0],
+            board,
+            pose,
+            processed_flags_2468,
+            animation_balance,
+            coffin,
+            processed,
+            [
+                deck.basis.columns[2][0],
+                deck.basis.columns[2][1],
+                deck.basis.columns[2][2],
+                0.0,
+            ],
         );
     }
 
@@ -221,8 +222,6 @@ impl RidingOutputs {
         );
     }
 
-    /// Slide82D3A890 seeds1136/1200 from Processed528/96 and calls82D8C8F0
-    /// directly. Its data block is exactly the Processed snapshot82D8E5C0.
     pub fn update_slide_reckoning(
         &mut self,
         p: &skate_core::player::input_phase::ProcessedPhysicsInput,
@@ -268,9 +267,6 @@ impl RidingOutputs {
         );
     }
 
-    /// StartSkateboardLineTests82DB6310 ->82C07788: four current wheel positions,
-    /// each queried0.2m along negative Reckoning up, radius0 and static-world
-    /// backend. World8275EA20 submits these before actor SetUpPhysics.
     pub fn start_wheel_queries(
         &mut self,
         board: &BoardRuntime,
@@ -296,9 +292,6 @@ impl RidingOutputs {
         Ok(())
     }
 
-    ///World8275EB10 calls EndBoard8275E6E8 after PlayerInput and before
-    ///PostInput/state work. These results are available to this frame's state
-    ///selector, independently of the subsequent solve's contact reports.
     pub fn finish_wheel_queries(&mut self) -> Result<(), String> {
         let hits = self
             .pending_wheel_queries
@@ -308,9 +301,6 @@ impl RidingOutputs {
         self.probes.publish()
     }
 
-    ///UpdatePostPhysics82C07D20 consumes current solved reports.
-    ///Contact-dependent inertia drag affects the next step. ProcessOutput
-    ///82C02A80 publishes actual body rates with filtered normal1216.
     pub fn finish_post_physics(
         &mut self,
         board: &mut BoardRuntime,
@@ -334,8 +324,6 @@ impl RidingOutputs {
             .iter_mut()
             .zip(self.ground.wheel_angular_drag)
         {
-            // S3 82C08634 writes inertia+36; S2 82B372E0 names this
-            // mAngularDrag. Linear drag belongs to separate state controls.
             body.inertia.angular_drag = drag;
         }
         self.motion = BoardMotionOutput::from_board(

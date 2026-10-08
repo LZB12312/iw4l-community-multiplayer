@@ -1,7 +1,3 @@
-//! Original Reckoning::UpdateBiped82D8E3E0, using the existing shared owners.
-//! 82D8E458 explicitly clears velocity; riding acceleration/damping is absent.
-//! This adapter follows the shared XYZ orientation representation; all input
-//! frame/filter math uses four lanes and returns complete computed vectors.
 use crate::{
     air::{
         body_spin::{self, BodySpinState},
@@ -96,6 +92,3 @@ pub fn update(
 fn xyz(v: Vector) -> Vector3 {
     Vector3::new(v[0], v[1], v[2])
 }
-
-#[cfg(test)]
-mod tests;

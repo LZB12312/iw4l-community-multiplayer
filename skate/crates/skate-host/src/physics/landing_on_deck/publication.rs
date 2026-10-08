@@ -1,4 +1,3 @@
-//! State503 FillPhysOut82D4DFC8. No output is inferred from render transforms.
 use super::SkaterRuntime;
 pub(crate) fn fill(skater: &mut SkaterRuntime) -> Result<(), String> {
     let state = &skater.landing_on_deck.state;

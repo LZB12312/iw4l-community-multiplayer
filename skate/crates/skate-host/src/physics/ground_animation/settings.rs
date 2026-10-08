@@ -1,4 +1,3 @@
-//!82D94C10 copies physics_jump layout0..456 into the board toolkit cache.
 use skate_core::{
     air::ground_jump::{GroundJumpMode, GroundJumpSettings},
     point_graph::PointGraph,

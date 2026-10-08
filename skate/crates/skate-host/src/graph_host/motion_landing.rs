@@ -18,7 +18,6 @@ impl Operation {
             "IsLanding" => Self::IsLanding,
             "IsManualing" => Self::IsManualing,
             "IsDoingTrick" => Self::IsDoingTrick,
-            //82BC7618 fixes this operation's attribute to disttocog.
             "SetLandingData" => Self::SetLandingData,
             "DisableTricks" => Self::DisableTricks {
                 length: a
@@ -26,7 +25,6 @@ impl Operation {
                     .map_or(0.5, |v| f32::from_bits(v.float_bits)),
             },
             "ChooseRandomLanding" => Self::ChooseRandomLanding {
-                //82BC7788 truncates the configured float toward zero.
                 count: a
                     .get("numlandings")
                     .map_or(1.0, |v| f32::from_bits(v.float_bits)) as i32,
@@ -69,7 +67,6 @@ impl Condition {
             }
             Self::HasTiltToLargeForPreland => override_preland
                 .ok_or("HasTiltToLargeForPreland requires original prelanding output".into()),
-            //82BC5860 ->8231F460+48 ->82BA74D8 ->specific v116.
             Self::AllowedToTrick => Ok(flags.tricks_allowed),
         }
     }
@@ -85,7 +82,6 @@ pub struct Flags {
 }
 impl Default for Flags {
     fn default() -> Self {
-        //825953B0 clears bits30..27 and sets bit25.
         Self {
             anticipating: false,
             landing: false,

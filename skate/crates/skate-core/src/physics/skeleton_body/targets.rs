@@ -1,5 +1,3 @@
-//! Original TU3 SkeletonDrives::InitHooks82BEAB70 creates four static targets.
-//! These physical constraint endpoints contain no runtime interception code.
 use crate::{
     math::{Basis3, Vector3},
     physics::{
@@ -33,16 +31,12 @@ impl SkeletonTargets {
                 inertia: None,
             };
             set_part_transform(&mut part, words(IDENTITY));
-            // Original82BEAED4 inserts STATIC_BODY(1), giving zero inverse
-            // mass/tensor/rates. The centered.1m box's authored100kg and its
-            // disabled collision volume never participate in that response.
             initialized_body(&part, STATIC_INERTIA, simulation, BoardMotion::Static)
         });
         let identity = RetailDriveFrame {
             orientation: RetailQuaternion::IDENTITY,
             translation: Vector3::ZERO,
         };
-        //82BEAD34..ADC8: X=(0,1,0),Y=(0,0,1),Z=(1,0,0).
         let extra = RetailDriveFrame {
             orientation: retail_quaternion_from_basis(Basis3 {
                 columns: [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]],
@@ -78,8 +72,6 @@ impl SkeletonTargets {
             ],
         }
     }
-    /// Reset82BD9DB8/9DE0 normalizes these two desired matrices before
-    /// PartSetTransform. The other two target parts retain their pose.
     pub fn reset(&mut self, hips: AnimationPartTransform, spawn: AnimationPartTransform) {
         for (index, frame) in [hips, spawn].into_iter().enumerate() {
             self.set_transform(index, floats(orthonormalize_rotation(words(frame))));
@@ -119,7 +111,6 @@ impl SkeletonTargets {
         m[3] = [p.x, p.y, p.z, 0.0];
         m
     }
-    /// Ground::PredictFutureDeck82D38630 moves target0, not physical hips.
     pub fn apply_future_deck_displacement(&mut self, displacement: Vector3) {
         let mut frame = self.transform(0);
         frame[3][0] += displacement.x;

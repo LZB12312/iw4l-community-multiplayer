@@ -1,6 +1,3 @@
-//! AnimOutPhysIn::Reset, TU3 82590028.
-//! Reset is selective: it preserves storage, count, intents, attributes and all
-//! fields not listed below. Actor::SetUpPhysics owns the later list replacement.
 use super::{NativeMatrix, physics_packet::PhysicsPosePacket};
 use crate::animation::commands::buffers::BufferError;
 
@@ -33,9 +30,6 @@ pub struct AdditionalResetFields {
     pub requested_physics_mode: u32,
 }
 
-/// Native packed basis, NOT a conventional homogeneous 4x4 identity.
-/// Three static vectors at82139A10/20/30 plus an all-zero vector produced
-/// inside Reset. All four fourth lanes, including translation W, are zero.
 pub const RESET_POSE: NativeMatrix = [
     [1.0, 0.0, 0.0, 0.0],
     [0.0, 1.0, 0.0, 0.0],
@@ -43,9 +37,6 @@ pub const RESET_POSE: NativeMatrix = [
     [0.0; 4],
 ];
 
-/// Complete field coverage for82590028 on valid packet allocations. Host-side
-/// extent checks precede mutation; native assumes allocations match the count.
-/// Existing vector lengths/capacities and bones past packet.bone_count remain.
 pub fn reset(
     packet: &mut PhysicsPosePacket,
     fields: &mut AdditionalResetFields,

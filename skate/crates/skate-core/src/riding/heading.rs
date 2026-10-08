@@ -1,5 +1,3 @@
-//! Complete TU3 Toolkit_CalcHeadingTorque 82D92CF8. Ground calls this before
-//! AntiFlipTorque; the two are distinct. The caller owns board+284 history.
 use crate::{physics::reciprocal_sqrt::estimate, point_graph::PointGraph, trigonometry::acos};
 
 #[derive(Clone)]
@@ -13,7 +11,6 @@ pub struct HeadingSettings {
     pub manual_response: PointGraph<8>,      // +1020/+1052
     pub inclination_response: PointGraph<8>, // +1084/+1116
     pub speed_response: PointGraph<8>,       // +1148/+1180
-    /// Live four-lane threshold at 830BD350, initialized by 82F826F8.
     pub normal_threshold: [f32; 4],
 }
 

@@ -27,11 +27,6 @@ pub enum ContactPrimitive {
     },
 }
 
-/// Authored triangle Volume initialization and CreateGPInstance geometry
-/// (82AC75B8, 82ADE468). The normal cache's dirty bit is cleared before copying
-/// the Volume flags to GP flags; all other flags and edge cosines copy directly.
-/// This constructor recomputes authored geometry. A cached native GPTriangle can
-/// instead be passed directly as ContactPrimitive::Triangle.
 pub fn triangle_from_volume(
     vertices: [Vector3; 3],
     fatness: f32,
@@ -60,8 +55,6 @@ pub fn triangle_from_volume(
             flags: volume_flags & !2,
             edge_cosines,
         },
-        // 82ADE66C..: lengths are the twice-refined reciprocal of the refined
-        // inverse length, not squared length multiplied by inverse length.
         edge_lengths: inverse.map(reciprocal),
         fatness,
     }

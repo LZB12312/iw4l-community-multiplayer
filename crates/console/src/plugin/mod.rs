@@ -79,7 +79,12 @@ pub struct ConsolePlugin;
 
 impl Plugin for ConsolePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, crate::debug_move::update_skate_overlay.in_set(ClientSet::Ui));
+        crate::character::register(app);
+        crate::meat::register(app);
+        app.add_systems(
+            Update,
+            crate::debug_move::update_skate_overlay.in_set(ClientSet::Ui),
+        );
         crate::startup::install_stdin(app);
         app.init_resource::<ConsoleSettings>()
             .init_resource::<ConsoleState>()
@@ -293,7 +298,10 @@ fn publish_client_action_input(
     binds: Res<KeyBinds>,
     mut scripted: ResMut<ConsoleInputState>,
     console: Res<ConsoleState>,
-    (script_menus, minecraft): (Option<Res<hud::ScriptMenus>>, Option<Res<frame::MinecraftUi>>),
+    (script_menus, minecraft): (
+        Option<Res<hud::ScriptMenus>>,
+        Option<Res<frame::MinecraftUi>>,
+    ),
     mut hud_input: ResMut<frame::HudInputView>,
     settings: Res<frame::GameSettings>,
     mut out: ResMut<ClientActionInput>,
@@ -754,6 +762,8 @@ fn setup_console(
         .unwrap_or_default();
     crate::feature_dispatch::register_feature_commands(&mut registry, &maps);
     crate::frontend::register(&mut registry);
+    crate::character::commands(&mut registry);
+    crate::meat::commands(&mut registry);
     crate::class_menu::register(&mut registry);
     let font = fonts.add(Font::from_bytes(EMBEDDED_FONT.to_vec()));
     commands.insert_resource(ConsoleFont(font.clone()));
@@ -2017,7 +2027,18 @@ fn dispatch_console_command(
         let alive = authority
             .as_ref()
             .and_then(|w| w.0.client_meta(client))
-            .is_some_and(|m| m.lifecycle == sim::ClientLifecycle::Alive && m.life_sequence != life);
+            .map(|m| (m.lifecycle, m.life_sequence))
+            .or_else(|| {
+                presented
+                    .as_ref()?
+                    .snapshot()?
+                    .meta
+                    .for_client(client)
+                    .map(|m| (m.lifecycle, m.life_sequence))
+            })
+            .is_some_and(|(lifecycle, sequence)| {
+                lifecycle == sim::ClientLifecycle::Alive && sequence != life
+            });
         if alive {
             dispatch.wait_alive = None;
             diag::info!(

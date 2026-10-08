@@ -1,7 +1,3 @@
-//! Complete TU3 82DB5BE0: AnimOutPhysIn -> ProcessedPhysIn publication.
-//! Called by physical input stage 82DB4048 before board/attribute processing.
-//! Inputs are already produced by animation; this is not a gamepad mapping.
-
 /// Source packet fields. Byte flags use their low bit, including noncanonical
 /// byte values. Matrix/vector words are copied without numerical conversion.
 pub struct AnimationPacketFields {
@@ -22,8 +18,6 @@ pub struct AnimationPacketFields {
     pub flag_10371: u8,
 }
 
-/// All fields written by 82DB5BE0. Seed flag words from the preceding native
-/// reset/publication stages: this helper preserves their unrelated bits.
 pub struct ProcessedPacketFields {
     pub flags_2468: u32,
     pub flags_2476: u32,

@@ -1,7 +1,5 @@
 use super::{PoseMatrix, arithmetic::*};
 
-/// 825C5710: z/y/x projection against ORIGINAL input axes, then normalization.
-/// Translation is copied verbatim. Degenerate inputs receive no invented repair.
 pub fn orthonormalize_rotation(input: PoseMatrix) -> PoseMatrix {
     let original = matrix(input);
     let mut out = original;
@@ -18,8 +16,6 @@ pub fn orthonormalize_rotation(input: PoseMatrix) -> PoseMatrix {
     words(out)
 }
 
-/// 82AE0A40: native magnitude gates and least-parallel pair selection followed
-/// by two normalized cross products. This differs from 825C5710 above.
 pub fn orthonormalize_part_basis(input: PoseMatrix) -> PoseMatrix {
     let mut m = matrix(input);
     let squares: [f32; 3] = core::array::from_fn(|i| dot(m[i], m[i], false));

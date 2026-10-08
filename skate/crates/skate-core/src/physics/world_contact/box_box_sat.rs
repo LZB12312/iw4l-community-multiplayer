@@ -1,9 +1,5 @@
 use crate::physics::{reciprocal_sqrt::estimate, world_contact::prism_math::*};
 
-/// TU3 82ACF448. Unlike the triangle/box entry, edge crosses use the raw
-/// reciprocal-square-root estimate without refinement. The last cross is
-/// repeated to fill its final four-candidate batch; equal scores retain the
-/// earlier axis. Shape fatness is excluded from these intervals.
 pub(in super::super) fn box_box(a: &[u32; 48], b: &[u32; 48]) -> ([u32; 4], [u32; 4]) {
     let mut axes = [[0.0; 4]; 16];
     for i in 0..3 {

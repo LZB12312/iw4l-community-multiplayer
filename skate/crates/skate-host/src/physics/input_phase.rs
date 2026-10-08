@@ -38,9 +38,7 @@ pub(super) fn advance(
     actions: &mut dyn ActionMap,
     input_available: bool,
 ) -> Result<bool, String> {
-    //82DB4094 completes the preceding off-board batch BEFORE input reset.
     skater.offboard_contact.begin_input();
-    //82DB409C clears the actual shared manager latch;82DB4348 publishes its IK offset.
     skater.landing_deck.manager.can_land_256 = false;
     skater.player_input.player.manager_1852_vector_176 =
         skater.landing_deck.manager.ik_offset_176.map(f32::to_bits);
@@ -61,11 +59,8 @@ pub(super) fn advance(
         } else {
             super::solve::deck_frame(&physics.board)
         },
-        //82D8ABD8 reads the state selector's retained signed counter+40,
-        //before this tick's CalcSuggestedState advances it at82D8AF78..94.
         air_counter_40: skater.player_state.selector.post_grind_jump_counter,
     };
-    // TU3 82DB8CE4..8D1C stops possession before moving either assembly.
     let resetting = skater.player_input.physical.state.flag_61 != 0
         || skater.player_input.player.flags_1296 & (1 << 19) != 0
         || skater.player_input.pending_teleport().is_some();
@@ -131,7 +126,6 @@ pub(super) fn advance(
     }
     let teleported = callbacks.teleported;
     if teleported {
-        // TU3 82DB8D6C..8DA4 repeats the controller reset after Skeleton.
         super::offboard::board_manager::runtime::reset_for_teleport(physics, skater);
     }
     physics.processed_flags_2468 = skater.player_input.processed.flags_2468;
@@ -161,8 +155,6 @@ pub(super) fn update_ground(
         &collision,
         physics.settings.step.simulation,
     )?;
-    //Ground82D38000 completes GeneralUpdate;82D38008 then retains the actual
-    //board/animation error used when Air subsequently blends its board target.
     skater
         .skeleton_air
         .capture_physics_error(&physics.board, &target);
@@ -246,7 +238,8 @@ impl PlayerInputCallbacks for Callbacks<'_, '_> {
         physical: &mut PhysicalPlayerInput,
         processed: &mut ProcessedPhysicsInput,
     ) -> Result<(), String> {
-        self.animation_input.select_physics_mode(processed.state_variant_index_2528)?;
+        self.animation_input
+            .select_physics_mode(processed.state_variant_index_2528)?;
         self.skeleton_input.process_data(
             board,
             toolkit,

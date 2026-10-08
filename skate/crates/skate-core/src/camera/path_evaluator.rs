@@ -1,18 +1,11 @@
-//! Complete TU3 82E023D0/82E02490 orchestration. Backend adapters are external;
-//! the trajectory request and moving-sphere provider are distinct native objects.
-
 use super::{PathObstacle, PredictionPath, candidate_collision_time};
 
-/// Native request vtable slots +4/+8/+12 (82DF9270/82DF9338/82DF9340).
-/// A nonzero flag selects the manager acceleration vector in the stock adapter.
 pub trait TrajectoryCollisionRequest {
     fn submit(&mut self, path: PredictionPath, context: u32, acceleration_flag: u8);
     fn is_ready(&mut self) -> bool;
     fn collision_time(&mut self) -> f32;
 }
 
-/// Native 82DF9400 provider. Implementations preserve native actor filtering and
-/// sphere generation; the returned count must be at most the 50-record capacity.
 pub trait MovingObstacleProvider {
     fn collect(
         &mut self,
@@ -45,7 +38,6 @@ pub struct PathEvaluator {
 }
 
 impl PathEvaluator {
-    /// Complete 82E02490. Does not clear current-frame result fields on entry.
     pub fn update_request(&mut self, context: u32, request: &mut impl TrajectoryCollisionRequest) {
         match self.request_state {
             0 => {
@@ -74,7 +66,6 @@ impl PathEvaluator {
         }
     }
 
-    /// Complete 82E023D0, including the native asynchronous-before-moving order.
     pub fn update(
         &mut self,
         context: u32,

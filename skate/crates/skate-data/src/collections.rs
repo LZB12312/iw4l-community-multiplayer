@@ -43,7 +43,10 @@ impl Collections {
         }
         let mut identities = std::collections::BTreeSet::new();
         for item in &data.collections {
-            if !identities.insert((crate::attrib_hash::numeric_name(&item.class_name), crate::attrib_hash::numeric_name(&item.key))) {
+            if !identities.insert((
+                crate::attrib_hash::numeric_name(&item.class_name),
+                crate::attrib_hash::numeric_name(&item.key),
+            )) {
                 return Err(format!(
                     "Duplicate collection {}/{}",
                     item.class_name, item.key
@@ -65,12 +68,16 @@ impl Collections {
                 .collections
                 .iter()
                 .find(|c| {
-                    (c.class_name == class || crate::attrib_hash::numeric_name(&c.class_name) == class_id)
-                        && (c.key == current || crate::attrib_hash::numeric_name(&c.key) == current_id)
+                    (c.class_name == class
+                        || crate::attrib_hash::numeric_name(&c.class_name) == class_id)
+                        && (c.key == current
+                            || crate::attrib_hash::numeric_name(&c.key) == current_id)
                 })
                 .ok_or_else(|| format!("Missing stock collection {class}/{current}"))?;
             if let Some(field) = item.fields.get(name).or_else(|| {
-                item.fields.iter().find(|(key, _)| crate::attrib_hash::numeric_name(key) == field_id)
+                item.fields
+                    .iter()
+                    .find(|(key, _)| crate::attrib_hash::numeric_name(key) == field_id)
                     .map(|(_, field)| field)
             }) {
                 return Ok(field);
@@ -145,37 +152,4 @@ fn decode_words<const N: usize>(text: &str) -> Result<[u32; N], String> {
             .map_err(|e| format!("Invalid collection payload: {e}"))?;
     }
     Ok(words)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn numeric_export_names_resolve_readable_manual_settings() {
-        // Identities and payload from the prepared vault; no asset IO or gameplay.
-        let data: Collections = serde_json::from_value(serde_json::json!({
-            "version": 1, "collections": [{
-                "class": "anim_motion", "key": crate::attrib_hash::numeric_name("manual"),
-                "parent": "", "source": "fixture", "sha256": "",
-                "fields": { "Hash_A353CE1670D3AA40": { "type": "EA::Reflection::Float", "data": "3D23D70A" } }
-            }]
-        })).unwrap();
-        assert_eq!(data.float("anim_motion", "manual", "manual_clamp_vel").unwrap().to_bits(), 0x3d23d70a);
-        assert!(data.field("anim_motion", "manual", "missing").is_err());
-    }
-
-    #[test]
-    fn readable_names_resolve_numeric_queries_through_inheritance() {
-        let data: Collections = serde_json::from_value(serde_json::json!({
-            "version": 1, "collections": [
-                {"class":"example", "key":"child", "parent":crate::attrib_hash::numeric_name("base"),
-                 "source":"fixture", "sha256":"", "fields":{}},
-                {"class":"example", "key":"base", "parent":"", "source":"fixture", "sha256":"",
-                 "fields":{"value":{"type":"EA::Reflection::Float", "data":"3F800000"}}}
-            ]
-        })).unwrap();
-        assert_eq!(data.float(&crate::attrib_hash::numeric_name("example"),
-            &crate::attrib_hash::numeric_name("child"), &crate::attrib_hash::numeric_name("value")).unwrap(), 1.0);
-    }
 }

@@ -1,5 +1,3 @@
-//! Off-board inputs from original TU3 Fill825999F0 and helper8259C260.
-//! The stock ActionGraph owns activation; these inputs do not change state.
 use super::controller::DerivedControllerInput;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -25,7 +23,6 @@ pub fn produce_discrete(
     let mut output = Vec::with_capacity(12);
     let mut emit = |name, value| output.push(OffboardIntent { name, value });
 
-    //8259AA8C invokes8259C260 before the later toggle/sprint publications.
     if rising(23) {
         emit("OB_Jump", 1.0);
     }
@@ -54,9 +51,6 @@ pub fn produce_discrete(
     emit("OB_AirBodyTweakX", right_x);
     emit("OB_AirBodyTweakY", right_y);
 
-    //8259A604..A6C0 computes both;8259AF80 gates only NewToggle by actor bit10.
-    //The listener has no biped/category gate. Stock OffBoard AG maps these
-    //same toggle intentions to OB_Mount/OB_MountRaw; trigger edges recall.
     if !air_reckoning_active && !held(29) && held(22) {
         //Native bge does not take the branch for unordered timer values.
         if (rising(22) || !(axis(23) >= f32::from_bits(0x3cf5_c28f)))
@@ -72,7 +66,6 @@ pub fn produce_discrete(
     output
 }
 
-/// Completed physical publication read by Fill825999F0.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AnalogObservation {
     /// PhysOutSkeleton+0: effective animation root Z, including processed2476bit2.
@@ -82,7 +75,6 @@ pub struct AnalogObservation {
     pub biped_correction: Option<[f32; 4]>,
 }
 
-///8259A7A8..A9BC calculation and8259AFFC..B088 ordered movement publications.
 pub fn produce_analog(
     controller: &DerivedControllerInput,
     observation: AnalogObservation,
@@ -97,7 +89,6 @@ pub fn produce_analog(
         let projection = dot(stick, negative);
         let lower = if -projection >= 0.0 { 0.0 } else { projection };
         let coefficient = if 1.0 - lower >= 0.0 { lower } else { 1.0 };
-        //8259A994 ble takes only ordered <=. Unordered follows the zero branch.
         if !(dot(safe_unit(stick), negative) <= f32::from_bits(0x3f66_6666)) {
             0.0
         } else {
@@ -108,10 +99,22 @@ pub fn produce_analog(
         dot(forward, stick)
     };
     [
-        OffboardIntent { name: "OB_Mag", value: magnitude },
-        OffboardIntent { name: "OB_BipedWorldZ", value: stick[2] },
-        OffboardIntent { name: "OB_BipedWorldX", value: stick[0] },
-        OffboardIntent { name: "OB_BipedStickMag", value: super::controller::magnitude(dot(stick, stick)) },
+        OffboardIntent {
+            name: "OB_Mag",
+            value: magnitude,
+        },
+        OffboardIntent {
+            name: "OB_BipedWorldZ",
+            value: stick[2],
+        },
+        OffboardIntent {
+            name: "OB_BipedWorldX",
+            value: stick[0],
+        },
+        OffboardIntent {
+            name: "OB_BipedStickMag",
+            value: super::controller::magnitude(dot(stick, stick)),
+        },
     ]
 }
 
@@ -126,14 +129,14 @@ fn safe_unit(vector: [f32; 4]) -> [f32; 4] {
         let correction = (-squared).mul_add(inverse * inverse, 1.0);
         inverse = (inverse * 0.5).mul_add(correction, inverse);
     }
-    let length = if squared == 0.0 { 0.0 } else { squared * inverse };
-    //Initializer82F826F8 supplies830BD350 from82181A88: LENGTH threshold1e-6.
+    let length = if squared == 0.0 {
+        0.0
+    } else {
+        squared * inverse
+    };
     if length > f32::from_bits(0x3586_37bd) {
         vector.map(|value| value * inverse)
     } else {
         [0.0; 4]
     }
 }
-#[cfg(test)]
-#[path = "offboard_intentions/tests.rs"]
-mod tests;

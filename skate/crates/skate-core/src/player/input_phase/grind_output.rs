@@ -1,6 +1,3 @@
-//! Typed Grinds PhysOut block. Offsets identify native producers, not Rust ABI.
-//! Reset82DE3518; common Fill82D40EA0; tipslide Fill82D42788;
-//! chromosome publication82DEE508; contact conditioner82DF0640.
 use super::types::RawVector;
 use crate::animation::output::attributes::AttributeName;
 
@@ -69,7 +66,6 @@ impl Default for GrindOutputFields {
             animation_id_144: 0,
             scoring_id_148: 0,
             scorable_id_152: u32::MAX,
-            //82F8AF08 initializes template830C0D60 from empty string82060799.
             animation_name_156: Some(crate::animation::skeleton_input::name::encode(b"")),
             scoring_name_176: Some(crate::animation::skeleton_input::name::encode(b"")),
             surface_name_196: None,

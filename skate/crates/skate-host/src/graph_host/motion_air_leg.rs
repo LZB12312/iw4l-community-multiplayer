@@ -1,4 +1,3 @@
-//! Stock ControlAirLegExtension configuration82BAF450 and settings Globals336.
 use skate_core::{
     animation::{
         air_leg_extension::{Bone, Settings},
@@ -28,8 +27,6 @@ impl Operation {
 }
 pub fn load(data: &Collections) -> Result<Settings, String> {
     let value = |name| data.float("anim_motion", "inair_disttocog", name);
-    //PointNegGraphData4 includes four metadata words before x/y. Update uses
-    //82481E10 on the four authored knots, not the negative-graph evaluator.
     let w = data.words::<12>("anim_motion", "inair_disttocog", "lo_air_arm_extend")?;
     Ok(Settings {
         going_up_speed: value("goingup_disttocog_speed")?,

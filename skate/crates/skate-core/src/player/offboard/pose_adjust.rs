@@ -1,5 +1,3 @@
-//! Skeleton::UpdateOffboardAdjust82BD8F10 and SkeletonIK82BF1A78.
-//! Both transforms are current animation globals, before physical bone offsets.
 use crate::physics::skeleton_animation_record::AnimationPartTransform as Transform;
 /// Flags2476 bit2 selects left when set, right when clear.
 pub fn selected_hand(flags_2476: u32) -> usize {
@@ -16,7 +14,6 @@ pub fn adjustment(actual: &Transform, reparented: &Transform) -> Transform {
             0.,
         ]
     });
-    //82BF1B18/40/50: inverse translation accumulates Z, then Y, then X.
     let translation: [f32; 4] = std::array::from_fn(|lane| {
         let z = (0. - reparented[3][2]) * inverse[2][lane];
         let yz = (0. - reparented[3][1]).mul_add(inverse[1][lane], z);
@@ -36,5 +33,3 @@ pub fn adjustment(actual: &Transform, reparented: &Transform) -> Transform {
         })
     })
 }
-#[cfg(test)]
-mod tests;

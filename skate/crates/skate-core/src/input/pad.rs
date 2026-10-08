@@ -1,13 +1,9 @@
-//! Native pad publication 82966F30; retained records use their big-endian words.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pad {
     records: Vec<[u32; 4]>,
     count: usize,
 }
 impl Pad {
-    /// An empty native cInputPad. 8296D288/826986A8 initialize the published
-    /// count to zero; records become initialized only when a larger count is
-    /// published by 82966F30.
     pub fn new() -> Self {
         Self {
             records: Vec::new(),

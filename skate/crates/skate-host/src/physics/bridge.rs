@@ -19,8 +19,20 @@ pub struct Session {
     input: ControllerInput,
     camera: CameraRuntime,
     markers: crate::session_marker::Runtime,
+    combat_dead: bool,
+    bail_until: u64,
+    collision_sequence: u32,
+    collision_tick: u64,
+    collision_speed: f32,
+    collision_normal: [f32; 3],
+    collision_native: bool,
 }
 pub struct Pose {
+    pub collision_sequence: u32,
+    pub collision_speed: f32,
+    pub collision_normal: [f32; 3],
+    pub collision_native: bool,
+    pub sound_flags: u8,
     pub root: Mat4,
     pub bones: Vec<Mat4>,
     pub names: Vec<String>,
@@ -49,7 +61,8 @@ impl Session {
             "IW4L_SKATE_LOAD physics {}ms",
             started.elapsed().as_millis()
         );
-        let skater = SkaterRuntime::load(root, &graphs, &physics, "easy")?;
+        let mut skater = SkaterRuntime::load(root, &graphs, &physics, "easy")?;
+        skater.hall_of_meat_enabled = true;
         eprintln!("IW4L_SKATE_LOAD skater {}ms", started.elapsed().as_millis());
         Ok(Self {
             physics,
@@ -59,6 +72,13 @@ impl Session {
             input: ControllerInput::default(),
             camera: CameraRuntime::load(root)?,
             markers: crate::session_marker::Runtime::load(root)?,
+            combat_dead: false,
+            bail_until: 0,
+            collision_sequence: 0,
+            collision_tick: 0,
+            collision_speed: 0.,
+            collision_normal: [0.; 3],
+            collision_native: false,
         })
     }
     /// A builder for collision to swap in later, usable on another thread.
@@ -90,6 +110,12 @@ impl Session {
     /// Reuse the complete world and animation session. The original teleport path
     /// resets physical bodies and animation state at the new MW2 position.
     pub fn activate(&mut self, spawn: [f32; 3], heading: f32) -> Result<Pose, String> {
+        self.combat_dead = false;
+        self.bail_until = 0;
+        self.collision_sequence = 0;
+        self.collision_speed = 0.;
+        self.collision_native = false;
+        self.collision_tick = self.physics.ticks;
         self.input = ControllerInput::default();
         self.markers.suspend();
         if self.physics.ticks == 0 {
@@ -111,6 +137,14 @@ impl Session {
     pub fn collect(&mut self, frame: InputFrame, dt: f32) {
         self.input.collect(frame.samples);
         self.markers.collect_time(f64::from(dt));
+    }
+    pub fn combat_impact(&mut self, impulse: [f32; 3], lethal: bool) -> Result<(), String> {
+        if impulse.iter().any(|v| !v.is_finite() || v.abs() > 64.) {
+            return Err("Invalid combat impulse".into());
+        }
+        self.combat_dead |= lethal;
+        self.bail_until = self.physics.ticks.saturating_add(90);
+        super::player_state::apply_combat_impact(&mut self.physics, &mut self.skater, impulse)
     }
     pub fn suspend_input(&mut self) {
         self.input = ControllerInput::default();
@@ -143,7 +177,37 @@ impl Session {
             &mut actions,
             published.controller_available(),
             &mut self.camera,
-        )
+        )?;
+        let native = self
+            .skater
+            .wipeout
+            .requests_wipeout(&self.skater.player_input.processed);
+        let impact = self
+            .skater
+            .environment_impact
+            .take()
+            .or_else(|| native.then_some((0., [0., 1., 0.])));
+        if let Some((speed, normal)) = impact
+            && native
+            && !self.combat_dead
+            && self.skater.player_state.current() as u32 != 300
+            && self.physics.ticks
+                >= self
+                    .bail_until
+                    .saturating_add((1. / self.period()).ceil() as u64)
+            && self.physics.ticks.saturating_sub(self.collision_tick)
+                >= (1.5 / self.period()).ceil() as u64
+        {
+            self.collision_sequence = self.collision_sequence.wrapping_add(1).max(1);
+            self.collision_tick = self.physics.ticks;
+            self.collision_speed = speed.min(64.);
+            self.collision_normal = normal;
+            self.collision_native = native;
+        }
+        if self.combat_dead || self.physics.ticks < self.bail_until {
+            super::player_state::apply_combat_impact(&mut self.physics, &mut self.skater, [0.; 3])?;
+        }
+        Ok(())
     }
     /// Deterministic raw-packet entry point for playback/diagnostics.
     pub fn tick(&mut self, input: Controls) -> Result<(), String> {
@@ -163,6 +227,20 @@ impl Session {
             .rates
             .linear_velocity;
         Pose {
+            collision_sequence: self.collision_sequence,
+            collision_speed: self.collision_speed,
+            collision_normal: self.collision_normal,
+            collision_native: self.collision_native,
+            sound_flags: {
+                let state = self.skater.player_state.current() as u32;
+                let actions = self.input.tick_input().actions();
+                u8::from(self.physics.riding.ground.wheel_contact_count > 0)
+                    | (u8::from((400..=405).contains(&state)) << 1)
+                    | (u8::from(state == 101 || state == 102 || actions.values()[12] > 0.) << 2)
+                    | (u8::from(actions.values()[10] > 0. || actions.values()[13] > 0.) << 3)
+                    | (u8::from(state == 300) << 4)
+                    | (u8::from(state == 101 || state == 102) << 5)
+            },
             root: crate::animation::native_matrix(
                 self.skater.animated_skeleton.roots.animation_to_world,
             ),
@@ -220,57 +298,57 @@ fn collision_map(
     heading: f32,
 ) -> SkateMap {
     SkateMap {
-            version: 14,
-            name: "IW4L collision".into(),
-            spawn,
-            heading,
-            environment: vec![],
-            materials: vec![skate_data::skate_map::Material {
-                name: "MW2".into(),
-                flags: 0,
-                friction: 0.8,
-                restitution: 0.,
-                color: [1.; 3],
-                roughness: 1.,
-                emissive: 0.,
-                textures: [0; 5],
-                indirect_strength: 1.,
-                alpha_mode: 0,
-                alpha_cutoff: 0.5,
-                audio: 0,
-                physics: 0,
-                pattern: 0,
-                depth_layer: None,
-                retail_definition: None,
-            }],
-            textures: vec![],
-            geometry: Geometry {
-                vertices: vec![],
-                indices: vec![],
-                collision: triangles
-                    .into_iter()
-                    .map(|points| Collision {
-                        points,
-                        surface: 0,
-                        material: 1,
-                        native_edges: None,
-                    })
-                    .collect(),
-            },
-            rails: rails
+        version: 14,
+        name: "IW4L collision".into(),
+        spawn,
+        heading,
+        environment: vec![],
+        materials: vec![skate_data::skate_map::Material {
+            name: "MW2".into(),
+            flags: 0,
+            friction: 0.8,
+            restitution: 0.,
+            color: [1.; 3],
+            roughness: 1.,
+            emissive: 0.,
+            textures: [0; 5],
+            indirect_strength: 1.,
+            alpha_mode: 0,
+            alpha_cutoff: 0.5,
+            audio: 0,
+            physics: 0,
+            pattern: 0,
+            depth_layer: None,
+            retail_definition: None,
+        }],
+        textures: vec![],
+        geometry: Geometry {
+            vertices: vec![],
+            indices: vec![],
+            collision: triangles
                 .into_iter()
-                .enumerate()
-                .map(|(i, p)| Rail {
-                    name: format!("iw4_edge_{i}"),
-                    closed: false,
-                    points: p,
-                    native: None,
+                .map(|points| Collision {
+                    points,
+                    surface: 0,
+                    material: 1,
+                    native_edges: None,
                 })
                 .collect(),
-            doors: vec![],
-            lights: vec![],
-            routes: vec![],
-            extensions: vec![],
+        },
+        rails: rails
+            .into_iter()
+            .enumerate()
+            .map(|(i, p)| Rail {
+                name: format!("iw4_edge_{i}"),
+                closed: false,
+                points: p,
+                native: None,
+            })
+            .collect(),
+        doors: vec![],
+        lights: vec![],
+        routes: vec![],
+        extensions: vec![],
     }
 }
 
@@ -295,16 +373,29 @@ impl ControllerTransport {
 impl InputFrame {
     pub fn neutral() -> Self {
         Self {
-            samples: std::array::from_fn(|_|Err(crate::input::platform::DeviceError::Disconnected)),
+            samples: std::array::from_fn(|_| {
+                Err(crate::input::platform::DeviceError::Disconnected)
+            }),
         }
     }
     /// One controller in the first slot, already in XInput's layout:
     /// button bits, trigger bytes and signed stick axes.
-    pub fn from_pad(buttons: u16, triggers: [u8; 2], left: [i16; 2], right: [i16; 2], packet: u32) -> Self {
+    pub fn from_pad(
+        buttons: u16,
+        triggers: [u8; 2],
+        left: [i16; 2],
+        right: [i16; 2],
+        packet: u32,
+    ) -> Self {
         let mut frame = Self::neutral();
         frame.samples[0] = Ok(crate::input::platform::DevicePacket {
             number: packet,
-            state: skate_core::input::xbox::XboxState { buttons, triggers, left, right },
+            state: skate_core::input::xbox::XboxState {
+                buttons,
+                triggers,
+                left,
+                right,
+            },
             subtype: 1,
         });
         frame

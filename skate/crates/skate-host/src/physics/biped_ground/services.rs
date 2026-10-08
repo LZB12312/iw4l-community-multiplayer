@@ -7,8 +7,6 @@ use skate_core::{
     player::offboard::{air_launch, air_selector, biped_air::recovered::feet},
 };
 
-///82D770D8; S2 OffBoardFeetIK::ConsiderReset82DCD110 corroborates the owner.
-///Do not reset targets/history merely because the board has been released.
 pub(crate) fn enter_feet(skater: &mut SkaterRuntime) {
     let p = &skater.player_input.processed;
     if !matches!(p.state_2504, 500 | 501 | 502) {
@@ -23,9 +21,6 @@ pub(crate) fn enter_feet(skater: &mut SkaterRuntime) {
     skater.offboard_feet.flags_304_to_307[0] = p.state_2508 == 502;
 }
 
-///82D773F8 reads real line tests and82BE3220 world animation-record bones.
-///Same input extraction as air_feet; neither its timer reset nor Air update
-///is executed. Ground conditioning/history belong to super::feet::update.
 pub(crate) fn feet_input(skater: &SkaterRuntime) -> feet::Input {
     let p = &skater.player_input.processed;
     let animation = &skater.animated_skeleton;
@@ -100,7 +95,6 @@ pub(crate) fn launch_input(
     })
 }
 
-///82D32088..32108, after Skeleton has published its real processed fields.
 pub(crate) fn sync_grab(skater: &mut SkaterRuntime) {
     let p = &skater.player_input.processed;
     let bone = compose_affine(
@@ -131,8 +125,6 @@ pub(crate) fn sync_grab(skater: &mut SkaterRuntime) {
     );
 }
 
-///82D6CA58 copies the actual gravity vector and submits; consumption remains
-///at the shared selector's native phase, not an invented Ground frame delay.
 pub(crate) fn submit_air(
     physics: &mut GamePhysics,
     skater: &mut SkaterRuntime,

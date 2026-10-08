@@ -1,4 +1,3 @@
-//! TU3 82D81610: authored-edge/secondary-line merge, then primary lines.
 use super::analyzer_math::{madd, plane_segment};
 use super::{Batch, ProbeLayout, QueryResults, Samples, Vector, dot, scale, sub};
 
@@ -78,7 +77,6 @@ pub(super) fn collect(batch: &Batch, layout: &ProbeLayout, results: &QueryResult
     samples
 }
 
-/// 8296EBB0 followed by 82E09C80. One inverse-sqrt refinement per input.
 fn folded_angle(a: Vector, b: Vector) -> f32 {
     let aa = dot(a, a);
     let bb = dot(b, b);

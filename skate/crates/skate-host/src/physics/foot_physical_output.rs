@@ -1,5 +1,3 @@
-//! Persistent original physical-foot output owner. Call after final physical
-//! record correction, at Skeleton::FillPhysOut82BE2138/2140 publication time.
 use skate_core::physics::{
     foot_physical_output::{FootPhysicalOutput, FootPhysicalSettings, FootPhysicalState},
     skeleton_body::SkeletonPhysicalRecord,

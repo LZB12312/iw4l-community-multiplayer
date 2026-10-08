@@ -11,11 +11,11 @@ use super::{
     trajectory::{init_trajectory_info, select, update_trajectory_follow},
 };
 
-const ALIGNMENT_LEAD_FRAMES: f32 = f32::from_bits(0x4040_0000); // 0x82063B08, 3.
-const MIN_ALIGNMENT_FRAMES: f32 = f32::from_bits(0x4000_0000); // 0x82060C50, 2.
-const ONE: f32 = f32::from_bits(0x3F80_0000); // 0x8231A844.
-const BOARD_ERROR_WINDOW: f32 = f32::from_bits(0x3D75_C28F); // 0x82099460, 0.06.
-const ZERO: f32 = 0.0; // 0x82165A10.
+const ALIGNMENT_LEAD_FRAMES: f32 = f32::from_bits(0x4040_0000);
+const MIN_ALIGNMENT_FRAMES: f32 = f32::from_bits(0x4000_0000);
+const ONE: f32 = f32::from_bits(0x3F80_0000);
+const BOARD_ERROR_WINDOW: f32 = f32::from_bits(0x3D75_C28F);
+const ZERO: f32 = 0.0;
 
 const GRIND_FOOT_BODIES: [GrindFootBody; 6] = [
     GrindFootBody::Body3152,
@@ -26,7 +26,6 @@ const GRIND_FOOT_BODIES: [GrindFootBody; 6] = [
     GrindFootBody::Body3176,
 ];
 
-/// `PhysState_KnownAir::Update`, TU3 `0x82D35C58`.
 pub fn update(
     state: &mut KnownAirState,
     frame: &KnownAirFrame,

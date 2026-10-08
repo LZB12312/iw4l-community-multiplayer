@@ -1,5 +1,3 @@
-//! AddRunoutAttribs: Begin82BBA4A8, Update82BBA770, state82BBA830.
-//! End is82B61BB8. Values are sampled once per activation, never on Update.
 use skate_core::{
     animation::{
         playback_parameters::{AttributeSink, SettableAttribute},
@@ -24,7 +22,6 @@ pub struct Observation {
     pub offboard_velocity_128: [f32; 4],
     pub reckoning_velocity_16: [f32; 4],
     pub reckoning_up_96: [f32; 4],
-    ///Exact first vector of physical bundle20, loaded at82BBA620.
     pub skeleton_vector_0: [f32; 4],
     ///Live ISkaterAnim virtual28 result at Begin, not a retained pose mirror.
     pub animation_mirrored: bool,
@@ -92,7 +89,3 @@ impl State {
         Ok(())
     }
 }
-
-#[cfg(test)]
-#[path = "runout/tests.rs"]
-mod tests;

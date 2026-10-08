@@ -43,8 +43,6 @@ impl Settings {
                 y: exit[8..].try_into().unwrap(),
             },
             post: post::Settings {
-                // Original82D90898 loads164/168. Stock schema proves Ground
-                // contact thresholds, not similarly named Air fields240/244.
                 max_arm_contact_164: wipeout("Wipeout_GroundSkeletonMaxContactArms")?,
                 max_body_contact_168: wipeout("Wipeout_GroundSkeletonMaxContact")?,
                 xz_acceleration_204: wipeout("Wipeout_GrindXZDeck")?,

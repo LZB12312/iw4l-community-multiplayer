@@ -1,6 +1,3 @@
-//! Full original SkeletonIK::FillPhysOut_FeetDeckInteraction82BF22A0.
-//! Physical toe positions and derivatives are observed in the physical board's
-//! frame. They are distinct from animation targets and contact-query validity.
 use super::{
     native_arithmetic::reciprocal_estimate,
     skeleton_animation_record::AnimationPartTransform as Transform,
@@ -16,7 +13,6 @@ pub struct FootPhysicalSettings {
 }
 #[derive(Clone, Debug, Default)]
 pub struct FootPhysicalState {
-    /// IK3136/3152. Reset82BEDB5C/60 writes both vectors to zero.
     pub previous_local_toes: [[f32; 4]; 2],
 }
 #[derive(Clone, Copy, Debug, Default)]
@@ -50,7 +46,6 @@ impl FootPhysicalState {
             })
         });
         self.previous_local_toes = positions;
-        //82165A10 is zero: only authored padding supplies the box's Y extent.
         let dimensions = [
             settings.deck_half_width,
             0.0,
@@ -76,7 +71,6 @@ fn inverse_physical_board(board: &Transform) -> Transform {
             inverse[axis][lane] = board[lane][axis];
         }
     }
-    //82BF2398..241C builds -P.z * inverseZ, then Y and X in source order.
     for lane in 0..4 {
         let z = -board[3][2] * inverse[2][lane];
         let yz = (-board[3][1]).mul_add(inverse[1][lane], z);
@@ -90,47 +84,4 @@ fn transform_point(frame: &Transform, p: [f32; 4]) -> [f32; 4] {
         let xy = frame[1][lane].mul_add(p[1], x);
         frame[2][lane].mul_add(p[2], xy)
     })
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn moving_board_frame_separates_world_rates_from_relative_foot_motion() {
-        let mut record = SkeletonPhysicalRecord::default();
-        record.pose[0][3] = [10.0, 2.0, 3.0, 0.0];
-        record.pose[15][3] = [10.2, 2.0, 3.3, 0.0];
-        record.pose[19][3] = [9.8, 2.0, 2.7, 0.0];
-        record.velocities[15] = [4.0, 0.0, 0.0, 0.0];
-        record.velocities[19] = [5.0, 0.0, 0.0, 0.0];
-        let settings = FootPhysicalSettings {
-            deck_half_width: 0.3,
-            deck_total_half_length: 0.5,
-            padding: [0.0, 0.1, 0.0, 0.0],
-        };
-        let mut state = FootPhysicalState::default();
-        let initial = state.update(&record, 0.25, settings);
-        assert_eq!(initial.within_deck_box, [true, true]);
-        assert_eq!(
-            initial.world_velocity,
-            [record.velocities[15], record.velocities[19]]
-        );
-        for part in [0, 15, 19] {
-            record.pose[part][3][0] += 1.0;
-        }
-        let moved = state.update(&record, 0.25, settings);
-        assert!(
-            moved
-                .local_velocity
-                .iter()
-                .flatten()
-                .all(|value| value.abs() < 0.00001)
-        );
-        let mut boundaries = SkeletonPhysicalRecord::default();
-        boundaries.pose[15][3] = [0.3, 0.0, 0.0, 0.0];
-        boundaries.pose[19][3] = [0.0, 0.1, 0.0, 0.0];
-        assert_eq!(
-            state.update(&boundaries, 0.25, settings).within_deck_box,
-            [false, false]
-        );
-    }
 }

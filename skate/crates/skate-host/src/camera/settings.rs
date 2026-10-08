@@ -1,10 +1,9 @@
-//! Stock normal-camera rig settings, bound by TU3 8252E288/8252EDD0.
-//! Runtime offsets in camera kernels are relative to settings-object +16.
 use skate_core::{
     camera::{
-        AnchorTrackingSettings, AngleTrackingSettings, AvoidanceSettings, DistanceTrackingSettings,
-        DropSettings, FrameSettings, LookSettings, OrientationSettings, OrientationTrackerSettings,
-        RigPositioningSettings, RigSettings, ShakeSettings, ManagerSettings, CompassSettings,
+        AnchorTrackingSettings, AngleTrackingSettings, AvoidanceSettings, CompassSettings,
+        DistanceTrackingSettings, DropSettings, FrameSettings, LookSettings, ManagerSettings,
+        OrientationSettings, OrientationTrackerSettings, RigPositioningSettings, RigSettings,
+        ShakeSettings,
     },
     point_graph::PointGraph,
 };
@@ -22,8 +21,11 @@ pub(crate) struct RigSettingsSource {
 
 pub(crate) fn manager_settings(data: &Collections) -> Result<ManagerSettings, String> {
     Ok(ManagerSettings {
-        rig: RigSettingsSource::load(data)?.bind(), orientation: orientation_settings(data)?,
-        framing: frame_settings(data)?, drop: drop_settings(data)?, look: look_settings(data)?,
+        rig: RigSettingsSource::load(data)?.bind(),
+        orientation: orientation_settings(data)?,
+        framing: frame_settings(data)?,
+        drop: drop_settings(data)?,
+        look: look_settings(data)?,
         shake: shake_settings(data)?,
         steering_threshold: data.float("camera", "dynamics", "TurningCentredDeadzone")?,
     })
@@ -33,9 +35,12 @@ pub(crate) fn compass_settings(data: &Collections) -> Result<CompassSettings, St
     let f = |field| data.float("camera_compass", "default", field);
     Ok(CompassSettings {
         heading_response: data.float("camera", "dynamics", "HeadingChangeResponseSpeed")?,
-        time_before_lineup: f("TimeBeforeAutoLineup")?, lineup_speed: f("AutoLineupSpeed")?,
-        minimum_deadzone_speed: f("MinDeadzoneSpeed")?, maximum_deadzone_speed: f("MaxDeadzoneSpeed")?,
-        maximum_deadzone_size: f("MaxDeadzoneSize")?, deadzone_smoothing: f("DeadzoneSizeSmoothing")?,
+        time_before_lineup: f("TimeBeforeAutoLineup")?,
+        lineup_speed: f("AutoLineupSpeed")?,
+        minimum_deadzone_speed: f("MinDeadzoneSpeed")?,
+        maximum_deadzone_speed: f("MaxDeadzoneSpeed")?,
+        maximum_deadzone_size: f("MaxDeadzoneSize")?,
+        deadzone_smoothing: f("DeadzoneSizeSmoothing")?,
     })
 }
 
@@ -64,30 +69,38 @@ pub(crate) fn look_settings(data: &Collections) -> Result<LookSettings, String> 
     })
 }
 
-pub(crate) fn shake_settings(data:&Collections)->Result<ShakeSettings,String> {
-    let f=|field|data.float("camera_shake","default",field);
-    let matrix=|field|->Result<[[f32;4];4],String> {
-        let words=data.words::<16>("camera_shake","default",field)?;
-        Ok(core::array::from_fn(|row|core::array::from_fn(|i|f32::from_bits(words[row*4+i]))))
+pub(crate) fn shake_settings(data: &Collections) -> Result<ShakeSettings, String> {
+    let f = |field| data.float("camera_shake", "default", field);
+    let matrix = |field| -> Result<[[f32; 4]; 4], String> {
+        let words = data.words::<16>("camera_shake", "default", field)?;
+        Ok(core::array::from_fn(|row| {
+            core::array::from_fn(|i| f32::from_bits(words[row * 4 + i]))
+        }))
     };
     Ok(ShakeSettings {
-        amplitude_curve:matrix("AmplitudeCurve")?,frequency_curve:matrix("FrequencyCurve")?,
-        impulse_magnitude:f("OneShotMagnitude")?,impulse_minimum_velocity:f("OneShotMinVelocity")?,
-        impulse_maximum_velocity:f("OneShotMaxVelocity")?,impulse_frequency:f("OneShotFrequency")?,
-        impulse_decay:f("OneShotDecay")?,amplitude_minimum:f("AmplitudeMin")?,
-        amplitude_maximum:f("AmplitudeMax")?,amplitude_top_speed:f("AmplitudeTopSkaterSpeed")?,
-        frequency_minimum:f("FrequencyMin")?,frequency_maximum:f("FrequencyMax")?,
-        frequency_top_speed:f("FrequencyTopSkaterSpeed")?,data_frames_per_second:f("DataFPS")?,
-        translation_multiplier:f("TranslationMultiplier")?,rotation_multiplier:f("RotationMultiplier")?,
-        dutch_multiplier:f("DutchMultiplier")?,
+        amplitude_curve: matrix("AmplitudeCurve")?,
+        frequency_curve: matrix("FrequencyCurve")?,
+        impulse_magnitude: f("OneShotMagnitude")?,
+        impulse_minimum_velocity: f("OneShotMinVelocity")?,
+        impulse_maximum_velocity: f("OneShotMaxVelocity")?,
+        impulse_frequency: f("OneShotFrequency")?,
+        impulse_decay: f("OneShotDecay")?,
+        amplitude_minimum: f("AmplitudeMin")?,
+        amplitude_maximum: f("AmplitudeMax")?,
+        amplitude_top_speed: f("AmplitudeTopSkaterSpeed")?,
+        frequency_minimum: f("FrequencyMin")?,
+        frequency_maximum: f("FrequencyMax")?,
+        frequency_top_speed: f("FrequencyTopSkaterSpeed")?,
+        data_frames_per_second: f("DataFPS")?,
+        translation_multiplier: f("TranslationMultiplier")?,
+        rotation_multiplier: f("RotationMultiplier")?,
+        dutch_multiplier: f("DutchMultiplier")?,
     })
 }
 
 impl RigSettingsSource {
     pub fn load(data: &Collections) -> Result<Self, String> {
         let f = |class, key, field| data.float(class, key, field);
-        // 8252E6CC binds heading; 8252E680 binds elevation. These are
-        // settings for the normal camera's angular trackers, in degrees.
         let angle = |key| -> Result<AngleTrackingSettings, String> {
             Ok(AngleTrackingSettings {
                 speed_clamp_degrees: f("camera_tracker", key, "SpeedClamp")?,
@@ -156,8 +169,6 @@ impl RigSettingsSource {
             avoidance: self.avoidance,
             positioning: self.positioning,
             collision_hold_duration: self.collision_hold_duration,
-            // 82F826F8 loads82181A88 with lvlx128, splats lane0, and stores
-            // all four lanes at830BD350. This is not mapped BSS zero data.
             normalization_threshold: [f32::from_bits(0x358637bd); 4],
         }
     }
@@ -169,7 +180,6 @@ pub(crate) fn orientation_settings(data: &Collections) -> Result<OrientationSett
         Ok(OrientationTrackerSettings {
             acceleration_min_degrees: f("camera_tracker", key, "AccelerationClampMin")?,
             acceleration_max_degrees: f("camera_tracker", key, "AccelerationClampMax")?,
-            // 8252F448/8252F508 attribute lookup low wordD1CA9582.
             smoothing_min: f("camera_tracker", key, "SmoothingMin")?,
             delta_umbra_degrees: f("camera_tracker", key, "DeltaUmbra")?,
             delta_penumbra_degrees: f("camera_tracker", key, "DeltaPenumbra")?,
@@ -186,8 +196,6 @@ pub(crate) fn orientation_settings(data: &Collections) -> Result<OrientationSett
 }
 
 pub(crate) fn frame_settings(data: &Collections) -> Result<FrameSettings, String> {
-    // 8252EE80/8252EE90 read camera/dynamics layout624/576 into
-    // settings-object660/628, hence parameter644/612.
     Ok(FrameSettings {
         maximum_pitch_degrees: data.float("camera", "dynamics", "MaxPitch")?,
         roll_response: data.float("camera", "dynamics", "DutchInterpolationSpeed")?,

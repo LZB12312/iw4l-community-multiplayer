@@ -1,5 +1,3 @@
-//! Native camera Euler conversions. These preserve the products and fused sums
-//! from TU3 82E06CB8 and 82E045E0 rather than passing through renderer math.
 use crate::{math::Basis3, trigonometry::sin_cos};
 
 pub(super) fn quaternion_from_angles(pitch: f32, yaw: f32, roll: f32) -> [f32; 4] {
@@ -18,8 +16,6 @@ pub(super) fn quaternion_from_angles(pitch: f32, yaw: f32, roll: f32) -> [f32; 4
     ]
 }
 
-/// TU3 82E04AD4..82E04BC4. The native matrix's three spatial columns are
-/// retained; its unused fourth lanes are not part of the host Basis3 type.
 pub(super) fn basis_from_angles(pitch: f32, yaw: f32, roll: f32) -> Basis3 {
     let (sp, cp) = sin_cos(pitch);
     let (sy, cy) = sin_cos(yaw);
@@ -37,8 +33,6 @@ pub(super) fn basis_from_angles(pitch: f32, yaw: f32, roll: f32) -> Basis3 {
     }
 }
 
-/// Complete axis rotation82BD35B8. Standalone sine/cosine and the matrix
-/// product's X,Y,Z accumulation order are observable in the camera output.
 pub(super) fn rotate_about_axis(basis: Basis3, axis: [f32; 3], angle: f32) -> Basis3 {
     let cosine = crate::trigonometry::cos(angle);
     let sine = crate::trigonometry::sin(angle);
@@ -67,8 +61,6 @@ pub(super) fn rotate_about_axis(basis: Basis3, axis: [f32; 3], angle: f32) -> Ba
     }
 }
 
-/// Look basis8296EF20: normalize world-up cross At, then normalize At cross
-/// Right. The caller has already handled a zero direction and its pitch cap.
 pub(super) fn look_basis(at: [f32; 3]) -> Basis3 {
     let right = normalize(cross([0.0, 1.0, 0.0], at));
     let up = normalize(cross(at, right));

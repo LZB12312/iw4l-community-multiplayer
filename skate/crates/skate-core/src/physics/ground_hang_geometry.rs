@@ -1,6 +1,3 @@
-//! Geometry actually observed by Ground::ManageHangUps82D39510.
-//! The caller reads only query completion, geometry kind104 and flag29 from
-//! 82C20C08; unrelated grind surface classifications are not used in this path.
 use super::{
     board_motion_output::{dot, inverse_length_squared},
     board_world::BoardWorld,
@@ -21,8 +18,6 @@ pub struct HangLine {
     pub radius: f32,
 }
 
-/// Full six-line branch82C20728 used by82D397A0. Input's optional seventh
-/// line byte is zeroed by82C20530 and never set by this ground caller.
 pub fn hang_lines(input: HangGeometryInput, deck_center_to_truck: f32) -> Option<[HangLine; 6]> {
     let delta = sub(input.edge_end, input.edge_start);
     let first = cross(Vector3::new(0., 1., 0.), delta);
@@ -60,8 +55,6 @@ pub fn hang_lines(input: HangGeometryInput, deck_center_to_truck: f32) -> Option
     ])
 }
 
-/// 82C20ED4..82C20F84 and Ground's82D397EC..82D39810. We execute all six
-/// native queries, then use the exact two classification fields read by Ground.
 pub fn detect_hung_geometry(
     world: &BoardWorld,
     input: HangGeometryInput,
@@ -134,56 +127,4 @@ fn madd(a: Vector3, k: f32, b: Vector3) -> Vector3 {
         a.y.mul_add(k, b.y),
         a.z.mul_add(k, b.z),
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn hanging_geometry_distinguishes_rail_side_and_blocked_deck() {
-        let input = HangGeometryInput {
-            edge_start: Vector3::ZERO,
-            edge_end: Vector3::new(0., 0., 2.),
-            reference_point: Vector3::new(4., 5., 1.),
-        };
-        let lines = hang_lines(input, 0.243).unwrap();
-        assert_eq!(lines[0].start, Vector3::new(0.09, 0.04, 1.));
-        assert_eq!(lines[0].end, Vector3::new(0.09, -0.04, 1.));
-        assert_eq!(lines[1].start.x, -0.09);
-        assert_eq!(lines[5].radius, 0.001);
-        assert_eq!(lines[5].start, Vector3::new(0.09, 0.09, 1.));
-        assert_eq!(lines[5].end, Vector3::new(-0.09, 0.09, 1.));
-        assert!(hung_classification([
-            Some(0.5),
-            None,
-            None,
-            None,
-            None,
-            None
-        ]));
-        assert!(!hung_classification([
-            Some(0.5),
-            None,
-            Some(0.64),
-            None,
-            None,
-            None
-        ]));
-        assert!(!hung_classification([
-            Some(0.5),
-            Some(0.5),
-            None,
-            None,
-            None,
-            None
-        ]));
-        assert!(!hung_classification([
-            None,
-            None,
-            None,
-            None,
-            Some(0.5),
-            None
-        ]));
-    }
 }

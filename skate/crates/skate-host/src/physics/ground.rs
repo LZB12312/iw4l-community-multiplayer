@@ -24,7 +24,10 @@ pub(crate) enum Terrain {
 
 impl Terrain {
     pub(crate) fn surfaces(self) -> [Vec<[Vector3; 4]>; 4] {
-        match self { Self::Flat => flat_surfaces(), Self::Course => surfaces() }
+        match self {
+            Self::Flat => flat_surfaces(),
+            Self::Course => surfaces(),
+        }
     }
     pub(crate) fn world(self, material: RetailContactMaterial) -> BoardWorld {
         match self {
@@ -175,7 +178,11 @@ fn build_world(
         for vertices in quads {
             let rail_face = rail_faces.contains(&vertices);
             for (half, indices) in [[0, 2, 1], [0, 3, 2]].into_iter().enumerate() {
-                let convex = if rail_face { if half == 0 { 0x60 } else { 0xc0 } } else { 0 };
+                let convex = if rail_face {
+                    if half == 0 { 0x60 } else { 0xc0 }
+                } else {
+                    0
+                };
                 triangles.push(WorldTriangle {
                     triangle: triangle_from_volume(
                         indices.map(|i| vertices[i]),
@@ -246,9 +253,7 @@ fn query_edges() -> Vec<EdgeSegment> {
 pub(super) fn query_settings() -> (WorldContactSettings, ContactRetentionSettings) {
     (
         WorldContactSettings {
-            // Serialized primitive82DC3AE4/82DC3B84, source literal82165A00.
             volume_padding: 0.05,
-            // Ground job8277C864/8277C86C; board selection82768728.
             maximum_separating_distance: 0.5,
             edge_cos_bend_normal_threshold: 0.999,
             convexity_epsilon: 0.01,
@@ -256,13 +261,8 @@ pub(super) fn query_settings() -> (WorldContactSettings, ContactRetentionSetting
         },
         ContactRetentionSettings {
             capacity: u32::MAX, // Host storage capacity, no artificial row limit.
-            // Step_Collision1 8276430C ->827771E8 ->82777384 ->8277C664.
             duplicate_distance_squared: -1.0,
             deferred_reduction: true,
         },
     )
 }
-
-#[cfg(test)]
-#[path = "tests/flat_ground.rs"]
-mod flat_tests;

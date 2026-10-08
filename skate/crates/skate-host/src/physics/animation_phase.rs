@@ -1,5 +1,3 @@
-//! The production physical-output -> stock graph -> next physical-input phase.
-//! Native actor phases82592FD8/82593128/82593230/82593640 preserve this order.
 #[path = "animation_grind.rs"]
 mod grind;
 #[path = "animation_phase_packet.rs"]
@@ -37,16 +35,9 @@ pub(crate) fn advance(
         physical.skeleton.deck_yaw_536,
         physical.skeleton.deck_pitch_540,
     ]);
-    // ProcessOutput82DB7250/7258 publishes shared Biped720/716 as
-    //OffBoard80/84. BipedCadence/MatchCadence/LocoState consume that completed
-    //physical packet, preserving the publication boundary across transitions.
-    // The native publication is unconditional, including on-board frames
-    //when a dismount node can capture MatchCadence before state500 is entered.
     skater.animation.motion.offboard_cadence_phase = Some(physical.off_board.cadence_phase_80);
     skater.animation.motion.offboard_locomotion_state =
         Some(physical.off_board.locomotion_state_84);
-    // GroundSlopeType82BA7E80 and IsBipedGroundThin82BA8110 read the
-    // completed OffBoard88/330 directly, without a state/category gate.
     skater.animation.motion.ground_slope_type = Some(physical.off_board.kind_88);
     skater.animation.motion.biped_ground_thin = Some(physical.off_board.flag_330 != 0);
     skater.animation.action.dropping_in = Some(physical.grinds.dropping_in_324 != 0);
@@ -61,7 +52,6 @@ pub(crate) fn advance(
             holding_board: physical.off_board.flag_311 != 0,
             free_board: physical.off_board.free_board_312 != 0,
             retrieval_blocked: skater.player_state.state_flags[87 - 52],
-            //ToggleBoard82BA968C consumes returning313, not retrieval323.
             retrieval_active: physical.off_board.returning_board_313 != 0,
             yaw_radians: physical.off_board.angle_36,
             pitch_radians: physical.off_board.angle_40,
@@ -81,7 +71,6 @@ pub(crate) fn advance(
         no_support_time_548: physical.skeleton.no_support_time_548,
         profile_148: physical.animation.profile_148,
         below_surface_82: skater.player_state.state_flags[82 - 52],
-        // Skeleton Fill82BE1E94/98 copies hips physical up into output80.
         orientation_y: Some(skater.skeleton.record.pose[23][1][1]),
         hips_right_angle_496: physical.skeleton.hips_right_angle_496,
         hips_up_angle_500: physical.skeleton.hips_up_angle_500,
@@ -151,7 +140,8 @@ pub(crate) fn advance(
             time_to_land_valid: physical.air.known_air_valid_437 != 0,
             offboard_trajectory_time: physical.off_board.trajectory_time_120,
             offboard_trajectory_valid: physical.off_board.trajectory_valid_331 != 0,
-            trucks_or_deck_contact: physical.collision.flag_3472 != 0 || physical.collision.flag_3475 != 0,
+            trucks_or_deck_contact: physical.collision.flag_3472 != 0
+                || physical.collision.flag_3475 != 0,
             offboard_time_to_land: physical.off_board.scalar_32,
             offboard_air_scalar_92: physical.off_board.scalar_92,
             offboard_air_translation: physical.off_board.vector_96.map(f32::from_bits),
@@ -159,7 +149,6 @@ pub(crate) fn advance(
             offboard_committed_to_motion: physical.off_board.flag_329 != 0,
             offboard_obstacle_distance: physical.off_board.scalar_112,
             offboard_edge_distance: physical.off_board.distance_116,
-            //ApexReached82BA5C78 reads Reckoning16.Y, not Air436.
             reached_apex: f32::from_bits(physical.reckoning.vector_16[1]) < 0.0,
             can_land_on_board: physical.off_board.flag_316 != 0,
             landing_turning: physical.off_board.flag_318 != 0,
@@ -177,22 +166,18 @@ pub(crate) fn advance(
     skater.animation.motion.native_physical = Some(crate::graph_host::motion_native::Physical {
         centre_of_mass_velocity: skater.animated_skeleton.board_frames.com_velocity,
         system_up: vec4(physics.riding.reckoning.up),
-        //82DB70A0..70FC publishes Reckoning752, not the physical deck frame.
         board_reckoning_z: physics.riding.reckoning_frames.ground[2],
         board_reckoning: physics.riding.reckoning_frames.ground,
     });
     skater.animation.motion.bump_acceleration = Some(feedback.ground_acceleration);
     skater.animation.motion.gesture_physical =
         Some(crate::graph_host::motion_native::GesturePhysical {
-            //Original82DB74D8, not the similarly numbered Air output byte.
             ground321: p.flags_2480 & 0x1000 != 0,
             state_offboard75: physical.state.category_12 == 500,
             selections: profile.gesture_selections,
             suppress_up: profile.suppress_up_gesture,
             force_brake_bypass: profile.gesture_force_brake_bypass,
         });
-    //Original ProcessOutput82DB7E38. Probe+72 is copied to Processed1848;
-    //Ground240 resets to zero and receives this point only on an interaction.
     let interaction_trigger = matches!(p.category_2512, 100 | 500)
         && p.probe_1792.bytes_72_73[0] != 0
         && p.flags_2476 & 0x400000 != 0;
@@ -231,13 +216,11 @@ pub(crate) fn advance(
         mirrored: Some(mirrored),
         riding_fakie: Some(fakie),
         push_brake: Some(PushBrakeInputs {
-            // Board FillPhysOut82C03304/3318: CollisionInfo+16 ->Ground80.
             ground_axis_y: physics.riding.ground.wheel_normal.y,
             skeleton_disables_push_brake: skater.foot_ik.state.contacts.support_failed_this_update,
             maximum_ground_angle_degrees: profile.maximum_ground_angle_degrees,
         }),
     };
-    // Skeleton GetEffectiveRoot82BE3650 negates X/Z iff Processed2476 bit2.
     let mut effective_z = skater.animated_skeleton.roots.animation_to_world[2];
     if p.flags_2476 & 4 != 0 {
         effective_z = effective_z.map(|v| -v);
@@ -273,7 +256,6 @@ pub(crate) fn advance(
             external_velocity: skater.centre_of_mass_output.velocity,
             ground_projected_speed: physics.riding.motion.ground_speed,
         },
-        // Original82DB7A58..7AA4 copies AnimOut10374/10371 respectively.
         physical_stance: (
             skater.animation.packet.regular_stance,
             skater.animation.packet.riding_switch,
@@ -281,27 +263,19 @@ pub(crate) fn advance(
         foot_frame: PushFootFrame {
             left_foot: skater.skeleton.record.pose[15][3],
             right_foot: skater.skeleton.record.pose[19][3],
-            //82C02D0C: physical deck body+16, not geometric part translation.
             deck_position: vec4(physics.board.bodies()[BodyId::Deck.index()].rates.position),
             deck_y: axis(deck.basis.columns[1]),
             deck_z: axis(deck.basis.columns[2]),
-            //82DB7598 publishes Motion273 from Processed2468 bit20.
             skateboard_flipped: p.flags_2468 & (1 << 20) != 0,
         },
         board_present: physical.off_board.flag_311 != 0,
         physical_28_byte75: physical.state.category_12 == 500,
         time_since_teleport: skater.animation.motion.riding.time_since_teleport,
     };
-    // Fill825999F0/8259C260 publishes discrete off-board inputs before the
-    // stock ActionGraph. DerivedControllerInput has already advanced once.
     let mut action_intents = controls.action_intents.clone();
     for intent in skate_core::input::grind_intentions::produce(&controls.controller) {
         action_intents.insert(intent.name, intent.value);
     }
-    // Fill8259AFFC..B088 emits the four analog AG inputs every frame.
-    // Stock AG maps OB_Mag to OB_SteerMagnitude; MG attaches that as ob_Mag
-    // and attaches OB_BipedWorldX/Z unchanged. ProcessOutput82DB7288..729C
-    // publishes the shared Biped708/400 contact gate/direction as333/288.
     let contact = &skater.biped_ground.controller.state.contact;
     for intent in skate_core::input::offboard_intentions::produce_analog(
         &controls.controller,
@@ -340,20 +314,16 @@ pub(crate) fn publish_feedback(
     physics: &GamePhysics,
     skater: &mut SkaterRuntime,
 ) -> PhysicalFeedback {
-    // World8275F430 -> AirCollector82DA7888 publishes the complete mask.
-    // This host runs active gameplay with HoM and challenges outside its scope.
     skater.player_input.physical.scoring.capabilities_204 =
         skate_core::player::conditioner_capabilities::ConditionerCapabilityContext {
             in_front_end: false,
-            hall_of_meat_enabled: false,
+            hall_of_meat_enabled: skater.hall_of_meat_enabled,
             challenge_query_active: false,
             challenge_configuration_enabled: false,
         }
         .capabilities();
     let p = &skater.player_input.processed;
     let deck = physics.board.part_transforms()[BodyId::Deck.index()];
-    // ProcessOutput82DE53F0 resets the animation packet; CalcLandingQuality
-    //82DE61D0 follows FilteredState82DE5BA0 and uses the completed physical output.
     skater.landing_quality = Default::default();
     if let Some(filtered) = skater.player_state.filtered_output.as_ref() {
         skater.landing_quality.update(
@@ -363,10 +333,7 @@ pub(crate) fn publish_feedback(
                 ground_normal: vec4(physics.riding.ground.overall_normal),
                 deck_velocity: vec4(physics.riding.motion.linear_velocity),
                 flipped: p.flags_2468 & (1 << 20) != 0,
-                // Board Fill82C02AD8..2B1C publishes physical part6 Z to
-                // bundle0+32; this is separate from Reckoning752's ground frame.
                 reckoning_forward: axis(deck.basis.columns[2]),
-                // Ground Enter clears this owner before publication, as in82D375C8.
                 air_spin: skater.air_reckoning.state.spin_speed,
             },
             &skater.landing_quality_settings,
@@ -377,7 +344,6 @@ pub(crate) fn publish_feedback(
         &skater.ground.pumping,
         &skater.ground.wobble,
         ReckoningFeedback {
-            // Skeleton16144 -> PhysOutSystemReckoning64,82BE1D84/8C.
             system_position: vec3(skater.animated_skeleton.board_frames.centre_of_mass),
             system_up: physics.riding.reckoning.up,
             board_position: deck.translation,
@@ -399,7 +365,6 @@ pub(crate) fn publish_feedback(
     feedback
 }
 
-/// PhysOutAnimation reset82DEFAA0 and the initial represented body outputs.
 pub(crate) fn initial_feedback() -> PhysicalFeedback {
     PhysicalFeedback {
         turning: skate_core::input::set_turning::Physical {

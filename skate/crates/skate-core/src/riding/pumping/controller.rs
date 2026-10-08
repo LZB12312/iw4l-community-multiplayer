@@ -1,11 +1,5 @@
-//! Recovered scalar/control flow of TU3 82D8F228 and 82D8F470.
-//!
-//! Production uses geometry::NativePumpingGeometry for the original vector
-//! operations, refinement order and inverse-cosine kernel. The Ground adapter
-//! supplies the current physical sample and the selected stock mode each tick.
 use super::{settings::*, state::PumpingState};
 
-/// Literal loaded by Ground Update 82D37EA0, independent of Processed+2604.
 pub const GROUND_PUMPING_TIMESTEP: f32 = f32::from_bits(0x3c88_8889);
 
 #[derive(Clone, Copy, Debug)]
@@ -25,14 +19,9 @@ pub struct PumpingSample {
 /// the surrounding lifecycle without asserting numeric parity from mocks.
 pub trait PumpingGeometry {
     type Error;
-    /// 82D8F280..290: three-component COM-to-deck projection onto the normal.
     fn height(&mut self, normal: [f32; 4], com_to_deck: [f32; 4]) -> Result<f32, Self::Error>;
-    /// 82D8F4A0..574: displacement divided by dt, then its length.
     fn speed(&mut self, previous: [f32; 4], current: [f32; 4], dt: f32)
     -> Result<f32, Self::Error>;
-    /// 82D8F590..6AC: dot(cross(previous_normal, normal)/dt,
-    /// safe_normalize(cross(position-previous_position, normal))).
-    /// Preserve the recovered fused cross-product and refinement order.
     fn angular_speed(
         &mut self,
         previous_position: [f32; 4],
@@ -40,7 +29,6 @@ pub trait PumpingGeometry {
         sample: &PumpingSample,
         dt: f32,
     ) -> Result<f32, Self::Error>;
-    /// 82453298 called at 82D8F6EC, with previous normal.y clamped to [0,1].
     fn inclination_radians(&mut self, clamped_normal_y: f32) -> Result<f32, Self::Error>;
 }
 
@@ -108,8 +96,6 @@ pub fn update<G: PumpingGeometry>(
     Ok(())
 }
 
-/// Pumping slice of Ground Update 82D37EA8. Force assembly must follow only
-/// after this succeeds; it has its own ProcessedPhysIn timestep for force scaling.
 pub fn update_ground<G: PumpingGeometry>(
     state: &mut PumpingState,
     settings: &PumpingSettings,
@@ -149,7 +135,6 @@ pub fn calculate<G: PumpingGeometry>(
         (1.0 - settings.angular_speed_damping).mul_add(state.angular_speed, measured);
     state.absorption = -(speed * state.angular_speed);
     let inclination = geometry.inclination_radians(unit(state.previous_normal[1]))?;
-    // Stock 822F8B7C: 2/pi rounded to binary32. This is not host acos().
     let radians_to_quarter_turns = f32::from_bits(0x3f22_f983);
     let ground_angle = unit(radians_to_quarter_turns * inclination);
     state.ground_normal_absorption = settings.compression_vs_ground_angle.evaluate(ground_angle)

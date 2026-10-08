@@ -251,10 +251,12 @@ pub(crate) fn sync_player_name(
     let (Some(local), Some(inbox)) = (local, inbox.as_deref_mut()) else {
         return;
     };
-    if let Some(link) = link
-        && (link.connection.is_none()
-            || link.assigned_client != Some(local.0)
-            || !link.has_entered_match())
+    if (*role == frame::RuntimeRole::Client && link.is_none())
+        || link.as_deref().is_some_and(|link| {
+            link.connection.is_none()
+                || link.assigned_client != Some(local.0)
+                || !link.has_entered_match()
+        })
     {
         *sent = None;
         return;

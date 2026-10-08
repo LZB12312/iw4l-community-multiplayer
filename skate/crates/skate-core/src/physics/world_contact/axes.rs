@@ -2,10 +2,6 @@ use crate::physics::reciprocal_sqrt::estimate;
 
 type V = [f32; 4];
 
-/// Complete TU3 82ACEA30 candidate producer. GP records are the native 192-byte
-/// representation: origin +0, normals +16/+32/+48, edges +64 onward, counts
-/// bytes +140/+141. All four output lanes and speculative rejected stores are
-/// preserved. Returns zero when the native function returns null.
 pub fn separating_axis_candidates(
     a: &[u32; 48],
     b: &[u32; 48],

@@ -1,4 +1,3 @@
-//! Complete82D90148, borrowing the existing shared Wipeout request owner.
 use super::dot;
 use crate::player::{
     offboard::ground_entry::Vector,

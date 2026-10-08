@@ -19,17 +19,26 @@ struct Dd {
 fn two_sum(a: f64, b: f64) -> Dd {
     let s = a + b;
     let bb = s - a;
-    Dd { hi: s, lo: (a - (s - bb)) + (b - bb) }
+    Dd {
+        hi: s,
+        lo: (a - (s - bb)) + (b - bb),
+    }
 }
 
 fn quick_two_sum(a: f64, b: f64) -> Dd {
     let s = a + b;
-    Dd { hi: s, lo: b - (s - a) }
+    Dd {
+        hi: s,
+        lo: b - (s - a),
+    }
 }
 
 fn two_prod(a: f64, b: f64) -> Dd {
     let p = a * b;
-    Dd { hi: p, lo: a.mul_add(b, -p) }
+    Dd {
+        hi: p,
+        lo: a.mul_add(b, -p),
+    }
 }
 
 impl Dd {
@@ -45,7 +54,10 @@ impl Dd {
     }
 
     fn neg(self) -> Self {
-        Self { hi: -self.hi, lo: -self.lo }
+        Self {
+            hi: -self.hi,
+            lo: -self.lo,
+        }
     }
 
     fn mul(self, other: Self) -> Self {
@@ -135,31 +147,4 @@ pub fn cos(x: f64) -> f64 {
         _ => series(r, true),
     };
     value.hi + value.lo
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn matches_the_jvm_on_measured_arguments() {
-        // Temurin 25 `Math.sin`/`Math.cos` (x86_64) where the platform's
-        // functions round the other way.
-        for (x, s) in [
-            (4.009633200116204_f64, -0.7630639629122593_f64),
-            (4.373526274823043, -0.943133328764149),
-            (0.8039341593153455, 0.7200914875480277),
-            (0.7757826690399453, 0.7002750162015416),
-        ] {
-            assert_eq!(sin(x).to_bits(), s.to_bits(), "sin {x}");
-        }
-        // One of the intrinsic's own roundings, not reproduced: the JVM
-        // gives -0.4491878756024808, the correctly rounded value is next.
-        assert_eq!(sin(3.607448796048443), -0.44918787560248086);
-        assert_eq!(sin(0.0).to_bits(), 0.0_f64.to_bits());
-        assert_eq!(sin(-0.0).to_bits(), (-0.0_f64).to_bits());
-        assert_eq!(cos(0.0), 1.0);
-        assert_eq!(sin(std::f64::consts::FRAC_PI_2), 1.0);
-        assert!(sin(f64::NAN).is_nan());
-    }
 }

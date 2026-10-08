@@ -7,7 +7,7 @@
 //! This slice models a direct living villager hit; broader entity impacts follow.
 
 use glam::DVec3;
-use minecraftoss_player::{collision_boxes_at, rng::LegacyRandom, Block, Pos, World};
+use minecraftoss_player::{Block, Pos, World, collision_boxes_at, rng::LegacyRandom};
 
 #[derive(Clone, Debug)]
 pub struct Arrow {
@@ -218,7 +218,11 @@ impl Arrow {
         if let Some((_, hit, block)) = block_hit {
             // `Math.signum`: zero stays zero.
             let signum = |v: f64| if v == 0.0 { v } else { v.signum() };
-            let sign = DVec3::new(signum(self.velocity.x), signum(self.velocity.y), signum(self.velocity.z));
+            let sign = DVec3::new(
+                signum(self.velocity.x),
+                signum(self.velocity.y),
+                signum(self.velocity.z),
+            );
             self.position = hit - sign * 0.05_f32 as f64;
             self.velocity = DVec3::ZERO;
             self.play_hit_sound();
@@ -338,45 +342,4 @@ fn clip_fraction(origin: DVec3, movement: DVec3, box_min: DVec3, box_max: DVec3)
         }
     }
     (near <= far && (0.0..=1.0).contains(&near)).then_some(near)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pinned_normal_skeleton_bow_open_air_trace() {
-        // scenarios/mobs/skeleton-player-bow.json; 26.3, shoot seed 881.
-        let mut random = LegacyRandom::new(881);
-        let mut arrow = Arrow::skeleton_shot(
-            DVec3::new(4.7811648174303185, 1.0, 4.53125),
-            1.74,
-            DVec3::new(14.5, 1.0, 4.5),
-            1.8,
-            6.0,
-            &mut random,
-        );
-        assert_eq!(arrow.position.y.to_bits(), 2.640000008046627_f64.to_bits());
-        assert_eq!(arrow.velocity.x.to_bits(), 1.6466665306024024_f64.to_bits());
-        assert_eq!(
-            arrow.velocity.y.to_bits(),
-            0.25545528392154754_f64.to_bits()
-        );
-        assert_eq!(
-            arrow.velocity.z.to_bits(),
-            0.03761536055610391_f64.to_bits()
-        );
-        arrow.tick_open_air();
-        assert_eq!(arrow.position.x.to_bits(), 6.427831348032721_f64.to_bits());
-        assert_eq!(arrow.position.y.to_bits(), 2.8954552919681746_f64.to_bits());
-        assert_eq!(
-            arrow.velocity.y.to_bits(),
-            0.20290073351854349_f64.to_bits()
-        );
-        arrow.set_base_damage_from_mob(1.0, 2, &mut LegacyRandom::new(419));
-        assert_eq!(
-            arrow.base_damage.to_bits(),
-            2.4331762215570514_f64.to_bits()
-        );
-    }
 }

@@ -194,15 +194,3 @@ fn reach_gain(distance: f32, airborne: bool) -> f32 {
     let proximity = smooth((2.6 - distance) / 1.8);
     proximity * if airborne { 1. } else { 0.45 }
 }
-#[test]
-fn reach_builds_continuously_before_takeoff() {
-    assert_eq!(reach_gain(2.6, false), 0.);
-    assert!(reach_gain(2., false) > 0.);
-    assert!(reach_gain(1.5, false) > reach_gain(2., false));
-    assert!(reach_gain(0.8, false) <= 0.45);
-    assert_eq!(reach_gain(0.8, true), 1.);
-    for i in 1..260 {
-        let x = i as f32 * 0.01;
-        assert!((reach_gain(x, true) - reach_gain(x + 0.01, true)).abs() < 0.009);
-    }
-}

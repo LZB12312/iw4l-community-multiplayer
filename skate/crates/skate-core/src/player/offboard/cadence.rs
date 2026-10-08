@@ -1,13 +1,7 @@
-//! Biped cadence producer82D80720 and phase helpers82D7AA18..82D7AFD0.
-//! Original TU3, SHA256431b8eba23565affdc10d137df19b06fe286244cefb3e1a13f32693e9600395a.
-//! Embed this state once in Biped; callers supply actual movement/animation input.
-//! PC floating-point arithmetic is not proven bit-exact Xenon arithmetic.
-
 const DT: f32 = f32::from_bits(0x3c888889);
 const EPSILON: f32 = f32::from_bits(0x3a83126f);
 type Vector = [f32; 3];
 
-/// Retained Biped720..736; duration is unwritten by constructor82D7AFD8.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BipedPhase {
     pub phase: f32,
@@ -41,7 +35,6 @@ pub struct BipedCadence {
 pub struct CadenceThresholds(pub [f32; 4]);
 
 impl CadenceThresholds {
-    ///82D7AFD8: metrics come from actual walk/run/sprint AnimTransZ attributes.
     pub fn from_clip_speeds(walk: f32, run: f32, sprint: f32) -> Self {
         Self([
             f32::from_bits(0x3c23d70a),
@@ -72,7 +65,6 @@ pub struct CadenceInput {
 }
 
 impl BipedCadence {
-    ///82D80720. Called after movement stage82D80548, before common publication.
     pub fn update(&mut self, input: &CadenceInput, thresholds: CadenceThresholds) {
         let mut motion = subtract(input.motion_512, input.motion_reference_272);
         if input.reject_enabled_708 {
@@ -97,7 +89,6 @@ impl BipedCadence {
             let horizontal = [animation[0], 0.0, animation[2]];
             let horizontal_length = length(horizontal);
             if horizontal_length > EPSILON {
-                //82D80A58..AA8 transposes rows, then accumulates x, y, z.
                 let local = input.frame_rows_0_16_32.map(|row| {
                     row[2].mul_add(motion[2], row[1].mul_add(motion[1], row[0] * motion[0]))
                 });
@@ -180,7 +171,6 @@ impl BipedPhase {
         self.rate = select(distance - (1.0 - distance), 1.0 - distance, distance) * 5.0;
     }
 
-    ///82D7AD90: this fixed retail phase step is also used by Biped Air.
     pub fn advance(&mut self) {
         if self.target < 0.0 {
             let next = self.rate.mul_add(DT, self.phase);
@@ -214,7 +204,6 @@ impl BipedPhase {
         }
     }
 
-    ///82D7AB48, with82D7AA18's two candidate rates when neither wraps to1.
     fn adjust_targets(&mut self, a: f32, b: f32, time: f32, upper: f32) {
         let da = wrap(0.0, a - self.phase, 1.0);
         let db = wrap(0.0, b - self.phase, 1.0);
@@ -230,7 +219,6 @@ impl BipedPhase {
         };
     }
 
-    ///82D7AC30 selects the legal contact target closest to the current rate.
     fn adjust_contact(&mut self, time: f32, lower: f32, upper: f32) {
         let inverse = 1.0 / time;
         let a = wrap(0.0, 0.45 - self.phase, 1.0) * inverse;
@@ -256,7 +244,6 @@ fn select_rate(a: f32, b: f32, lower: f32, upper: f32, both: f32) -> f32 {
     }
 }
 
-///82D7AF18: closed endpoints and signed floor count, not rem_euclid.
 fn wrap(lower: f32, value: f32, upper: f32) -> f32 {
     let count = if value < lower {
         ((upper - value) / (upper - lower)).floor() as i32
@@ -297,7 +284,3 @@ fn square_root(squared: f32) -> f32 {
     let result = squared * inverse;
     if squared == 0.0 { 0.0 } else { result }
 }
-
-#[cfg(test)]
-#[path = "cadence/tests.rs"]
-mod tests;

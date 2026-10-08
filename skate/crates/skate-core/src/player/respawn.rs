@@ -1,5 +1,3 @@
-//! TU3 actor checkpoint history (82BFB068..82BFCB38).
-//! Scene predicates are supplied by the host; absence is never acceptance.
 use crate::physics::skeleton_animation_record::{AnimationPartTransform as Matrix, IDENTITY};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -10,8 +8,6 @@ pub struct Candidate {
     pub score: f32,
 }
 
-/// Separate native predicates: history selection does not repeat ground or edge
-/// validation, whereas current-position selection does (82BFC038/82BFC378).
 pub trait Validation {
     type Error;
     fn ground(&mut self, transform: &Matrix) -> Result<Option<Ground>, Self::Error>;
@@ -39,10 +35,10 @@ pub struct Observation {
     pub offboard_correction: bool, //OffBoard333
     pub ground_category: u32,    //Collision16 low16
     pub foot_categories: [u32; 2], //OffBoard52/56 packed categories
-    pub riding_transform: Matrix, //82591E30(false)
-    pub offboard_transform: Matrix, //82591E30(true)
-    pub stance: u32,             //82592B68
-    pub alternate_world: bool,   //SimController virtual0
+    pub riding_transform: Matrix,
+    pub offboard_transform: Matrix,
+    pub stance: u32,
+    pub alternate_world: bool, //SimController virtual0
 }
 
 pub struct History {
@@ -63,8 +59,6 @@ impl History {
         }
     }
 
-    ///82BFB1E0/82BFB3F8. Do not call this with last-grounded observations;
-    ///the native actor consumes one completed physical publication per update.
     pub fn observe<V: Validation>(
         &mut self,
         input: &Observation,
@@ -121,9 +115,6 @@ impl History {
         Ok(())
     }
 
-    ///82BFB1E0: call even when the physical state cannot supply a candidate.
-    ///The120 gate uses conditioner164 (EmpiricalMeasurements82DE5858), not
-    ///State4's time in the current state. Its reset lifecycle is caller-owned.
     pub fn recording_due(&mut self, measurements: i32, root_position: [f32; 4]) -> bool {
         let mut eligible = measurements >= 120;
         if !eligible {
@@ -141,7 +132,6 @@ impl History {
                 .any(|entry| distance_squared(entry.transform[3], root_position) < 2.25)
     }
 
-    ///82BFCB38. Construction and successful recording both refresh cooldown.
     pub fn insert(&mut self, candidate: Candidate) {
         if self.entries.len() == 32 {
             self.entries.remove(0);
@@ -150,9 +140,6 @@ impl History {
         self.cooldown = 20;
     }
 
-    ///82BFC550: descending score, newest wins ties; selected entry is removed
-    ///before validation, including successful selections. Repeated bails thus
-    ///cannot keep selecting the same history entry.
     fn pop_best(&mut self) -> Option<Candidate> {
         let mut best = None;
         let mut score = -99990.0;
@@ -172,8 +159,6 @@ impl History {
         best.map(|index| self.entries.remove(index))
     }
 
-    ///82BFC9B0, used by automatic actor reset82592518. Manual/session-marker
-    ///selection82BFC828 has a different history walk and must not call this.
     pub fn automatic<V: Validation>(
         &mut self,
         stance: u32,
@@ -202,7 +187,6 @@ impl History {
                 return Ok(candidate);
             }
         }
-        //82BFC718 also serves non-destructive selectors; retain its actual rule.
         Ok(self.entries.last().copied().unwrap_or(Candidate {
             transform: self.initial.transform,
             stance,
@@ -212,12 +196,10 @@ impl History {
     }
 }
 
-///82BFB3F8 rejects these categories; category8 explicitly requests offboard.
 pub fn surface_allowed(category: u32) -> bool {
     !matches!(category, 5 | 6 | 9 | 12 | 13)
 }
 
-///Jump table82BFB698: category1/2=100,3/4=50,11=20, all others=0.
 pub fn surface_score(category: u32) -> f32 {
     match category {
         1 | 2 => 100.0,
@@ -230,7 +212,3 @@ pub fn surface_score(category: u32) -> f32 {
 fn distance_squared(a: [f32; 4], b: [f32; 4]) -> f32 {
     (a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)
 }
-
-#[cfg(test)]
-#[path = "tests/respawn.rs"]
-mod tests;

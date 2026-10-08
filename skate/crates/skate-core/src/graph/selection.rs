@@ -1,7 +1,3 @@
-//! Native dynamic-controller selection: 82C140D8 and its complete state-search
-//! helpers. Topology and flags come from loaded graph objects, never a riding
-//! state machine. The activation callback is Node::GetActivation's boundary.
-
 pub type StateId = usize;
 pub type TransitionId = usize;
 
@@ -43,8 +39,6 @@ pub struct Selection<'a> {
 }
 
 impl Selection<'_> {
-    /// Complete GetNextState 82C140D8. The output slot is explicit because an
-    /// unrecognized interruptibility ordinal leaves it untouched in TU3.
     pub fn next(
         &self,
         target: &mut Option<StateId>,
@@ -62,7 +56,6 @@ impl Selection<'_> {
                 return Some(transition);
             }
         }
-        // Complete retained/reselected-state path 82C14248.
         match self.graph.states[current].interruptibility {
             0 if self.ancestors_active(current, 2, &mut activate) => *target = Some(current),
             0 | 1 => *target = self.descend(self.root, 2, &mut activate),
@@ -83,7 +76,6 @@ impl Selection<'_> {
         None
     }
 
-    /// Complete 82C14710 (82C14708 is its thunk).
     fn descend(
         &self,
         state: StateId,
@@ -122,7 +114,6 @@ impl Selection<'_> {
         None
     }
 
-    /// Complete priority-specific SearchTransitions 82C14810, leaf to root.
     fn search_transitions(
         &self,
         mut state: StateId,
@@ -153,8 +144,6 @@ impl Selection<'_> {
         }
     }
 
-    /// Complete ValidTarget 82C14978. Target and new ancestors use preconditions;
-    /// a shared ancestor (other than target) and its parents use mask 2.
     fn valid_target(
         &self,
         current: Option<StateId>,
@@ -174,7 +163,6 @@ impl Selection<'_> {
         true
     }
 
-    /// Complete state-parent activation chain 82C16B88 for State objects.
     fn ancestors_active(
         &self,
         mut state: StateId,

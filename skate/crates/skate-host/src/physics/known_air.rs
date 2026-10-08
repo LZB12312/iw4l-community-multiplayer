@@ -1,6 +1,3 @@
-//! Native KnownAir201 lifecycle82D352D0/82D35C58/82D35920/82D36590/82D36880.
-//! All phase adapters borrow the production owners; the state copy below is a
-//! stack-local value while those owners are borrowed, then published once.
 mod flip;
 mod math;
 mod output;
@@ -37,7 +34,6 @@ impl KnownAir {
                     "Wipeout_AirFallingMaxAngle",
                 )?,
             },
-            //82D8DA84 binds physics_reckoning handle1600, layout pointer1604.
             flip_axis_adjustment: data
                 .words::<4>("physics_reckoning", "default", "FlipAxisAdjustment")?
                 .map(f32::from_bits),
@@ -160,7 +156,6 @@ pub(super) fn exit(
     skater.known_air.state = state;
     Ok(())
 }
-///82D36590: apex observation, shared air-wipeout(true), then upside-down request.
 pub(super) fn post_physics(
     physics: &mut GamePhysics,
     skater: &mut SkaterRuntime,

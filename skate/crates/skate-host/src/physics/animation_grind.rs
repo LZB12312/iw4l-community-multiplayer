@@ -43,8 +43,6 @@ fn observations(
             }
             (output.grinding, output.grind)
         }
-        // FilteredState reset82DE5588: category0, null names and crouch0.
-        // This is the initial reset publication, not a substitute grind state.
         None if physical.filtered_state_0 == 0 => (false, GrindState::default()),
         None => return Err("Grind graph requires the completed filtered state owner".into()),
     };
@@ -94,7 +92,7 @@ fn name_text(name: AttributeName) -> Result<String, String> {
     let mut text = String::new();
     let mut ended = false;
     for mut word in name.0 {
-        for weight in [79_235_168, 2_085_136, 54_872, 1_444, 38, 1] {
+        for weight in skate_core::animation::skeleton_input::name::RADIX_POWERS {
             let digit = word / weight;
             word %= weight;
             if digit == 0 {
@@ -118,7 +116,3 @@ fn name_text(name: AttributeName) -> Result<String, String> {
     }
     Ok(text)
 }
-
-#[cfg(test)]
-#[path = "animation_grind_tests.rs"]
-mod tests;

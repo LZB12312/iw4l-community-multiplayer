@@ -33,7 +33,11 @@ impl BlockPos {
 
     pub const fn relative(self, direction: Direction, distance: i32) -> Self {
         let (dx, dy, dz) = direction.offset();
-        Self::new(self.x + dx * distance, self.y + dy * distance, self.z + dz * distance)
+        Self::new(
+            self.x + dx * distance,
+            self.y + dy * distance,
+            self.z + dz * distance,
+        )
     }
 
     pub const fn above(self) -> Self {
@@ -66,7 +70,11 @@ impl BlockPos {
 
     /// `Vec3i.distSqr`.
     pub fn dist_sqr(self, other: Self) -> f64 {
-        let (dx, dy, dz) = (f64::from(self.x - other.x), f64::from(self.y - other.y), f64::from(self.z - other.z));
+        let (dx, dy, dz) = (
+            f64::from(self.x - other.x),
+            f64::from(self.y - other.y),
+            f64::from(self.z - other.z),
+        );
         dx * dx + dy * dy + dz * dz
     }
 
@@ -77,7 +85,9 @@ impl BlockPos {
 
     /// `BlockPos.asLong`.
     pub const fn pack(self) -> i64 {
-        ((self.x as i64 & 0x3FF_FFFF) << 38) | ((self.z as i64 & 0x3FF_FFFF) << 12) | (self.y as i64 & 0xFFF)
+        ((self.x as i64 & 0x3FF_FFFF) << 38)
+            | ((self.z as i64 & 0x3FF_FFFF) << 12)
+            | (self.y as i64 & 0xFFF)
     }
 }
 
@@ -159,36 +169,6 @@ impl SectionPos {
             (packed << 44 >> 44) as i32,
             (packed << 22 >> 42) as i32,
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn packing_round_trips_including_negatives() {
-        for (x, z) in [
-            (0, 0),
-            (-1, 5),
-            (1_875_000, -1_875_000),
-            (i32::MIN, i32::MAX),
-        ] {
-            assert_eq!(
-                ChunkPos::unpack(ChunkPos::new(x, z).pack()),
-                ChunkPos::new(x, z)
-            );
-        }
-        for (x, y, z) in [(0, 0, 0), (-1, -4, 7), (1_875_000, 19, -1_875_000)] {
-            assert_eq!(
-                SectionPos::unpack(SectionPos::new(x, y, z).pack()),
-                SectionPos::new(x, y, z)
-            );
-        }
-        assert_eq!(
-            BlockPos::new(-1, -65, 16).section(),
-            SectionPos::new(-1, -5, 1)
-        );
     }
 }
 

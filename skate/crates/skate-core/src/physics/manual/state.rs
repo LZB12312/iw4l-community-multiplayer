@@ -15,8 +15,6 @@ pub struct ManualState {
 }
 
 impl ManualState {
-    /// 82C04EEC..4EFC when ProcessedPhysIn+2720 equals either signed zero.
-    /// This resets only these five controller fields, not heading state+284.
     pub fn reset(&mut self) {
         self.filtered_angle_error = 0.0;
         self.target_angle = 0.0;
@@ -25,9 +23,6 @@ impl ManualState {
         self.angular_correction = 0.0;
     }
 
-    /// Manual-state slice of Ground Enter 82D376F4..7750. The caller still
-    /// owns all other entry work, including the returned velocity operation.
-    /// `previous_category` is ProcessedPhysIn+2516; 100 is the ground category.
     pub fn enter_ground(
         &mut self,
         previous_category: u32,
@@ -39,7 +34,6 @@ impl ManualState {
             self.filtered_angle_error *= powerslide_exit_scale;
             ManualEntryContinuation::Continue
         } else {
-            // Ground's inline reset82D3770C..771C writes +276 before +280.
             self.filtered_angle_error = 0.0;
             self.target_angle = 0.0;
             self.measured_angle = 0.0;
@@ -50,8 +44,6 @@ impl ManualState {
     }
 }
 
-/// Explicit dependency returned by the entry-state slice, never a no-op
-/// replacement for Ground's call to RemoveVelIntoGroundForManual 82D37960.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[must_use]
 pub enum ManualEntryContinuation {

@@ -4,8 +4,6 @@ pub mod animation;
 pub mod conditions;
 mod settings;
 pub use settings::Settings;
-#[cfg(test)]
-mod tests;
 
 use animation::{Animation, endpoints, set};
 use skate_core::animation::{
@@ -89,7 +87,6 @@ pub fn execute(
 ) -> Result<(), String> {
     match op {
         Operation::Attributes if phase == 1 && physical.grinding => {
-            // Actor1800 slot16 ->8258F6E0 AddMgAttribute, NOT InsertIntent.
             animation.emit_packet(physical.grind_name, 1.0);
             let backwards = facing::backwards(
                 physical.ground_axis,

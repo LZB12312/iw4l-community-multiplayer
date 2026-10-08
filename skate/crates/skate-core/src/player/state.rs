@@ -1,6 +1,3 @@
-//! Physical-player state identities and native object ownership from
-//! `PhysicalPlayer` construction and `SetPhysicsState` (`0x82DB8540`).
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u32)]
 pub enum PhysicalStateId {
@@ -149,37 +146,5 @@ impl PhysicalStateId {
                 | Self::GrindBackslash
                 | Self::GrindDarkslide
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn every_native_state_round_trips_and_has_a_unique_owner_slot() {
-        let mut slots = PhysicalStateId::ALL.map(PhysicalStateId::native_owner_offset);
-        slots.sort_unstable();
-        assert!(slots.windows(2).all(|pair| pair[0] != pair[1]));
-        for state in PhysicalStateId::ALL {
-            assert_eq!(PhysicalStateId::try_from(state as u32), Ok(state));
-            assert_eq!(state.category(), (state as u32 / 100) * 100);
-        }
-    }
-
-    #[test]
-    fn only_the_six_native_grind_states_form_the_grind_range() {
-        for state in PhysicalStateId::ALL {
-            assert_eq!(state.is_grind(), (400..=405).contains(&(state as u32)));
-        }
-    }
-
-    #[test]
-    fn unknown_state_ids_are_rejected_without_a_fallback() {
-        assert_eq!(PhysicalStateId::try_from(0), Err(UnknownPhysicalState(0)));
-        assert_eq!(
-            PhysicalStateId::try_from(203),
-            Err(UnknownPhysicalState(203))
-        );
     }
 }

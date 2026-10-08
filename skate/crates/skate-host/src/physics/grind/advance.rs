@@ -1,4 +1,3 @@
-//! Native common82D3F4E8 and Nonspecific82D42DF0 Update order.
 use super::super::{GamePhysics, SkaterRuntime};
 use super::Family;
 use super::arithmetic::dot3;
@@ -14,7 +13,6 @@ pub(crate) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
             .as_ref()
             .ok_or("701 requires BoardToolkit")?
             .deck;
-        //82F825D0/F0 initialize830BD320/+4A0 from8231A844(+1)/8216DEE0(-1).
         let sign = if skater.player_input.processed.flags_2484 & 0x0020_0000 != 0 {
             -1.
         } else {
@@ -60,8 +58,6 @@ pub(crate) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
     };
     reckon(physics, skater, normal, frame[2], smoothing);
     let state = &mut skater.grind.states[index];
-    // Common UserTriggeredExit82D40D90 is processed2476 bit29. Slides'
-    //82D41788 applies it only to ledges (kind2), preserving the native gate.
     let user_exit = skater.player_input.processed.flags_2476 & 0x2000_0000 != 0
         && (!matches!(family, Family::Boardslide | Family::Darkslide)
             || manager.geometry.kind_1464 == 2);
@@ -100,7 +96,6 @@ pub(crate) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
             manager.geometry.point_1120[i],
         )
     });
-    //82D3F614 sets r4=1; steering leaf preserves it to the82D3F6E0 store.
     skater.skeleton_input.head_tracking_active = true;
     state.updates = state.updates.wrapping_add(1);
     Ok(())

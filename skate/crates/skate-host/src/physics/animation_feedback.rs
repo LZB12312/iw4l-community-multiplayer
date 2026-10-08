@@ -21,17 +21,13 @@ pub(crate) struct AnimationFeedback {
 impl AnimationFeedback {
     pub fn load(data: &Collections) -> Result<Self, String> {
         Ok(Self {
-            //82DEFAA0..FAC8 zeros the retained vector96.
             previous_lateral_tilt: [0.0; 4],
             published_previous_lateral_tilt: [0.0; 4],
             settings: super::animation_feedback_settings::load(data)?,
-            // Global344 at8289FCA0 binds hash7823ADA8E7C896AA = bumps.
             bump_settings: ground_acceleration::Settings {
                 scale_x_acc: data.float("anim_motion", "bumps", "scale_x_acc")?,
                 min_bump_mag: data.float("anim_motion", "bumps", "min_bump_mag")?,
             },
-            //82DEFAA0 resets histories to zero. Every82DEFF38 update refreshes
-            //the four coefficient words before using each filter.
             state: turn_conditioner::State {
                 history: [0.0; 8],
                 filters: [[0.0; 9]; 3],
@@ -57,8 +53,6 @@ impl AnimationFeedback {
         acceleration: ground_acceleration::Input,
         lateral_tilt: [f32; 4],
     ) -> PhysicalFeedback {
-        //82DEFB6C..FB7C publishes the preceding Animation0 at Animation16,
-        //then retains current Reckoning1248 for the next conditioner update.
         self.published_previous_lateral_tilt = self.previous_lateral_tilt;
         self.previous_lateral_tilt = lateral_tilt;
         physical_feedback::publish(

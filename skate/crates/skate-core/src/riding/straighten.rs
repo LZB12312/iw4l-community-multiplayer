@@ -1,4 +1,3 @@
-//! Complete TU3 Toolkit_CalcStraightenOutTorque 82D92B60.
 use super::vector::{clamp, cross, dot3};
 use crate::point_graph::PointGraph;
 #[derive(Clone)]

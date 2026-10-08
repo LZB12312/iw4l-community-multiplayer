@@ -1,4 +1,3 @@
-//! Board force delivery: TU3 append 0x82C03EF0 and consumer 0x82C03718.
 use crate::math::{Basis3, Vector3};
 
 use super::point_force::{RetailForceAccumulator, accumulate_point_force};
@@ -73,16 +72,11 @@ impl BoardForceQueue {
         accumulator
     }
 
-    /// Separate lifecycle operation, corresponding to the queue reset at
-    /// 0x82C02360..0x82C02368 (also reset when the board is repositioned).
     pub fn clear(&mut self) {
         self.count = 0;
     }
 }
 
-/// TU3 0x82C06F58: accumulate alternating body masses, then combine. The
-/// grouped binary32 additions differ from an ordinary left-to-right sum.
-/// Native input is live-body inverse mass at +124, in definition order.
 pub fn total_body_mass(inverse_masses: &[f32]) -> f32 {
     let mut even = 0.0_f32;
     let mut odd = 0.0_f32;

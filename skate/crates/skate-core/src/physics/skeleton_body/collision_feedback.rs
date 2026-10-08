@@ -1,5 +1,3 @@
-//! SkeletonCollision observations from original TU3 82BD4A30/82BD5DA0.
-//! Reports must come from the completed solver, in native report order.
 use super::{SkeletonCollisionSettings, SkeletonPhysicalRecord};
 use crate::physics::skeleton_animation_record::AnimationPartTransform;
 
@@ -42,7 +40,6 @@ pub struct SkeletonContactReport {
     pub solved_vector: V,
 }
 
-/// Original UpdatePostPhysics82BD80D8 builds these values before Update.
 pub struct SkeletonCollisionInput<'a> {
     pub dt: f32,
     pub plane_point: V,
@@ -161,8 +158,6 @@ pub struct SkeletonCollisionFeedback {
 }
 
 impl SkeletonCollisionFeedback {
-    /// Constructor82BD5F48/6038 plus the final Body constructor Reset. Static
-    /// compliant settings survive Reset, while the priority array is cleared.
     pub fn new(settings: SkeletonFeedbackSettings) -> Self {
         let specific = [
             (23, settings.groin_offset, settings.groin_radius),
@@ -202,7 +197,6 @@ impl SkeletonCollisionFeedback {
         }
     }
 
-    ///82BD5DA0 preserves compliant settings, specific-point histories and4082.
     pub fn reset(&mut self) {
         let specific = self.specific;
         let compliant = self.compliant;
@@ -213,8 +207,6 @@ impl SkeletonCollisionFeedback {
         self.flags.any = any;
     }
 
-    /// SetUpNormal82BE7280 calls Reset before reinstalling authored priority
-    /// and compliant settings. A subsequent constructor Reset clears priority.
     pub fn set_up_normal(&mut self) {
         self.reset();
         self.priority = self.settings.body.priority;

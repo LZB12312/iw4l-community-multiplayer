@@ -1,4 +1,3 @@
-//! Original TU3 PhysicsConditioner::CalcLandingQuality, 0x82DE61D0.
 use crate::{
     physics::{board_motion_output::inverse_length_squared, native_arithmetic},
     point_graph::PointGraph,
@@ -20,14 +19,11 @@ pub struct Input {
     /// PhysOut_SkateboardMotion +80 and +273.
     pub deck_velocity: [f32; 4],
     pub flipped: bool,
-    /// PhysOut_SkateboardReckoning +32: physical deck PART world Z from
-    /// 82C02AD8/82C02B1C. This is not the conditioned Reckoning ground frame.
     pub reckoning_forward: [f32; 4],
     /// PhysOut_Air +204.
     pub air_spin: f32,
 }
 
-/// Reset values are explicitly written by 0x82DE3F38.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Output {
     pub landing_adjust_80: f32,

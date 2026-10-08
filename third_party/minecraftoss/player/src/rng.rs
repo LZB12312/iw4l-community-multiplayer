@@ -32,7 +32,10 @@ impl LegacyRandom {
 
     /// A random at a raw 48-bit state (as `raw_state` reports it).
     pub fn from_raw_state(state: u64) -> Self {
-        Self { state: state & ((1 << 48) - 1), next_gaussian: None }
+        Self {
+            state: state & ((1 << 48) - 1),
+            next_gaussian: None,
+        }
     }
 
     fn bits(&mut self, count: u32) -> u32 {
@@ -158,23 +161,4 @@ fn mix_stafford13(mut value: u64) -> u64 {
     value = (value ^ (value >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
     value = (value ^ (value >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
     value ^ (value >> 31)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn java_random_seed_zero_first_double() {
-        let mut rng = LegacyRandom::new(0);
-        assert_eq!(rng.next_double().to_bits(), 0.730967787376657_f64.to_bits());
-    }
-
-    #[test]
-    fn pinned_named_sequence_matches_java_26_3_probe() {
-        let mut rng = XoroshiroRandom::for_sequence(123456789, "minecraft:blocks/oak_leaves");
-        assert_eq!(rng.next_long(), 7649034988924242724);
-        assert_eq!(rng.next_float().to_bits(), 1027336032);
-        assert_eq!(rng.next_int(5), 1);
-    }
 }

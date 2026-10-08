@@ -1,6 +1,3 @@
-//! Complete candidate-list evaluator TU3 82E02608, used by avoidance82E023D0.
-//! Query enumeration and its separate asynchronous world provider are upstream.
-
 /// Fields consumed from each native 48-byte candidate; remaining words are not
 /// interpreted by this evaluator. Velocity is in the same world frame as path.
 #[derive(Clone, Copy, Debug, PartialEq)]

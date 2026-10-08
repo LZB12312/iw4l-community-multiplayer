@@ -9,7 +9,6 @@ pub(crate) struct LaunchInput {
     pub skeleton_point_10960: Vector,
 }
 impl Owner {
-    ///82D32338. This writes state146 on every call, including the no-launch path.
     pub(crate) fn prepare_air(
         &mut self,
         input: &LaunchInput,
@@ -28,7 +27,6 @@ impl Owner {
         if !launch {
             return Ok(None);
         }
-        //104 is uninitialized by82D2DB98 and overwritten on every produce path.
         let mut packet = air_launch::Packet::initialized(0.);
         air_launch::produce(
             &mut packet,

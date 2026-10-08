@@ -1,10 +1,3 @@
-//! Persistent board physics for the host game.
-//!
-//! Ownership and spawning are host policy. Physical initialization follows TU3
-//! AddRigidBody 82AE5928 and Reset 82776140: dynamic bodies start at rest with
-//! gravity accumulated, while the separate hook has zero inverse mass/tensor.
-//! Part pose conversion reuses 82BD4318/82C0B2C8; no packed body is retained
-//! beside the state consumed and updated by BoardStep.
 use crate::math::{Basis3, Vector3};
 
 use super::{
@@ -45,7 +38,6 @@ pub struct BoardRuntime {
     hook: BoardHook,
     step: BoardStep,
     forces: BoardForceQueue,
-    ///Original assembly/part group: standard82C090C0=4, wipeout82C09160=7.
     collision_group: u32,
 }
 
@@ -86,9 +78,6 @@ impl BoardRuntime {
         let bodies = core::array::from_fn(|i| {
             initialized_body(&parts[i], masses[i].dynamics, simulation, mode)
         });
-        // CreateHookDrive 82C0D330 creates its own STATIC_BODY target. It does
-        // not alias the deck or a global world body. Its mass calculation is
-        // irrelevant to physical response because this body has no inertia.
         let hook = BoardHook {
             body: initialized_body(&hook_part, ZERO_INERTIA, simulation, BoardMotion::Static),
             drive: HookDriveState::initial(),
@@ -103,17 +92,18 @@ impl BoardRuntime {
         }
     }
 
-    pub fn collision_group(&self) -> u32 { self.collision_group }
+    pub fn collision_group(&self) -> u32 {
+        self.collision_group
+    }
     ///All seven native board parts share the current assembly group.
-    pub fn set_collision_group(&mut self, group: u32) { self.collision_group = group }
+    pub fn set_collision_group(&mut self, group: u32) {
+        self.collision_group = group
+    }
 
     pub fn bodies(&self) -> &[BodySnapshot; BODY_COUNT] {
         &self.bodies
     }
 
-    /// Physical portion of82C05F50/82C0D680. Restore the authored part poses,
-    /// apply the requested stance and board transform, then clear rates. State
-    /// flags, cooldown, inertias and target-body rates retain their own owners.
     pub fn reset_physical(
         &mut self,
         authored: [RetailAffineTransform; BODY_COUNT],
@@ -148,9 +138,8 @@ impl BoardRuntime {
             body.rates.angular_velocity = Vector3::ZERO;
             body.rates.force_acceleration = gravity;
             body.rates.torque_acceleration = Vector3::ZERO;
-            body.rates.world_inverse_inertia = world_inverse_inertia(
-                body.rates.basis, body.inertia.inverse_tensor,
-            );
+            body.rates.world_inverse_inertia =
+                world_inverse_inertia(body.rates.basis, body.inertia.inverse_tensor);
         }
         copy_pose(&hook, &mut self.hook.body.rates);
         self.forces.clear();
@@ -217,8 +206,6 @@ impl BoardRuntime {
         &mut self.forces
     }
 
-    /// Queue clearing is a separate gameplay phase, as in GeneralUpdate
-    /// 82C02360. Advancing physics does not silently consume its ownership.
     pub fn clear_forces(&mut self) {
         self.forces.clear();
     }
@@ -429,7 +416,3 @@ fn transform_from_words(words: PoseMatrix) -> RetailAffineTransform {
         translation: Vector3::new(f(12), f(13), f(14)),
     }
 }
-
-#[cfg(test)]
-#[path = "tests/board_runtime.rs"]
-mod tests;

@@ -1,6 +1,3 @@
-//! TU3 push animation calculations, upstream of the contact-driven push force.
-//! `0x82BAD658` maps held time to strength; `0x82BACF50` updates the three
-//! Andale parameters. These do not select an animation or synthesize root motion.
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Copy, Debug)]
@@ -40,7 +37,6 @@ impl PushAnimationCurves {
         delta_seconds: f32,
     ) -> PushBlendParameters {
         let current = if current.vel_e < 0.0 { target } else { current };
-        // This factor is a native constant at 0x820849C8, not the graph dt.
         let frame_seconds = f32::from_bits(0x3c88_8889);
         let velocity_rate =
             1.0 / (self.blend_speed_over_frames.evaluate(current.vel_e) * frame_seconds);

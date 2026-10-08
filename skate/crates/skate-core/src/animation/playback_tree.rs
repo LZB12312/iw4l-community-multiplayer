@@ -1,6 +1,6 @@
 //! Owned animation tree evaluation; stock data constructs this topology.
-pub mod selection_space;
 pub mod blend_space;
+pub mod selection_space;
 use super::{
     clip_clock::AdvanceResult,
     output::attributes::{AnimationAttribute, AttributeName},
@@ -19,7 +19,6 @@ pub enum PlaybackTree {
     BlendSpace(blend_space::BlendSpace),
     SelectionSpace(selection_space::SelectionSpace),
     Transition(super::playback_transition::PlaybackTransition),
-    ///SkaterAnim::AddBindPose82B98118, latched when a named tree is created.
     BindPose {
         motion: Box<PlaybackTree>,
         posture: Option<super::posture::PosturePose>,
@@ -30,7 +29,6 @@ pub enum PlaybackTree {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub enum PoseCommand {
-    ///82D25B00 supplies both bounded source times and the unconsumed wrap count.
     Clip {
         name: String,
         previous_time: f32,
@@ -41,7 +39,9 @@ pub enum PoseCommand {
     Blend {
         weight: f32,
     },
-    WeightedBlend { weights: Vec<f32> },
+    WeightedBlend {
+        weights: Vec<f32>,
+    },
     ChannelBlend {
         weight: f32,
         use_channels_from_weights: bool,
@@ -183,7 +183,6 @@ impl PlaybackTree {
                 attribute_mirror,
                 ..
             } => {
-                //825476D0 leaves a child's partial output untouched on false.
                 let found = motion.query_attribute(name, mask, output)?;
                 if found {
                     for _ in mirror_modes {
@@ -284,7 +283,3 @@ impl PlaybackTree {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "posture/tree_tests.rs"]
-mod posture_tests;

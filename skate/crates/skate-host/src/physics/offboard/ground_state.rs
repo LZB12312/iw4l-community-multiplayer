@@ -51,7 +51,6 @@ pub(crate) fn publish(skater: &mut SkaterRuntime) {
 pub(crate) fn enter(_physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     let p = &skater.player_input.processed;
     let mut frame = skater.animated_skeleton.roots.animation_to_world;
-    //GetEffectiveRoot82BE3650 applies the animation stance before Enter.
     if p.flags_2476 & 4 != 0 {
         for i in [0, 2] {
             frame[i] = frame[i].map(|v| -v);
@@ -203,7 +202,6 @@ impl ground_sync::Services for Services<'_> {
         self.skater.ground_lifecycle.trajectory.flags_12836
     }
     fn probe_board(&mut self, _: Vector) -> Option<Self::Candidate> {
-        //82D4D150 returns false when candidate count12752 is zero.
         None
     }
     fn candidate_key_188(&self, candidate: &Self::Candidate) -> [u32; 2] {

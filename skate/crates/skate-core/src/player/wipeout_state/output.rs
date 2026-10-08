@@ -1,5 +1,3 @@
-//! Physical output stores82D3EEE8. Optional fields are conditional writes,
-//! not instructions to clear the corresponding shared output on false paths.
 use super::{State, math, orientation};
 use crate::physics::skeleton_animation_record::AnimationPartTransform;
 

@@ -4,15 +4,9 @@ use skate_data::state_graph::attributes::Attributes;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum MotionHook {
-    ///82BBBB68 copies the authored transition into the next-play override.
     Override(TransitionSettings),
-    MongoPushToAntic {
-        animation: String,
-    },
-    ///82BBB848, factory82BCA6A8 default right=true.
-    GrabSlide {
-        right: bool,
-    },
+    MongoPushToAntic { animation: String },
+    GrabSlide { right: bool },
 }
 impl MotionHook {
     pub fn parse(a: &Attributes<'_>) -> Option<Self> {

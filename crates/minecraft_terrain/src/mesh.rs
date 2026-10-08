@@ -1,15 +1,15 @@
 use crate::{
     fluid::{FluidCell, FluidKind},
     lighting::SkyLight,
-    model::{resolve_block_variants, ResolvedModel},
+    model::{ResolvedModel, resolve_block_variants},
     pack::{PackStack, ResourceId},
     scene::{BiomeSample, Block, BlockPos, ChunkPos, Scene},
     texture_mips,
 };
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Vec3};
-use image::{imageops::FilterType, RgbaImage};
+use image::{RgbaImage, imageops::FilterType};
 use minecraftoss_player::items::WorldItems;
 use std::{
     collections::{BTreeMap, HashMap},
@@ -25,8 +25,7 @@ pub struct Vertex {
     pub sky_light: f32,
     pub block_light: f32,
 }
-impl Vertex {
-}
+impl Vertex {}
 /// A terrain section vertex as the GPU stores it: 28 bytes, the size of
 /// vanilla's block vertex. Colours are bytes as `ARGB.colorFromFloat`
 /// makes them (`floor(value * 255)`), and light keeps vanilla's lightmap
@@ -44,7 +43,6 @@ pub struct SectionVertex {
 }
 
 impl SectionVertex {
-
     pub fn from_vertex(v: &Vertex) -> Self {
         // `ARGB.as8BitChannel`.
         let channel = |value: f32| (value * 255.0).floor().clamp(0.0, 255.0) as u8;
@@ -70,7 +68,11 @@ pub struct SectionMesh {
 impl From<ChunkMesh> for SectionMesh {
     fn from(mesh: ChunkMesh) -> Self {
         Self {
-            vertices: mesh.vertices.iter().map(SectionVertex::from_vertex).collect(),
+            vertices: mesh
+                .vertices
+                .iter()
+                .map(SectionVertex::from_vertex)
+                .collect(),
             indices: mesh.indices,
             transparent_start: mesh.transparent_start,
         }
@@ -377,64 +379,170 @@ fn build_internal<S: Scene>(scene: &S, packs: &PackStack, preload_blocks: bool) 
     textures.insert(ResourceId::parse("minecraft:entity/zombie/zombie")?, ());
     textures.insert(ResourceId::parse("minecraft:entity/player/wide/steve")?, ());
     textures.insert(ResourceId::parse("minecraft:entity/skeleton/skeleton")?, ());
-    for skin in ["stray", "stray_overlay", "bogged", "bogged_overlay", "parched"] {
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/skeleton/{skin}"))?, ());
+    for skin in [
+        "stray",
+        "stray_overlay",
+        "bogged",
+        "bogged_overlay",
+        "parched",
+    ] {
+        textures.insert(
+            ResourceId::parse(&format!("minecraft:entity/skeleton/{skin}"))?,
+            (),
+        );
     }
     textures.insert(ResourceId::parse("minecraft:entity/creeper/creeper")?, ());
-    textures.insert(ResourceId::parse("minecraft:entity/experience/experience_orb")?, ());
+    textures.insert(
+        ResourceId::parse("minecraft:entity/experience/experience_orb")?,
+        (),
+    );
     textures.insert(ResourceId::parse("minecraft:entity/spider/spider")?, ());
     textures.insert(ResourceId::parse("minecraft:entity/slime/slime")?, ());
     textures.insert(ResourceId::parse("minecraft:entity/enderman/enderman")?, ());
-    textures.insert(ResourceId::parse("minecraft:entity/enderman/enderman_eyes")?, ());
+    textures.insert(
+        ResourceId::parse("minecraft:entity/enderman/enderman_eyes")?,
+        (),
+    );
     textures.insert(ResourceId::parse("minecraft:entity/witch/witch")?, ());
-    textures.insert(ResourceId::parse("minecraft:entity/iron_golem/iron_golem")?, ());
+    textures.insert(
+        ResourceId::parse("minecraft:entity/iron_golem/iron_golem")?,
+        (),
+    );
     for cracks in ["low", "medium", "high"] {
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/iron_golem/iron_golem_crackiness_{cracks}"))?, ());
+        textures.insert(
+            ResourceId::parse(&format!(
+                "minecraft:entity/iron_golem/iron_golem_crackiness_{cracks}"
+            ))?,
+            (),
+        );
     }
     // Wolves: each variant's wild, angry and tame looks, adult and baby,
     // and the collars.
     for variant in minecraftoss_entities::wolf::VARIANTS {
-        let name = if variant == "pale" { "wolf".to_owned() } else { format!("wolf_{variant}") };
+        let name = if variant == "pale" {
+            "wolf".to_owned()
+        } else {
+            format!("wolf_{variant}")
+        };
         for state in ["", "_angry", "_tame"] {
             for age in ["", "_baby"] {
-                textures.insert(ResourceId::parse(&format!("minecraft:entity/wolf/{name}{state}{age}"))?, ());
+                textures.insert(
+                    ResourceId::parse(&format!("minecraft:entity/wolf/{name}{state}{age}"))?,
+                    (),
+                );
             }
         }
     }
     textures.insert(ResourceId::parse("minecraft:entity/wolf/wolf_collar")?, ());
-    textures.insert(ResourceId::parse("minecraft:entity/wolf/wolf_collar_baby")?, ());
+    textures.insert(
+        ResourceId::parse("minecraft:entity/wolf/wolf_collar_baby")?,
+        (),
+    );
     // Thrown splash potions: the bottle over its tinted contents.
     textures.insert(ResourceId::parse("minecraft:item/splash_potion")?, ());
     textures.insert(ResourceId::parse("minecraft:item/potion_overlay")?, ());
     textures.insert(ResourceId::parse("minecraft:entity/zombie/husk")?, ());
     textures.insert(ResourceId::parse("minecraft:entity/zombie/husk_baby")?, ());
-    textures.insert(ResourceId::parse("minecraft:entity/zombie_villager/zombie_villager")?, ());
-    textures.insert(ResourceId::parse("minecraft:entity/zombie_villager/zombie_villager_baby")?, ());
-    for kind in ["desert", "jungle", "plains", "savanna", "snow", "swamp", "taiga"] {
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/zombie_villager/type/{kind}"))?, ());
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/zombie_villager/baby/{kind}"))?, ());
+    textures.insert(
+        ResourceId::parse("minecraft:entity/zombie_villager/zombie_villager")?,
+        (),
+    );
+    textures.insert(
+        ResourceId::parse("minecraft:entity/zombie_villager/zombie_villager_baby")?,
+        (),
+    );
+    for kind in [
+        "desert", "jungle", "plains", "savanna", "snow", "swamp", "taiga",
+    ] {
+        textures.insert(
+            ResourceId::parse(&format!("minecraft:entity/zombie_villager/type/{kind}"))?,
+            (),
+        );
+        textures.insert(
+            ResourceId::parse(&format!("minecraft:entity/zombie_villager/baby/{kind}"))?,
+            (),
+        );
     }
-    for profession in ["armorer", "butcher", "cartographer", "cleric", "farmer", "fisherman", "fletcher", "leatherworker", "librarian", "mason", "nitwit", "shepherd", "toolsmith", "weaponsmith"] {
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/zombie_villager/profession/{profession}"))?, ());
+    for profession in [
+        "armorer",
+        "butcher",
+        "cartographer",
+        "cleric",
+        "farmer",
+        "fisherman",
+        "fletcher",
+        "leatherworker",
+        "librarian",
+        "mason",
+        "nitwit",
+        "shepherd",
+        "toolsmith",
+        "weaponsmith",
+    ] {
+        textures.insert(
+            ResourceId::parse(&format!(
+                "minecraft:entity/zombie_villager/profession/{profession}"
+            ))?,
+            (),
+        );
     }
-    textures.insert(ResourceId::parse("minecraft:entity/spider/spider_eyes")?, ());
+    textures.insert(
+        ResourceId::parse("minecraft:entity/spider/spider_eyes")?,
+        (),
+    );
     textures.insert(ResourceId::parse("minecraft:entity/zombie/drowned")?, ());
     textures.insert(
         ResourceId::parse("minecraft:entity/zombie/drowned_baby")?,
         (),
     );
     for path in ["villager", "villager_baby"] {
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/villager/{path}"))?, ());
+        textures.insert(
+            ResourceId::parse(&format!("minecraft:entity/villager/{path}"))?,
+            (),
+        );
     }
-    for kind in ["desert", "jungle", "plains", "savanna", "snow", "swamp", "taiga"] {
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/villager/type/{kind}"))?, ());
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/villager/baby/{kind}"))?, ());
+    for kind in [
+        "desert", "jungle", "plains", "savanna", "snow", "swamp", "taiga",
+    ] {
+        textures.insert(
+            ResourceId::parse(&format!("minecraft:entity/villager/type/{kind}"))?,
+            (),
+        );
+        textures.insert(
+            ResourceId::parse(&format!("minecraft:entity/villager/baby/{kind}"))?,
+            (),
+        );
     }
-    for profession in ["armorer", "butcher", "cartographer", "cleric", "farmer", "fisherman", "fletcher", "leatherworker", "librarian", "mason", "nitwit", "shepherd", "toolsmith", "weaponsmith"] {
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/villager/profession/{profession}"))?, ());
+    for profession in [
+        "armorer",
+        "butcher",
+        "cartographer",
+        "cleric",
+        "farmer",
+        "fisherman",
+        "fletcher",
+        "leatherworker",
+        "librarian",
+        "mason",
+        "nitwit",
+        "shepherd",
+        "toolsmith",
+        "weaponsmith",
+    ] {
+        textures.insert(
+            ResourceId::parse(&format!(
+                "minecraft:entity/villager/profession/{profession}"
+            ))?,
+            (),
+        );
     }
     for level in ["stone", "iron", "gold", "emerald", "diamond"] {
-        textures.insert(ResourceId::parse(&format!("minecraft:entity/villager/profession_level/{level}"))?, ());
+        textures.insert(
+            ResourceId::parse(&format!(
+                "minecraft:entity/villager/profession_level/{level}"
+            ))?,
+            (),
+        );
     }
     textures.insert(
         ResourceId::parse("minecraft:entity/zombie/zombie_baby")?,
@@ -489,7 +597,11 @@ fn build_internal<S: Scene>(scene: &S, packs: &PackStack, preload_blocks: bool) 
     }
     // Humanoid armour (`EquipmentLayerRenderer`'s humanoid layers).
     for layer in ["humanoid", "humanoid_leggings"] {
-        for material in crate::armor_render::MATERIALS.iter().copied().chain(["leather_overlay"]) {
+        for material in crate::armor_render::MATERIALS
+            .iter()
+            .copied()
+            .chain(["leather_overlay"])
+        {
             let id = ResourceId::parse(&format!("minecraft:entity/equipment/{layer}/{material}"))?;
             if packs.texture(&id)?.is_some() {
                 textures.insert(id, ());
@@ -720,7 +832,8 @@ impl ItemVisuals {
                 return Ok(None);
             }
             let ground = crate::model::item_display_transform(packs, &resource, "ground")?;
-            let right_hand = crate::model::item_display_transform(packs, &resource, "thirdperson_righthand")?;
+            let right_hand =
+                crate::model::item_display_transform(packs, &resource, "thirdperson_righthand")?;
             let definition = packs.item_definition(&resource)?;
             let tints = definition
                 .as_ref()
@@ -902,7 +1015,16 @@ impl ItemVisuals {
                 * Mat4::from_rotation_y((-90.0f32).to_radians())
                 * Mat4::from_translation(Vec3::new(-0.5, -0.5, 0.5))
                 * Mat4::from_rotation_y(90.0f32.to_radians());
-            self.append_block_model(mesh, "minecraft:tnt", pos, pose, if white { 4.0 } else { 1.0 }, packs, atlas, sky_light)?;
+            self.append_block_model(
+                mesh,
+                "minecraft:tnt",
+                pos,
+                pose,
+                if white { 4.0 } else { 1.0 },
+                packs,
+                atlas,
+                sky_light,
+            )?;
         }
         Ok(())
     }
@@ -910,7 +1032,14 @@ impl ItemVisuals {
     /// `FallingBlockRenderer`: each falling block's model, shifted so the
     /// block is centred on the entity's feet. Items stand in for block
     /// models (`id` is the block's item).
-    pub fn append_falling_blocks(&mut self, mesh: &mut ChunkMesh, blocks: &[(Vec3, String)], packs: &PackStack, atlas: &Atlas, sky_light: &SkyLight) -> Result<()> {
+    pub fn append_falling_blocks(
+        &mut self,
+        mesh: &mut ChunkMesh,
+        blocks: &[(Vec3, String)],
+        packs: &PackStack,
+        atlas: &Atlas,
+        sky_light: &SkyLight,
+    ) -> Result<()> {
         for (pos, id) in blocks {
             let pose = Mat4::from_translation(*pos + Vec3::new(-0.5, 0.0, -0.5));
             self.append_block_model(mesh, id, *pos, pose, 1.0, packs, atlas, sky_light)?;
@@ -921,10 +1050,23 @@ impl ItemVisuals {
     /// Items mobs hold (`ItemInHandLayer`, `CrossedArmsItemLayer`): each
     /// under its holder's pose, then its display transform, tinted as its
     /// item definition says, lit at its point.
-    pub fn append_held_items(&mut self, mesh: &mut ChunkMesh, items: &[HeldItem], packs: &PackStack, atlas: &Atlas, sky_light: &SkyLight) -> Result<()> {
+    pub fn append_held_items(
+        &mut self,
+        mesh: &mut ChunkMesh,
+        items: &[HeldItem],
+        packs: &PackStack,
+        atlas: &Atlas,
+        sky_light: &SkyLight,
+    ) -> Result<()> {
         for item in items {
             let Some((display, mut tints)) = self.model(&item.id, packs)?.map(|visual| {
-                (match item.display { HeldDisplay::RightHand => visual.right_hand, HeldDisplay::Ground => visual.ground }, visual.tints.clone())
+                (
+                    match item.display {
+                        HeldDisplay::RightHand => visual.right_hand,
+                        HeldDisplay::Ground => visual.ground,
+                    },
+                    visual.tints.clone(),
+                )
             }) else {
                 continue;
             };
@@ -935,14 +1077,31 @@ impl ItemVisuals {
                     tints[0] = color;
                 }
             }
-            self.append_model(mesh, &item.id, item.light, item.pose * display, 1.0, Some(&tints), packs, atlas, sky_light)?;
+            self.append_model(
+                mesh,
+                &item.id,
+                item.light,
+                item.pose * display,
+                1.0,
+                Some(&tints),
+                packs,
+                atlas,
+                sky_light,
+            )?;
         }
         Ok(())
     }
 
     /// Block models under whole poses (an enderman's carried block), each lit
     /// at its point.
-    pub fn append_posed_blocks(&mut self, mesh: &mut ChunkMesh, blocks: &[(Mat4, Vec3, String)], packs: &PackStack, atlas: &Atlas, sky_light: &SkyLight) -> Result<()> {
+    pub fn append_posed_blocks(
+        &mut self,
+        mesh: &mut ChunkMesh,
+        blocks: &[(Mat4, Vec3, String)],
+        packs: &PackStack,
+        atlas: &Atlas,
+        sky_light: &SkyLight,
+    ) -> Result<()> {
         for (pose, light, id) in blocks {
             self.append_block_model(mesh, id, *light, *pose, 1.0, packs, atlas, sky_light)?;
         }
@@ -951,20 +1110,47 @@ impl ItemVisuals {
 
     /// One item model placed with a pose, lit at `pos`, untinted.
     #[allow(clippy::too_many_arguments)]
-    fn append_block_model(&mut self, mesh: &mut ChunkMesh, id: &str, pos: Vec3, pose: Mat4, brightness: f32, packs: &PackStack, atlas: &Atlas, sky_light: &SkyLight) -> Result<()> {
-        self.append_model(mesh, id, pos, pose, brightness, None, packs, atlas, sky_light)
+    fn append_block_model(
+        &mut self,
+        mesh: &mut ChunkMesh,
+        id: &str,
+        pos: Vec3,
+        pose: Mat4,
+        brightness: f32,
+        packs: &PackStack,
+        atlas: &Atlas,
+        sky_light: &SkyLight,
+    ) -> Result<()> {
+        self.append_model(
+            mesh, id, pos, pose, brightness, None, packs, atlas, sky_light,
+        )
     }
 
     /// One item model placed with a pose, lit at `pos`, its faces with a
     /// tint index coloured from `tints` when given.
     #[allow(clippy::too_many_arguments)]
-    fn append_model(&mut self, mesh: &mut ChunkMesh, id: &str, pos: Vec3, pose: Mat4, brightness: f32, tints: Option<&[[f32; 3]]>, packs: &PackStack, atlas: &Atlas, sky_light: &SkyLight) -> Result<()> {
+    fn append_model(
+        &mut self,
+        mesh: &mut ChunkMesh,
+        id: &str,
+        pos: Vec3,
+        pose: Mat4,
+        brightness: f32,
+        tints: Option<&[[f32; 3]]>,
+        packs: &PackStack,
+        atlas: &Atlas,
+        sky_light: &SkyLight,
+    ) -> Result<()> {
         let Some(visual) = self.model(id, packs)? else {
             return Ok(());
         };
         {
             let white = brightness > 1.0;
-            let light_pos = (pos.x.floor() as i32, pos.y.floor() as i32, pos.z.floor() as i32);
+            let light_pos = (
+                pos.x.floor() as i32,
+                pos.y.floor() as i32,
+                pos.z.floor() as i32,
+            );
             let sky = sky_light.get(light_pos) as f32;
             let block = sky_light.get_block(light_pos) as f32;
             for element in &visual.model.elements {
@@ -981,9 +1167,15 @@ impl ItemVisuals {
                         [u0 + (u1 - u0) * c, v0 + (v1 - v0) * d],
                         [u0 + (u1 - u0) * c, v0 + (v1 - v0) * b],
                     ];
-                    let normal = pose.transform_vector3(face_normal(&face.direction)?).normalize();
+                    let normal = pose
+                        .transform_vector3(face_normal(&face.direction)?)
+                        .normalize();
                     let shade = level_item_shade(normal) * if white { 4.0 } else { 1.0 };
-                    let tint = tints.zip(face.tint_index).and_then(|(tints, index)| tints.get(index)).copied().unwrap_or([1.0; 3]);
+                    let tint = tints
+                        .zip(face.tint_index)
+                        .and_then(|(tints, index)| tints.get(index))
+                        .copied()
+                        .unwrap_or([1.0; 3]);
                     let start = mesh.vertices.len() as u32;
                     for (corner, uv) in corners.into_iter().zip(uv) {
                         mesh.vertices.push(Vertex {
@@ -994,7 +1186,14 @@ impl ItemVisuals {
                             block_light: block,
                         });
                     }
-                    mesh.indices.extend_from_slice(&[start, start + 1, start + 2, start, start + 2, start + 3]);
+                    mesh.indices.extend_from_slice(&[
+                        start,
+                        start + 1,
+                        start + 2,
+                        start,
+                        start + 2,
+                        start + 3,
+                    ]);
                     mesh.faces += 1;
                 }
             }
@@ -1038,12 +1237,18 @@ pub struct ShadowCaster {
 
 /// Dropped items' shadows (`ItemEntityRenderer`: radius 0.15, strength
 /// 0.75).
-pub fn item_shadow_casters(items: &WorldItems, camera_position: glam::DVec3, partial_tick: f32) -> Vec<ShadowCaster> {
+pub fn item_shadow_casters(
+    items: &WorldItems,
+    camera_position: glam::DVec3,
+    partial_tick: f32,
+) -> Vec<ShadowCaster> {
     items
         .entities
         .iter()
         .map(|entity| ShadowCaster {
-            position: entity.previous_position.lerp(entity.position, f64::from(partial_tick.clamp(0.0, 1.0))),
+            position: entity
+                .previous_position
+                .lerp(entity.position, f64::from(partial_tick.clamp(0.0, 1.0))),
             distance_squared: entity.position.distance_squared(camera_position),
             radius: 0.15,
             strength: 0.75,
@@ -1085,14 +1290,28 @@ pub fn entity_shadows<S: Scene>(
         let depth = (pow / 0.5 - 1.0).min(radius);
         let (x0, x1) = ((state.x - r).floor() as i32, (state.x + r).floor() as i32);
         let (z0, z1) = ((state.z - r).floor() as i32, (state.z + r).floor() as i32);
-        let (y0, y1) = ((state.y - f64::from(depth)).floor() as i32, state.y.floor() as i32);
+        let (y0, y1) = (
+            (state.y - f64::from(depth)).floor() as i32,
+            state.y.floor() as i32,
+        );
         for z in z0..=z1 {
             for x in x0..=x1 {
                 for y in y0..=y1 {
                     let power_at_depth = pow - (state.y - f64::from(y)) as f32 * 0.5;
                     let below = (x, y - 1, z);
                     // RenderShape.INVISIBLE: air and barriers.
-                    if scene.block(below).is_none_or(|b| matches!(b.id.path.as_str(), "air" | "cave_air" | "void_air" | "barrier" | "structure_void" | "light" | "moving_piston")) {
+                    if scene.block(below).is_none_or(|b| {
+                        matches!(
+                            b.id.path.as_str(),
+                            "air"
+                                | "cave_air"
+                                | "void_air"
+                                | "barrier"
+                                | "structure_void"
+                                | "light"
+                                | "moving_piston"
+                        )
+                    }) {
                         continue;
                     }
                     let brightness = raw_brightness((x, y, z));
@@ -1104,7 +1323,11 @@ pub fn entity_shadows<S: Scene>(
                     let light = ambient_light * (1.0 - curved) + curved;
                     let alpha = (power_at_depth * 0.5 * light).clamp(0.0, 1.0);
                     // The piece's corners relative to the entity, as floats.
-                    let (rx, ry, rz) = ((f64::from(x) - state.x) as f32, (f64::from(y) - state.y) as f32, (f64::from(z) - state.z) as f32);
+                    let (rx, ry, rz) = (
+                        (f64::from(x) - state.x) as f32,
+                        (f64::from(y) - state.y) as f32,
+                        (f64::from(z) - state.z) as f32,
+                    );
                     let (x_min, x_max) = (rx.max(-radius), (rx + 1.0).min(radius));
                     let (z_min, z_max) = (rz.max(-radius), (rz + 1.0).min(radius));
                     if x_min >= x_max || z_min >= z_max {
@@ -1112,7 +1335,12 @@ pub fn entity_shadows<S: Scene>(
                     }
                     let origin = state.as_vec3();
                     let start = mesh.vertices.len() as u32;
-                    for (px, pz) in [(x_min, z_min), (x_min, z_max), (x_max, z_max), (x_max, z_min)] {
+                    for (px, pz) in [
+                        (x_min, z_min),
+                        (x_min, z_max),
+                        (x_max, z_max),
+                        (x_max, z_min),
+                    ] {
                         let su = -px / 2.0 / radius + 0.5;
                         let sv = -pz / 2.0 / radius + 0.5;
                         mesh.vertices.push(Vertex {
@@ -1125,7 +1353,14 @@ pub fn entity_shadows<S: Scene>(
                             block_light: 0.0,
                         });
                     }
-                    mesh.indices.extend_from_slice(&[start, start + 1, start + 2, start, start + 2, start + 3]);
+                    mesh.indices.extend_from_slice(&[
+                        start,
+                        start + 1,
+                        start + 2,
+                        start,
+                        start + 2,
+                        start + 3,
+                    ]);
                     mesh.faces += 1;
                 }
             }
@@ -1136,8 +1371,8 @@ pub fn entity_shadows<S: Scene>(
 fn model_key(block: &Block) -> String {
     format!("{}{:?}", block.id.key(), block.properties)
 }
-/// BlockBehaviour.getSeed -> Mth.getSeed -> SingleThreadedRandomSource.nextInt.
-/// WeightedVariants consumes the first draw for the selected model.
+const SEED_MULTIPLIER: i64 = 42_317_861;
+
 fn variant_index(variants: &[(ResolvedModel, u32)], (x, y, z): BlockPos) -> usize {
     if variants.len() == 1 {
         return 0;
@@ -1149,7 +1384,7 @@ fn variant_index(variants: &[(ResolvedModel, u32)], (x, y, z): BlockPos) -> usiz
     let seed = x.wrapping_mul(3_129_871) as i64 ^ (z as i64).wrapping_mul(116_129_781) ^ y as i64;
     let seed = seed
         .wrapping_mul(seed)
-        .wrapping_mul(42_317_861)
+        .wrapping_mul(SEED_MULTIPLIER)
         .wrapping_add(seed.wrapping_mul(11))
         >> 16;
     let mut random = ((seed as u64) ^ 0x5deece66d) & ((1u64 << 48) - 1);
@@ -1201,7 +1436,12 @@ fn element_corners(element: &crate::model::Element, face: &str) -> Result<[[f32;
             corner[axis] += sign * SHEET_FACE_OFFSET;
         }
     }
-    Ok(quad.map(|corner| rotate_y(element.rotation.map_or(corner, |r| r.apply(corner)), element.rotation_y)))
+    Ok(quad.map(|corner| {
+        rotate_y(
+            element.rotation.map_or(corner, |r| r.apply(corner)),
+            element.rotation_y,
+        )
+    }))
 }
 
 /// Blocks; well under a pixel of a block, well over depth precision.
@@ -1211,10 +1451,17 @@ const SHEET_FACE_OFFSET: f32 = 0.002;
 /// own, turned with the blockstate, or for a rotated element the direction
 /// closest to its normal (`GeometryUtils.normal` of the first three
 /// corners; the first of equals in `Direction` order).
-fn quad_direction(element: &crate::model::Element, face: &str, corners: &[[f32; 3]; 4]) -> Result<&'static str> {
+fn quad_direction(
+    element: &crate::model::Element,
+    face: &str,
+    corners: &[[f32; 3]; 4],
+) -> Result<&'static str> {
     if element.rotation.is_none() {
         let dir = rotated_direction(face, element.rotation_y)?;
-        return Ok(["down", "up", "north", "south", "west", "east"].into_iter().find(|d| *d == dir).unwrap_or("up"));
+        return Ok(["down", "up", "north", "south", "west", "east"]
+            .into_iter()
+            .find(|d| *d == dir)
+            .unwrap_or("up"));
     }
     let [v0, v1, v2, _] = *corners;
     let mut n = [
@@ -1231,7 +1478,14 @@ fn quad_direction(element: &crate::model::Element, face: &str, corners: &[[f32; 
     }
     let mut best = "up";
     let mut closest = 0.0f32;
-    for (name, [x, y, z]) in [("down", [0.0, -1.0, 0.0]), ("up", [0.0, 1.0, 0.0]), ("north", [0.0, 0.0, -1.0]), ("south", [0.0, 0.0, 1.0]), ("west", [-1.0, 0.0, 0.0]), ("east", [1.0, 0.0, 0.0])] {
+    for (name, [x, y, z]) in [
+        ("down", [0.0, -1.0, 0.0]),
+        ("up", [0.0, 1.0, 0.0]),
+        ("north", [0.0, 0.0, -1.0]),
+        ("south", [0.0, 0.0, 1.0]),
+        ("west", [-1.0, 0.0, 0.0]),
+        ("east", [1.0, 0.0, 0.0]),
+    ] {
         let product = n[0] * x + n[1] * y + n[2] * z;
         if product >= 0.0 && product > closest {
             closest = product;
@@ -1250,8 +1504,15 @@ fn face_cubic(dir: &str, corners: &[[f32; 3]; 4]) -> bool {
         "north" | "south" => 2,
         _ => 0,
     };
-    let (min, max) = corners.iter().fold((32.0f32, -32.0f32), |(lo, hi), c| (lo.min(c[axis]), hi.max(c[axis])));
-    min == max && if matches!(dir, "down" | "north" | "west") { min < 1.0e-4 } else { max > 0.9999 }
+    let (min, max) = corners.iter().fold((32.0f32, -32.0f32), |(lo, hi), c| {
+        (lo.min(c[axis]), hi.max(c[axis]))
+    });
+    min == max
+        && if matches!(dir, "down" | "north" | "west") {
+            min < 1.0e-4
+        } else {
+            max > 0.9999
+        }
 }
 
 fn rotate_y([x, y, z]: [f32; 3], degrees: u16) -> [f32; 3] {
@@ -1282,10 +1543,18 @@ pub fn make_atlas(packs: &PackStack, mut textures: Vec<ResourceId>) -> Result<At
     let mut images = Vec::with_capacity(textures.len());
     let mut spans = Vec::with_capacity(textures.len());
     for id in &textures {
-        let bytes = if id.path == "missingno" { None } else { packs.texture(id)? };
+        let bytes = if id.path == "missingno" {
+            None
+        } else {
+            packs.texture(id)?
+        };
         let span = match &bytes {
             Some(bytes) if id.path.starts_with("entity/") && packs.animation(id)?.is_none() => {
-                let (width, height) = image::ImageReader::with_format(std::io::Cursor::new(bytes), image::ImageFormat::Png).into_dimensions()?;
+                let (width, height) = image::ImageReader::with_format(
+                    std::io::Cursor::new(bytes),
+                    image::ImageFormat::Png,
+                )
+                .into_dimensions()?;
                 (width.div_ceil(tile).max(1), height.div_ceil(tile).max(1))
             }
             _ => (1, 1),
@@ -1467,7 +1736,9 @@ fn place_cells(spans: &[(u32, u32)], side: u32) -> Option<Vec<(u32, u32)>> {
     for i in order {
         let (w, h) = spans[i];
         let fits = |col: u32, row: u32, used: &[bool]| {
-            col + w <= side && row + h <= side && (row..row + h).all(|r| (col..col + w).all(|c| !used[(r * side + c) as usize]))
+            col + w <= side
+                && row + h <= side
+                && (row..row + h).all(|r| (col..col + w).all(|c| !used[(r * side + c) as usize]))
         };
         let start = if (w, h) == (1, 1) { first_free } else { 0 };
         let cell = (start..side * side).find(|&cell| fits(cell % side, cell / side, &used))?;
@@ -1648,9 +1919,17 @@ impl TintKind {
         match block.id.path.as_str() {
             "water" => Self::Water,
             "redstone_wire" => {
-                let power = block.properties.get("power").and_then(|value| value.parse::<u8>().ok()).unwrap_or(0);
+                let power = block
+                    .properties
+                    .get("power")
+                    .and_then(|value| value.parse::<u8>().ok())
+                    .unwrap_or(0);
                 let color = redstone_wire_color_argb(power);
-                Self::RedstoneWire([((color >> 16) & 255) as f32 / 255.0, ((color >> 8) & 255) as f32 / 255.0, (color & 255) as f32 / 255.0])
+                Self::RedstoneWire([
+                    ((color >> 16) & 255) as f32 / 255.0,
+                    ((color >> 8) & 255) as f32 / 255.0,
+                    (color & 255) as f32 / 255.0,
+                ])
             }
             "oak_leaves" => Self::OakLeaves,
             _ => Self::Other,
@@ -1671,11 +1950,18 @@ impl TintKind {
 
 /// Bakes a resolved model's faces for `block`, as [`append_block`] would
 /// place them.
-pub(crate) fn bake_quads(block: &Block, model: &ResolvedModel, atlas: &Atlas) -> Result<Vec<BakedQuad>> {
+pub(crate) fn bake_quads(
+    block: &Block,
+    model: &ResolvedModel,
+    atlas: &Atlas,
+) -> Result<Vec<BakedQuad>> {
     let mut quads = Vec::new();
     for element in &model.elements {
         for face in &element.faces {
-            let cull_dir = rotated_direction(face.cullface.as_deref().unwrap_or(face.direction.as_str()), element.rotation_y)?;
+            let cull_dir = rotated_direction(
+                face.cullface.as_deref().unwrap_or(face.direction.as_str()),
+                element.rotation_y,
+            )?;
             let cull_delta = direction(cull_dir)?;
             let corners = element_corners(element, &face.direction)?;
             let dir = quad_direction(element, &face.direction, &corners)?;
@@ -1701,7 +1987,8 @@ pub(crate) fn bake_quads(block: &Block, model: &ResolvedModel, atlas: &Atlas) ->
             } else {
                 (0, 0, 0)
             };
-            let full_cube = element.from == [0.0; 3] && element.to == [1.0; 3] && element.rotation.is_none();
+            let full_cube =
+                element.from == [0.0; 3] && element.to == [1.0; 3] && element.rotation.is_none();
             let ao_axes = full_cube.then(|| match dir {
                 "up" | "down" => [0, 2],
                 "north" | "south" => [0, 1],
@@ -1742,13 +2029,20 @@ pub(crate) fn append_baked<S: Scene>(
 ) -> Result<()> {
     let mut biome = None;
     for quad in quads {
-        if quad.cull.is_some_and(|(dx, dy, dz)| hidden_by((x + dx, y + dy, z + dz))) {
+        if quad
+            .cull
+            .is_some_and(|(dx, dy, dz)| hidden_by((x + dx, y + dy, z + dz)))
+        {
             continue;
         }
         let biome = *biome.get_or_insert_with(|| scene.biome_at((x, y, z)));
         let tint = tint_kind.tint(quad.tinted, biome, tint_source);
         let start = mesh.vertices.len() as u32;
-        let light_pos = (x + quad.light_offset.0, y + quad.light_offset.1, z + quad.light_offset.2);
+        let light_pos = (
+            x + quad.light_offset.0,
+            y + quad.light_offset.1,
+            z + quad.light_offset.2,
+        );
         let block_light = light.get_block(light_pos) as f32;
         for (corner, uv) in quad.corners.iter().zip(quad.uv) {
             let (ao, sky_light) = match quad.ao_axes {
@@ -1756,42 +2050,89 @@ pub(crate) fn append_baked<S: Scene>(
                 None => (1.0, light.get(light_pos) as f32),
             };
             mesh.vertices.push(Vertex {
-                position: [x as f32 + corner[0], y as f32 + corner[1], z as f32 + corner[2]],
+                position: [
+                    x as f32 + corner[0],
+                    y as f32 + corner[1],
+                    z as f32 + corner[2],
+                ],
                 uv,
-                color: [quad.shade * ao * tint[0], quad.shade * ao * tint[1], quad.shade * ao * tint[2], 1.0],
+                color: [
+                    quad.shade * ao * tint[0],
+                    quad.shade * ao * tint[1],
+                    quad.shade * ao * tint[2],
+                    1.0,
+                ],
                 sky_light,
                 block_light,
             });
         }
-        let indices = if quad.transparent { &mut *transparent_indices } else { &mut mesh.indices };
+        let indices = if quad.transparent {
+            &mut *transparent_indices
+        } else {
+            &mut mesh.indices
+        };
         indices.extend_from_slice(&[start, start + 1, start + 2, start, start + 2, start + 3]);
         mesh.faces += 1;
     }
     if waterlogged {
-        append_fluid(scene, (x, y, z), atlas, tint_source, light, mesh, transparent_indices)?;
+        append_fluid(
+            scene,
+            (x, y, z),
+            atlas,
+            tint_source,
+            light,
+            mesh,
+            transparent_indices,
+        )?;
     }
     Ok(())
 }
 
 /// [`ambient_vertex`] with its axes worked out and its block test given.
-fn ambient_corner(light: &SkyLight, base: (i32, i32, i32), axes: [usize; 2], corner: [f32; 3], occluder: &impl Fn(BlockPos) -> bool) -> (f32, f32) {
+fn ambient_corner(
+    light: &SkyLight,
+    base: (i32, i32, i32),
+    axes: [usize; 2],
+    corner: [f32; 3],
+    occluder: &impl Fn(BlockPos) -> bool,
+) -> (f32, f32) {
     let mut side = [[0; 3]; 2];
     for (i, axis) in axes.into_iter().enumerate() {
         side[i][axis] = if corner[axis] < 0.5 { -1 } else { 1 };
     }
     let positions = [
         base,
-        (base.0 + side[0][0], base.1 + side[0][1], base.2 + side[0][2]),
-        (base.0 + side[1][0], base.1 + side[1][1], base.2 + side[1][2]),
-        (base.0 + side[0][0] + side[1][0], base.1 + side[0][1] + side[1][1], base.2 + side[0][2] + side[1][2]),
+        (
+            base.0 + side[0][0],
+            base.1 + side[0][1],
+            base.2 + side[0][2],
+        ),
+        (
+            base.0 + side[1][0],
+            base.1 + side[1][1],
+            base.2 + side[1][2],
+        ),
+        (
+            base.0 + side[0][0] + side[1][0],
+            base.1 + side[0][1] + side[1][1],
+            base.2 + side[0][2] + side[1][2],
+        ),
     ];
     let center_light = light.get(base);
-    let shade = positions.iter().map(|&p| if occluder(p) { 0.2 } else { 1.0 }).sum::<f32>() * 0.25;
+    let shade = positions
+        .iter()
+        .map(|&p| if occluder(p) { 0.2 } else { 1.0 })
+        .sum::<f32>()
+        * 0.25;
     let sky = positions
         .iter()
         .map(|&p| {
             let level = light.get(p);
-            if center_light > 2 && level == 0 { center_light as f32 } else { level as f32 }
+            if center_light > 2 && level == 0 {
+                center_light as f32
+            } else {
+                level as f32
+            }
         })
         .sum::<f32>()
         * 0.25;
@@ -1847,7 +2188,10 @@ pub(crate) fn append_block<'m, S: Scene>(
         for face in &element.faces {
             // Culled quads go with their cullface (turned with the
             // blockstate), and take their light from that neighbour.
-            let cull_dir = rotated_direction(face.cullface.as_deref().unwrap_or(face.direction.as_str()), element.rotation_y)?;
+            let cull_dir = rotated_direction(
+                face.cullface.as_deref().unwrap_or(face.direction.as_str()),
+                element.rotation_y,
+            )?;
             let cull_delta = direction(cull_dir)?;
             if face.cull && hidden_by((x + cull_delta.0, y + cull_delta.1, z + cull_delta.2)) {
                 continue;
@@ -1884,7 +2228,8 @@ pub(crate) fn append_block<'m, S: Scene>(
             } else {
                 (x, y, z)
             };
-            let full_cube = element.from == [0.0; 3] && element.to == [1.0; 3] && element.rotation.is_none();
+            let full_cube =
+                element.from == [0.0; 3] && element.to == [1.0; 3] && element.rotation.is_none();
             for (corner, uv) in corners.iter().zip(uv) {
                 let (ao, sky_light) = if full_cube {
                     ambient_vertex(scene, light, light_pos, dir, *corner)
@@ -1966,11 +2311,7 @@ fn fluid_corner_height<S: Scene>(
                 let w = if h >= 0.8 { 10.0 } else { 1.0 };
                 (sum + h * w, weight + w)
             });
-    if weight == 0.0 {
-        0.0
-    } else {
-        sum / weight
-    }
+    if weight == 0.0 { 0.0 } else { sum / weight }
 }
 fn fluid_quad(
     mesh: &mut ChunkMesh,
@@ -2034,9 +2375,15 @@ fn append_fluid<S: Scene>(
     let water = cell.kind == FluidKind::Water;
     static TEXTURES: std::sync::OnceLock<[ResourceId; 4]> = std::sync::OnceLock::new();
     let [water_still, water_flow, lava_still, lava_flow] = TEXTURES.get_or_init(|| {
-        ["water_still", "water_flow", "lava_still", "lava_flow"].map(|name| ResourceId::parse(&format!("minecraft:block/{name}")).expect("static texture id"))
+        ["water_still", "water_flow", "lava_still", "lava_flow"].map(|name| {
+            ResourceId::parse(&format!("minecraft:block/{name}")).expect("static texture id")
+        })
     });
-    let (still, flow) = if water { (water_still.clone(), water_flow.clone()) } else { (lava_still.clone(), lava_flow.clone()) };
+    let (still, flow) = if water {
+        (water_still.clone(), water_flow.clone())
+    } else {
+        (lava_still.clone(), lava_flow.clone())
+    };
     let tint = if water {
         scene.biome_at(pos).water_color.map(|c| c as f32 / 255.0)
     } else {
@@ -2449,681 +2796,4 @@ fn corners(dir: &str, a: [f32; 3], b: [f32; 3]) -> Result<[[f32; 3]; 4]> {
         "east" => [[xx, yy, zz], [xx, y, zz], [xx, y, z], [xx, yy, z]],
         _ => return Err(anyhow!("unsupported face direction {dir}")),
     })
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The `cross` model's planes: rotated 45° about the block's middle and
-    /// rescaled, they run corner to corner; a plane in the middle of the
-    /// block takes its light from its own cell, a face on the block's side
-    /// from the neighbour (`BlockModelLighter.faceCubic`).
-    #[test]
-    fn cross_planes_turn_diagonal_and_light_from_their_own_cell() {
-        let raw: serde_json::Value = serde_json::from_str(r#"{"rotation":{"origin":[8,8,8],"axis":"y","angle":45,"rescale":true}}"#).unwrap();
-        let element = crate::model::Element {
-            from: [0.8 / 16.0, 0.0, 0.5],
-            to: [15.2 / 16.0, 1.0, 0.5],
-            faces: Vec::new(),
-            rotation_y: 0,
-            rotation: crate::model::ElementRotation::parse(&raw).unwrap(),
-            shade_direction_override: None,
-        };
-        let corners = element_corners(&element, "north").unwrap();
-        for (corner, (x, z)) in corners.iter().zip([(0.95, 0.05), (0.95, 0.05), (0.05, 0.95), (0.05, 0.95)]) {
-            assert!((corner[0] - x).abs() < 1e-5 && (corner[2] - z).abs() < 1e-5, "{corner:?}");
-        }
-        // The normal points between north and west; north comes first.
-        assert_eq!(quad_direction(&element, "north", &corners).unwrap(), "north");
-        assert_eq!(quad_direction(&element, "south", &element_corners(&element, "south").unwrap()).unwrap(), "south");
-        assert!(!face_cubic("north", &corners), "a diagonal plane is lit from its own cell");
-        let cube = crate::model::Element { from: [0.0; 3], to: [1.0; 3], faces: Vec::new(), rotation_y: 0, rotation: None, shade_direction_override: None };
-        let top = element_corners(&cube, "up").unwrap();
-        assert!(face_cubic("up", &top), "a cube's top lies on its side");
-        let slab = crate::model::Element { from: [0.0; 3], to: [1.0, 0.5, 1.0], faces: Vec::new(), rotation_y: 0, rotation: None, shade_direction_override: None };
-        assert!(!face_cubic("up", &element_corners(&slab, "up").unwrap()), "a slab's top is inside the block");
-        // A 22.5° torch tilt about z: no rescale.
-        let raw: serde_json::Value = serde_json::from_str(r#"{"rotation":{"origin":[0,3.5,8],"axis":"z","angle":-22.5}}"#).unwrap();
-        let tilt = crate::model::ElementRotation::parse(&raw).unwrap().unwrap();
-        let [x, y, _] = tilt.apply([0.0, 3.5 / 16.0 + 1.0, 0.5]);
-        assert!((x - (22.5f32).to_radians().sin()).abs() < 1e-5 && (y - (3.5 / 16.0 + (22.5f32).to_radians().cos())).abs() < 1e-5, "{x} {y}");
-    }
-    use crate::scene::{BlockPos, ChunkPos, HandcraftedScene};
-
-    #[test]
-    fn entity_sheet_region_restores_exact_pixel_coordinates() {
-        let texture = ResourceId::parse("minecraft:entity/chest/normal_left").unwrap();
-        let atlas = Atlas {
-            pixels: RgbaImage::new(64, 64),
-            mipmaps: vec![],
-            slots: HashMap::from([(
-                texture.clone(),
-                [0.5 / 64.0, 0.5 / 64.0, 63.5 / 64.0, 63.5 / 64.0],
-            )]),
-            missing: vec![],
-            animated: vec![],
-            animated_tiles: vec![],
-        };
-        assert_eq!(atlas.region_exact(&texture), [0.0, 0.0, 1.0, 1.0]);
-    }
-
-    #[test]
-    fn entity_skin_uvs_keep_internal_pixel_boundaries_exact() {
-        let id = ResourceId::parse("minecraft:entity/zombie/zombie").unwrap();
-        let mut slots = HashMap::new();
-        slots.insert(
-            id.clone(),
-            [64.5 / 128.0, 0.5 / 128.0, 127.5 / 128.0, 63.5 / 128.0],
-        );
-        let atlas = Atlas {
-            pixels: RgbaImage::new(128, 128),
-            mipmaps: Vec::new(),
-            slots,
-            missing: Vec::new(),
-            animated: Vec::new(),
-            animated_tiles: Vec::new(),
-        };
-        let [u0, v0, u1, v1] = atlas.entity_region(&id);
-        assert_eq!([u0, v0, u1, v1], [0.5, 0.0, 1.0, 0.5]);
-        // The zombie hand starts at skin pixel 48. With the regular inset,
-        // that boundary lands at 47.75 and selects a shirt pixel instead.
-        assert_eq!((u0 + (u1 - u0) * 48.0 / 64.0) * 128.0, 112.0);
-        assert!(
-            (atlas.region(&id)[0] + (atlas.region(&id)[2] - atlas.region(&id)[0]) * 48.0 / 64.0)
-                * 128.0
-                < 112.0
-        );
-    }
-
-    #[test]
-    fn wire_tint_uses_power_and_leaves_overlay_untinted() {
-        let source = BiomeTint {
-            grass: None,
-            foliage: None,
-        };
-        let wire = Block::new("minecraft:redstone_wire").with("power", "15");
-        let tinted = block_face_tint(&wire, true, BiomeSample::THE_VOID, &source);
-        assert_eq!(redstone_wire_color_argb(0), 0xff4c0000);
-        assert_eq!(redstone_wire_color_argb(15), 0xffff3200);
-        assert_eq!(tinted, [1.0, 50.0 / 255.0, 0.0]);
-        assert_eq!(
-            block_face_tint(&wire, false, BiomeSample::THE_VOID, &source),
-            [1.0; 3]
-        );
-    }
-
-    #[test]
-    fn discrete_frames_follow_pack_order_and_tick_durations() {
-        let mut sheet = RgbaImage::new(2, 6);
-        for frame in 0..3 {
-            for y in frame * 2..frame * 2 + 2 {
-                for x in 0..2 {
-                    sheet.put_pixel(x, y, image::Rgba([frame as u8 * 40, 0, 0, 255]));
-                }
-            }
-        }
-        let metadata = serde_json::json!({
-            "frametime": 2,
-            "frames": [0, {"index": 2, "time": 3}, 1]
-        });
-        let tile = animated_tile(&sheet, &metadata, (64, 128)).unwrap();
-        assert_eq!(tile.origin, (64, 128));
-        assert_eq!(
-            (0..7).map(|tick| tile.frame_at(tick)).collect::<Vec<_>>(),
-            [0, 0, 2, 2, 2, 1, 1]
-        );
-        assert_eq!(tile.frame_at(7), 0);
-        assert_eq!(tile.frames[2][0].get_pixel(0, 0).0, [80, 0, 0, 255]);
-        assert_eq!(tile.frames[2][4].dimensions(), (4, 4));
-    }
-
-    #[test]
-    fn interpolated_sprite_uses_pinned_thousandth_progress() {
-        let mut sheet = RgbaImage::new(2, 4);
-        for y in 2..4 {
-            for x in 0..2 {
-                sheet.put_pixel(x, y, image::Rgba([255, 0, 0, 255]));
-            }
-        }
-        let tile = animated_tile(
-            &sheet,
-            &serde_json::json!({"frametime":8,"interpolate":true}),
-            (0, 0),
-        )
-        .unwrap();
-        let state = tile.state_at(4);
-        assert_eq!(state.progress_millis, 500);
-        assert_eq!((state.current, state.next), (0, 1));
-        assert_eq!(tile.image_at(state, 0).get_pixel(0, 0).0, [128, 0, 0, 128]);
-    }
-    #[test]
-    fn dropped_item_shadow_projects_on_ground() {
-        let shadow = ResourceId::parse("minecraft:misc/shadow").unwrap();
-        let atlas = Atlas {
-            pixels: RgbaImage::new(32, 32),
-            mipmaps: vec![],
-            slots: HashMap::from([(shadow, [0.0, 0.0, 1.0, 1.0])]),
-            missing: vec![],
-            animated: vec![],
-            animated_tiles: vec![],
-        };
-        let scene = HandcraftedScene::new();
-        let mut items = WorldItems::default();
-        items.spawn(
-            minecraftoss_player::inventory::ItemStack::new("minecraft:stone", 1),
-            glam::DVec3::new(0.5, 1.0, 0.5),
-        );
-        let casters = item_shadow_casters(&items, glam::DVec3::new(0.5, 2.62, 2.5), 1.0);
-        let shadow_mesh = entity_shadows(&casters, &scene, &atlas, &|_| 15, 0.0).unwrap();
-        assert!(shadow_mesh.faces >= 1);
-        assert!(shadow_mesh
-            .vertices
-            .iter()
-            .any(|vertex| vertex.position[1] > 1.0));
-        assert!(shadow_mesh
-            .vertices
-            .iter()
-            .all(|vertex| vertex.color[3] > 0.0));
-    }
-    #[test]
-    fn dropped_grass_uses_its_item_tint_face_lighting_and_local_skylight() {
-        let texture = ResourceId::parse("minecraft:block/grass_block_top").unwrap();
-        let atlas = Atlas {
-            pixels: RgbaImage::new(16, 16),
-            mipmaps: vec![],
-            slots: HashMap::from([(texture.clone(), [0.0, 0.0, 1.0, 1.0])]),
-            missing: vec![],
-            animated: vec![],
-            animated_tiles: vec![],
-        };
-        let face = |direction: &str, tint_index: Option<usize>| crate::model::Face {
-            direction: direction.into(),
-            texture: texture.clone(),
-            uv: [0.0, 0.0, 1.0, 1.0],
-            cull: false,
-            cullface: None,
-            tint: tint_index.is_some(),
-            tint_index,
-            force_translucent: false,
-        };
-        let mut visuals = ItemVisuals::default();
-        visuals.models.insert(
-            "minecraft:grass_block".into(),
-            ItemVisual {
-                model: ResolvedModel {
-                    elements: vec![crate::model::Element {
-                        from: [0.0; 3],
-                        to: [1.0; 3],
-                        faces: vec![face("up", Some(0)), face("north", None)],
-                        rotation_y: 0,
-                        rotation: None,
-                        shade_direction_override: None,
-                    }],
-                },
-                ground: Mat4::IDENTITY,
-                right_hand: Mat4::IDENTITY,
-                min_y: 0.0,
-                tints: vec![[0.3, 0.6, 0.2]],
-                flat: false,
-            },
-        );
-        let mut items = WorldItems::default();
-        items.spawn(
-            minecraftoss_player::inventory::ItemStack::new("minecraft:grass_block", 1),
-            glam::DVec3::new(5.5, 6.0, -6.5),
-        );
-        let sky_light = SkyLight::build(&HandcraftedScene::new());
-        let mesh = visuals
-            .mesh(
-                &items,
-                &PackStack::open(vec![]).unwrap(),
-                &atlas,
-                &sky_light,
-                1.0,
-            )
-            .unwrap();
-        assert_eq!(mesh.vertices.len(), 8);
-        for vertex in &mesh.vertices[..4] {
-            for (actual, expected) in vertex.color[..3].iter().zip([0.3, 0.6, 0.2]) {
-                assert!((actual - expected).abs() < 0.0001);
-            }
-        }
-        assert!(mesh.vertices[4].color[0] < 0.95);
-        assert!(mesh.vertices.iter().all(|vertex| vertex.sky_light == 13.0));
-    }
-    #[test]
-    #[ignore = "local performance diagnostic with the pinned resource pack"]
-    fn local_block_edit_mesh_timing() {
-        let Ok(path) = std::env::var("MINECRAFTOSS_PACK") else {
-            return;
-        };
-        if !std::path::Path::new(&path).exists() {
-            return;
-        }
-        let packs = PackStack::open(vec![path.into()]).unwrap();
-        let mut scene = HandcraftedScene::new();
-        let build = build(&scene, &packs).unwrap();
-        scene.set((0, 2, 3), Some(Block::new("minecraft:glass")));
-        let tint = BiomeTint::from_pack(&packs).unwrap();
-        let mut preview_times = Vec::new();
-        let mut times = Vec::new();
-        let mut light_times = Vec::new();
-        let mut clone_times = Vec::new();
-        for _ in 0..5 {
-            let preview_start = std::time::Instant::now();
-            let preview = block_preview(
-                &scene,
-                &packs,
-                &build.atlas,
-                build.sky_light.as_deref().unwrap(),
-                &tint,
-                (0, 2, 3),
-            )
-            .unwrap();
-            preview_times.push(preview_start.elapsed().as_secs_f64() * 1000.0);
-            assert!(preview.faces > 0);
-            let clone_start = std::time::Instant::now();
-            let _ = scene.clone();
-            clone_times.push(clone_start.elapsed().as_secs_f64() * 1000.0);
-            let light_start = std::time::Instant::now();
-            let _ = SkyLight::build(&scene);
-            light_times.push(light_start.elapsed().as_secs_f64() * 1000.0);
-            let start = std::time::Instant::now();
-            let changed = rebuild_near(&scene, &packs, &build, (0, 2, 3)).unwrap();
-            times.push(start.elapsed().as_secs_f64() * 1000.0);
-            assert!(!changed.is_empty());
-        }
-        eprintln!("nearby chunk rebuild ms: {times:?}");
-        eprintln!("single block preview ms: {preview_times:?}");
-        eprintln!("skylight rebuild ms: {light_times:?}");
-        eprintln!("scene dispatch clone ms: {clone_times:?}");
-        let near = rebuild_near(&scene, &packs, &build, (0, 2, 3)).unwrap();
-        let full = super::build(&scene, &packs).unwrap();
-        for (chunk, mesh) in near {
-            let canonical = full.chunks.get(&chunk).unwrap();
-            assert_eq!(mesh.indices, canonical.indices);
-            assert_eq!(
-                bytemuck::cast_slice::<_, u8>(&mesh.vertices),
-                bytemuck::cast_slice::<_, u8>(&canonical.vertices)
-            );
-        }
-    }
-    struct Two {
-        a: Block,
-        b: Block,
-    }
-    impl Scene for Two {
-        fn block(&self, p: BlockPos) -> Option<&Block> {
-            match p {
-                (15, 0, 0) => Some(&self.a),
-                (16, 0, 0) => Some(&self.b),
-                _ => None,
-            }
-        }
-        fn chunks(&self) -> Vec<ChunkPos> {
-            vec![(0, 0), (1, 0)]
-        }
-        fn vertical_range(&self) -> std::ops::Range<i32> {
-            0..1
-        }
-        fn revision(&self) -> u64 {
-            0
-        }
-    }
-    fn test_box_model(texture: &ResourceId, from: [f32; 3], to: [f32; 3]) -> ResolvedModel {
-        ResolvedModel {
-            elements: vec![crate::model::Element {
-                from,
-                to,
-                rotation_y: 0,
-                rotation: None,
-                shade_direction_override: None,
-                faces: ["down", "up", "north", "south", "west", "east"]
-                    .map(|direction| crate::model::Face {
-                        direction: direction.into(),
-                        texture: texture.clone(),
-                        uv: [0.0, 0.0, 1.0, 1.0],
-                        cull: true,
-                        cullface: None,
-                        tint: false,
-                        tint_index: None,
-                        force_translucent: false,
-                    })
-                    .to_vec(),
-            }],
-        }
-    }
-
-    #[test]
-    fn partial_neighbors_keep_the_full_block_face() {
-        let texture = ResourceId::parse("minecraft:block/stone").unwrap();
-        let atlas = Atlas {
-            pixels: RgbaImage::new(16, 16),
-            mipmaps: vec![],
-            slots: HashMap::from([(texture.clone(), [0.0, 0.0, 1.0, 1.0])]),
-            missing: vec![],
-            animated: vec![],
-            animated_tiles: vec![],
-        };
-        let tint = BiomeTint {
-            grass: None,
-            foliage: None,
-        };
-        for (neighbor_id, neighbor_model, expected_faces) in [
-            (
-                "minecraft:oak_slab",
-                test_box_model(&texture, [0.0; 3], [1.0, 0.5, 1.0]),
-                6,
-            ),
-            (
-                "minecraft:oak_stairs",
-                test_box_model(&texture, [0.0; 3], [1.0, 0.5, 1.0]),
-                6,
-            ),
-            (
-                "minecraft:oak_slab",
-                test_box_model(&texture, [0.0; 3], [1.0; 3]),
-                5,
-            ),
-        ] {
-            let scene = Two {
-                a: Block::new("minecraft:stone"),
-                b: Block::new(neighbor_id),
-            };
-            let models = HashMap::from([
-                (
-                    model_key(&scene.a),
-                    vec![(test_box_model(&texture, [0.0; 3], [1.0; 3]), 1)],
-                ),
-                (model_key(&scene.b), vec![(neighbor_model, 1)]),
-            ]);
-            let light = SkyLight::build(&scene);
-            assert_eq!(
-                mesh_chunk(&scene, (0, 0), &models, &atlas, &tint, &light)
-                    .unwrap()
-                    .faces,
-                expected_faces,
-                "neighbor {neighbor_id}"
-            );
-        }
-    }
-
-    #[test]
-    fn water_faces_use_the_translucent_range_and_hide_shared_faces() {
-        let texture = ResourceId::parse("minecraft:block/water_still").unwrap();
-        let atlas = Atlas {
-            pixels: RgbaImage::new(16, 16),
-            mipmaps: vec![],
-            slots: HashMap::from([(texture.clone(), [0.0, 0.0, 1.0, 1.0])]),
-            missing: vec![],
-            animated: vec![],
-            animated_tiles: vec![],
-        };
-        let tint = BiomeTint {
-            grass: None,
-            foliage: None,
-        };
-        let water_model = test_box_model(&texture, [0.0; 3], [1.0, 8.0 / 9.0, 1.0]);
-        let solid_model = test_box_model(&texture, [0.0; 3], [1.0; 3]);
-        for neighbor in ["minecraft:water", "minecraft:stone"] {
-            let scene = Two {
-                a: Block::new("minecraft:water"),
-                b: Block::new(neighbor),
-            };
-            let models = HashMap::from([
-                (model_key(&scene.a), vec![(water_model.clone(), 1)]),
-                (
-                    model_key(&scene.b),
-                    vec![(
-                        if neighbor == "minecraft:water" {
-                            water_model.clone()
-                        } else {
-                            solid_model.clone()
-                        },
-                        1,
-                    )],
-                ),
-            ]);
-            let light = SkyLight::build(&scene);
-            let water = mesh_chunk(&scene, (0, 0), &models, &atlas, &tint, &light).unwrap();
-            assert_eq!(water.faces, 5);
-            assert_eq!(water.transparent_start, Some(0));
-            assert_eq!(water.indices.len(), water.faces * 6);
-            if neighbor == "minecraft:stone" {
-                let solid = mesh_chunk(&scene, (1, 0), &models, &atlas, &tint, &light).unwrap();
-                assert_eq!(solid.faces, 6);
-                assert_eq!(solid.transparent_start, None);
-            }
-        }
-    }
-    #[test]
-    fn forced_translucent_model_face_uses_blended_range() {
-        let texture = ResourceId::parse("minecraft:block/redstone_dust_dot").unwrap();
-        let atlas = Atlas {
-            pixels: RgbaImage::new(16, 16),
-            mipmaps: vec![],
-            slots: HashMap::from([(texture.clone(), [0.0, 0.0, 1.0, 1.0])]),
-            missing: vec![],
-            animated: vec![],
-            animated_tiles: vec![],
-        };
-        let mut model = test_box_model(&texture, [0.0; 3], [1.0; 3]);
-        model.elements[0].faces[0].force_translucent = true;
-        let mut scene = HandcraftedScene::default();
-        scene.set((0, 0, 0), Some(Block::new("minecraft:redstone_wire")));
-        let block = scene.block((0, 0, 0)).unwrap();
-        let models = HashMap::from([(model_key(block), vec![(model, 1)])]);
-        let mesh = mesh_chunk(
-            &scene,
-            (0, 0),
-            &models,
-            &atlas,
-            &BiomeTint {
-                grass: None,
-                foliage: None,
-            },
-            &SkyLight::build(&scene),
-        )
-        .unwrap();
-        assert_eq!(mesh.transparent_start, Some(30));
-        assert_eq!(mesh.indices.len(), 36);
-    }
-    #[test]
-    fn flowing_surface_height_and_lava_light_follow_fluid_state() {
-        let mut scene = HandcraftedScene::default();
-        scene.set(
-            (0, 0, 0),
-            Some(Block::new("minecraft:water").with("level", "4")),
-        );
-        scene.set(
-            (2, 0, 0),
-            Some(Block::new("minecraft:lava").with("level", "0")),
-        );
-        let ids = ["water_still", "water_flow", "lava_still", "lava_flow"];
-        let slots = ids
-            .into_iter()
-            .map(|name| {
-                (
-                    ResourceId::parse(&format!("minecraft:block/{name}")).unwrap(),
-                    [0.0, 0.0, 1.0, 1.0],
-                )
-            })
-            .collect();
-        let atlas = Atlas {
-            pixels: RgbaImage::new(16, 16),
-            mipmaps: vec![],
-            slots,
-            missing: vec![],
-            animated: vec![],
-            animated_tiles: vec![],
-        };
-        let tint = BiomeTint {
-            grass: None,
-            foliage: None,
-        };
-        let light = SkyLight::build(&scene);
-        let mut water = ChunkMesh::default();
-        let mut transparent = Vec::new();
-        append_fluid(
-            &scene,
-            (0, 0, 0),
-            &atlas,
-            &tint,
-            &light,
-            &mut water,
-            &mut transparent,
-        )
-        .unwrap();
-        assert!(!transparent.is_empty());
-        assert!(water.vertices.iter().all(|v| v.position[1] <= 4.0 / 9.0));
-        let mut lava = ChunkMesh::default();
-        let mut transparent = Vec::new();
-        append_fluid(
-            &scene,
-            (2, 0, 0),
-            &atlas,
-            &tint,
-            &light,
-            &mut lava,
-            &mut transparent,
-        )
-        .unwrap();
-        assert!(transparent.is_empty());
-        assert!(lava.vertices.iter().all(|v| v.block_light >= 14.0));
-        assert!(lava.vertices.iter().any(|v| v.block_light == 15.0));
-    }
-    #[test]
-    fn boundary_neighbors_hide_shared_face() {
-        let id = ResourceId::parse("minecraft:block/stone").unwrap();
-        let atlas = Atlas {
-            pixels: RgbaImage::new(32, 32),
-            mipmaps: vec![],
-            slots: HashMap::from([(id.clone(), [0.0, 0.0, 1.0, 1.0])]),
-            missing: vec![],
-            animated: vec![],
-            animated_tiles: vec![],
-        };
-        let model = ResolvedModel {
-            elements: vec![crate::model::Element {
-                from: [0.0; 3],
-                to: [1.0; 3],
-                rotation_y: 0,
-                rotation: None,
-                shade_direction_override: None,
-                faces: ["down", "up", "north", "south", "west", "east"]
-                    .map(|d| crate::model::Face {
-                        direction: d.into(),
-                        texture: id.clone(),
-                        uv: [0.0, 0.0, 1.0, 1.0],
-                        cull: true,
-                        cullface: None,
-                        tint: false,
-                        tint_index: None,
-                        force_translucent: false,
-                    })
-                    .to_vec(),
-            }],
-        };
-        let scene = Two {
-            a: Block::new("minecraft:stone"),
-            b: Block::new("minecraft:stone"),
-        };
-        let models = HashMap::from([(model_key(&scene.a), vec![(model, 1)])]);
-        let light = SkyLight::build(&scene);
-        assert_eq!(
-            mesh_chunk(
-                &scene,
-                (0, 0),
-                &models,
-                &atlas,
-                &BiomeTint {
-                    grass: None,
-                    foliage: None
-                },
-                &light
-            )
-            .unwrap()
-            .faces,
-            5
-        );
-        assert_eq!(
-            mesh_chunk(
-                &scene,
-                (1, 0),
-                &models,
-                &atlas,
-                &BiomeTint {
-                    grass: None,
-                    foliage: None
-                },
-                &light
-            )
-            .unwrap()
-            .faces,
-            5
-        );
-    }
-
-    #[test]
-    fn glass_hides_shared_faces_while_fancy_leaves_keep_them() {
-        let glass = Block::new("minecraft:glass");
-        let leaves = Block::new("minecraft:oak_leaves");
-        assert!(hides_shared_face(&glass, &glass));
-        assert!(!hides_shared_face(&leaves, &leaves));
-        assert!(!hides_shared_face(
-            &glass,
-            &Block::new("minecraft:tinted_glass")
-        ));
-    }
-
-    #[test]
-    fn face_corners_blend_neighbor_shade() {
-        let mut scene = HandcraftedScene::new();
-        scene.set((-1, 1, -1), Some(Block::new("minecraft:stone")));
-        let light = SkyLight::build(&scene);
-        let shaded = ambient_vertex(&scene, &light, (0, 1, 0), "up", [0.0, 1.0, 0.0]);
-        let open = ambient_vertex(&scene, &light, (0, 1, 0), "up", [1.0, 1.0, 1.0]);
-        assert!(shaded.0 < open.0);
-    }
-
-    #[test]
-    fn cube_vertices_follow_minecraft_faceinfo_order() {
-        assert_eq!(
-            corners("up", [0.0; 3], [1.0; 3]).unwrap()[0],
-            [0.0, 1.0, 0.0]
-        );
-        assert_eq!(
-            corners("down", [0.0; 3], [1.0; 3]).unwrap()[0],
-            [0.0, 0.0, 1.0]
-        );
-        assert_eq!(
-            corners("north", [0.0; 3], [1.0; 3]).unwrap()[0],
-            [1.0, 1.0, 0.0]
-        );
-        assert_eq!(
-            corners("south", [0.0; 3], [1.0; 3]).unwrap()[0],
-            [0.0, 1.0, 1.0]
-        );
-        assert_eq!(
-            corners("west", [0.0; 3], [1.0; 3]).unwrap()[0],
-            [0.0, 1.0, 0.0]
-        );
-        assert_eq!(
-            corners("east", [0.0; 3], [1.0; 3]).unwrap()[0],
-            [1.0, 1.0, 1.0]
-        );
-    }
-
-    #[test]
-    fn position_seed_selects_grass_rotations() {
-        let variants = (0..4)
-            .map(|_| (ResolvedModel { elements: vec![] }, 1))
-            .collect::<Vec<_>>();
-        assert_eq!(variant_index(&variants, (0, 1, 0)), 2);
-        assert_eq!(variant_index(&variants, (0, 1, 1)), 3);
-        assert_eq!(variant_index(&variants, (-1, 1, 0)), 1);
-        assert_eq!(variant_index(&variants, (2_000_000_000, 1, 0)), 1);
-        assert_eq!(rotate_y([0.0, 1.0, 0.0], 90), [1.0, 1.0, 0.0]);
-        assert_eq!(rotated_direction("north", 90).unwrap(), "east");
-    }
 }

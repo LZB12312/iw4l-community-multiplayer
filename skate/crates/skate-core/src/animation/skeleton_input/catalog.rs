@@ -1,6 +1,3 @@
-//! All151 scalar-name comparison sites in82BDA0D0, in native search order.
-//! Raw disassembly corrects the old130-entry catalog: direct-name checks were
-//! omitted, Spin was misidentified, and left/right grab calls were conflated.
 use super::name::encode;
 use crate::animation::output::attributes::AttributeName;
 
@@ -172,8 +169,6 @@ pub const SCALAR_ATTRIBUTES: &[ScalarAttribute] = &[
     entry("FootPlanting", 0x82bdc4a0),
 ];
 
-/// First exact five-word match,824714D0. Unknown names fall through the native
-/// chain without a handler; known but unimplemented handlers must not do so.
 pub fn lookup(name: AttributeName) -> Option<&'static ScalarAttribute> {
     SCALAR_ATTRIBUTES
         .iter()

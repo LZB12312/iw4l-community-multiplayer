@@ -1,4 +1,3 @@
-//! Original vector arithmetic used by82BD4A30 and82BD5A00.
 use super::collision_feedback::V;
 use crate::physics::{
     native_arithmetic::dot3, reciprocal_sqrt::estimate,
@@ -38,7 +37,6 @@ pub(super) fn normalize(v: V) -> V {
         [0.0; 4]
     }
 }
-///82BD3D90 keeps all stored lanes, including the unused fourth velocity lane.
 pub(super) fn clamp_length(v: V, maximum: f32) -> V {
     let size = length(v);
     if size < f32::from_bits(0x3780_0000) {

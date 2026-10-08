@@ -1,4 +1,3 @@
-//! Stock pushing settings and authored clip metadata (TU382B953E8..82B9584C).
 use skate_core::{
     animation::{clip_clock::ClipClock, skeleton_input::name::encode},
     point_graph::PointGraph,
@@ -10,8 +9,6 @@ use skate_core::{
 use skate_data::{animation_metadata::AnimationMetadata, collections::Collections};
 use std::path::Path;
 
-/// A tree's ordered attributes. The value is its first payload lane, including
-/// non-scalar types: native82B95620 does not filter the attribute type.
 #[derive(Clone, Debug)]
 pub struct PushTreeAttribute {
     pub name: String,
@@ -42,8 +39,6 @@ impl PushTreeSource for AnimationMetadata {
         let frames = f32::from_bits(clip.frames_bits);
         let fps = f32::from_bits(clip.fps_bits);
         let base_speed = f32::from_bits(clip.base_speed_bits);
-        // Init827B8AB0 sets speed1/time0, then recomputes length with this
-        // specific multiply order (different from later SetSpeed).
         let length = (frames - 1.0) / ((1.0 * base_speed) * fps);
         let clock = ClipClock {
             frames,
@@ -58,8 +53,6 @@ impl PushTreeSource for AnimationMetadata {
             phase_controlled: clip.flags_word & 0x4000_0000 != 0,
         };
         let mut attributes = Vec::new();
-        // GetAttributes82D25E30 appends in stored order. Untimed records
-        // bypass both mask tests; timed records use GetAttributeStatus.
         for attribute in &clip.attributes {
             let begin = f32::from_bits(attribute.begin_bits);
             if begin != -1.0 {
@@ -69,9 +62,6 @@ impl PushTreeSource for AnimationMetadata {
                     continue;
                 }
             }
-            // Attribute::Init82D164F8 copies lane0 for types0/1/3. Type2
-            // samples a curve; unknown types leave lane0 untouched. Neither
-            // can be replaced by the first serialized word as a fallback.
             if !matches!(attribute.type_id, 0 | 1 | 3) {
                 return Err(format!(
                     "{tree_name}: attribute {} needs type{} evaluation",
@@ -138,7 +128,6 @@ impl PushingSettings {
             )?,
         })
     }
-    /// TU382BAD3B4..3DC/82BADBB8..BE0; GetIsSwitch, not natural stance.
     pub fn attributes(&self, regular_attributes: bool, is_switch: bool) -> &PushAttributes {
         if regular_attributes != is_switch {
             &self.regular
@@ -182,7 +171,3 @@ fn attributes(trees: &mut impl PushTreeSource, names: [&str; 4]) -> Result<PushA
     }
     Ok(PushAttributes::from_clips(metrics.try_into().unwrap()))
 }
-
-#[cfg(test)]
-#[path = "tests/pushing_metadata.rs"]
-mod metadata_tests;

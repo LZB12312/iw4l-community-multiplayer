@@ -1,4 +1,3 @@
-//! Concrete CURRENT BoardRuntime adaptation of AddWorldForce82C03F98.
 use skate_core::{
     math::{Basis3, Vector3},
     physics::{

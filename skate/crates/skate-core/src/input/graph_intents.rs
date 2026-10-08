@@ -1,6 +1,5 @@
 //! Native CreateMGIntentFromAGIntent and AttachIntent behavior boundaries.
 
-/// Complete82BA0C20. Ordinals come from82BA0A48 and stock filter names.
 pub fn apply_filter(value: f32, kind: u32) -> f32 {
     let pi = f32::from_bits(0x40490fdb);
     let half_pi = f32::from_bits(0x3fc90fdb);
@@ -45,8 +44,6 @@ pub fn apply_filter(value: f32, kind: u32) -> f32 {
     }
 }
 
-/// Four source ordinals: filter1, filter2, fakieFilter, mirrorFilter.
-/// Missing stance component bypasses every filter, matching82BA2930.
 pub fn filter_chain(mut value: f32, filters: [u32; 4], stance: Option<(bool, bool)>) -> f32 {
     if let Some((fakie, mirror)) = stance {
         for (kind, enabled) in filters.into_iter().zip([true, true, fakie, mirror]) {
@@ -73,8 +70,6 @@ pub struct CreateMgIntent {
 }
 
 impl CreateMgIntent {
-    /// Complete82BA2790 with container lookup/removal/insertion represented by
-    /// an explicit mutation. Keys are the caller's decoded MGIntent/AGIntent.
     pub fn emit(&self, action_value: Option<f32>, stance: Option<(bool, bool)>) -> IntentMutation {
         match action_value.or(self.default_value) {
             None => IntentMutation::Remove,
@@ -83,7 +78,6 @@ impl CreateMgIntent {
             }
         }
     }
-    /// Complete82BA26F0 lifecycle write, including absent-input removal.
     pub fn enter(
         &self,
         created_this_frame: &mut bool,
@@ -94,7 +88,6 @@ impl CreateMgIntent {
         *created_this_frame = true;
         result
     }
-    /// Complete82BA2728: onUpdate=false removes on subsequent updates.
     pub fn update(
         &self,
         created_this_frame: &mut bool,
@@ -111,14 +104,11 @@ impl CreateMgIntent {
         *created_this_frame = false;
         result
     }
-    ///82BA2788 ->82BA28B8 unconditionally removes the owned MG intent.
     pub fn exit(&self) -> IntentMutation {
         IntentMutation::Remove
     }
 }
 
-/// Complete82BB5AE0 at resolved lookup/sink boundaries. The packet sink is
-/// invoked first; optional skeleton sink receives the same value afterwards.
 pub fn attach_intent(
     value: Option<f32>,
     set_skeleton: bool,

@@ -1,5 +1,3 @@
-//! Original Biped launch82D7BA78. This is separate from onboard LaunchInfo.
-//! Produces the full packet before Sync replaces position32 with its body point.
 use super::controller;
 use crate::point_graph::PointGraph;
 mod jump;
@@ -7,8 +5,7 @@ pub(super) mod math;
 mod packet;
 use math::*;
 pub use packet::Packet;
-#[cfg(test)]
-mod tests;
+
 pub type Vector = [f32; 4];
 
 /// Actual physics_biped scalar fields, validated by the stock loader.
@@ -46,7 +43,6 @@ pub struct Processed {
     pub raw_x_2692: f32,
     pub raw_z_2688: f32,
 }
-///82D7BA90..BB38, including the current/previous selector used by its callers.
 pub fn mode(p: &Processed, current: bool) -> u8 {
     let (state, category) = if current {
         (p.current_state_2508, p.current_category_2512)

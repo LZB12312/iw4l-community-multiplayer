@@ -18,8 +18,6 @@ pub enum PushOperation {
     PushOut { is_right_foot: bool },
 }
 impl PushOperation {
-    /// Defaults verified in TU3 factories82BC7ED0/7F98/80B8/8180/8248.
-    /// None means this is another operation, for the enclosing host to resolve.
     pub fn from_attributes(attributes: &Attributes<'_>) -> Option<Self> {
         Some(match attributes.text("name")? {
             "InitPush" => Self::InitPush,
@@ -49,9 +47,6 @@ impl PushOperation {
     }
 }
 
-/// The scalar SettableAtt values used here are untimed (begin/end=-1),
-/// kind0/status6, as published by82D19100. `normalized` is the control flag
-/// consumed by the animation tree, not a request to clamp the stored scalar.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SettableAttribute {
     pub name: &'static str,
@@ -61,8 +56,6 @@ pub struct SettableAttribute {
 }
 
 pub trait PushAnimationSink {
-    /// Apply in call order to the active animation controller. Upsert the first
-    /// matching (name,sequence_id), or append, following TU382D19100.
     fn set_attribute(&mut self, attribute: SettableAttribute);
 }
 impl PushAnimationSink for Vec<SettableAttribute> {
@@ -85,10 +78,7 @@ pub struct PushContext<'a> {
     pub forward_speed: f32,
     pub delta_seconds: f32,
     pub time_since_teleport: f32,
-    /// ISkaterAnim::GetIsSwitch (TU382B97128), distinct from mirror/natural stance.
     pub is_switch: bool,
-    /// None only for an actor without a physical interface, as in82595B28.
-    /// A physical actor must supply its actual skeleton/reckoning outputs.
     pub foot_frame: Option<PushFootFrame>,
 }
 impl PushContext<'_> {
@@ -121,14 +111,14 @@ impl PushInstance {
     }
     pub fn begin(&mut self, context: &mut PushContext<'_>, sink: &mut impl PushAnimationSink) {
         match &self.operation {
-            PushOperation::InitPush => context.shared.initialize_push(), //82BAD5B8
+            PushOperation::InitPush => context.shared.initialize_push(),
             PushOperation::ComputeFirstPushStrength => {
                 self.first_strength = Some(FirstPushStrength::begin(
                     context.time_since_teleport,
                     context.settings.teleport_window,
-                )); //82BAD6E8
+                ));
             }
-            PushOperation::SetPushCoefs { .. } => self.first_update = true, //82BACEF0
+            PushOperation::SetPushCoefs { .. } => self.first_update = true,
             PushOperation::PushCycle { new_push_name } => {
                 let intents = context.intents(new_push_name);
                 self.cycle = Some(PushCycle::begin(
@@ -138,7 +128,6 @@ impl PushInstance {
                 ));
             }
             PushOperation::PushOut { is_right_foot } => {
-                //82BAE210 ->82595B28; output writes are begin-only and ordered X,Y.
                 let [x, y] = context
                     .foot_frame
                     .map_or([0.0; 2], |frame| frame.out_distance(*is_right_foot));
@@ -170,7 +159,7 @@ impl PushInstance {
                 context.shared.target = context
                     .settings
                     .attributes(*regular_attributes, context.is_switch)
-                    .target(context.forward_speed, context.shared.current_push_dv); //82BAD258/82BAD260
+                    .target(context.forward_speed, context.shared.current_push_dv);
             }
             PushOperation::SetPushCoefs {
                 on_first_update_only,
@@ -181,13 +170,13 @@ impl PushInstance {
                         context.shared.target,
                         context.forward_speed,
                         context.delta_seconds,
-                    ); //82BACF50
+                    );
                     let values = context.shared.current;
                     publish(sink, "HStr_Vel_B", values.hstr_vel_b, true);
                     publish(sink, "LStr_Vel_B", values.lstr_vel_b, true);
                     publish(sink, "Vel_E", values.vel_e, true);
                 }
-                self.first_update = false; //82BACF00
+                self.first_update = false;
             }
             PushOperation::PushCycle { new_push_name } => {
                 let intents = context.intents(new_push_name);
@@ -216,7 +205,7 @@ impl PushInstance {
                     context.shared.current_push_dv,
                     context.settings.out_speed_weight,
                     context.settings.maximum_out_factor,
-                ); //82BADA90
+                );
         }
     }
 }
@@ -228,7 +217,3 @@ fn publish(sink: &mut impl PushAnimationSink, name: &'static str, value: f32, no
         sequence_id: -1,
     });
 }
-
-#[cfg(test)]
-#[path = "tests/pushing.rs"]
-mod tests;

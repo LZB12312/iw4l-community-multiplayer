@@ -10,8 +10,6 @@ pub(super) fn publish(
 ) -> Result<(), String> {
     let deck = deck_frame(&physics.board);
     let p = &skater.player_input.processed;
-    //82DB6DDC/6DF8 passes IsWipeout82DB9100 after state postphysics, not the
-    //collision controller's ragdoll mode. Both correction and IK use this result.
     let wiping_out = skater.wipeout.requests_wipeout(p);
     //Consume the state producer's sole Skeleton16388 owner. Blocked branches
     //retain it; no per-tick copy may resurrect an already consumed request.

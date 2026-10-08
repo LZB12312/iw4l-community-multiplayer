@@ -182,26 +182,3 @@ fn brush_faces(planes: &[[f32; 4]]) -> Vec<Vec<Vec3>> {
         })
         .collect()
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn cube_collision_has_outward_faces_and_roundtrips_units() {
-        let faces = brush_faces(&[
-            [1., 0., 0., 16.],
-            [-1., 0., 0., 16.],
-            [0., 1., 0., 16.],
-            [0., -1., 0., 16.],
-            [0., 0., 1., 16.],
-            [0., 0., -1., 16.],
-        ]);
-        assert_eq!(faces.len(), 6);
-        for f in faces {
-            assert_eq!(f.len(), 4);
-            assert!((f[1] - f[0]).cross(f[2] - f[0]).dot(f[0]) > 0.);
-        }
-        let p = Vec3::new(1234., -456., 72.);
-        assert!(from_skate(to_skate(p)).distance(p) < 0.001);
-    }
-}

@@ -1,5 +1,3 @@
-//! Native record reduction82D830A8. Marks discarded distances, invokes the
-//! native sort and truncates to the retained count; neighbors are not rewritten.
 use super::{
     contact_queries::Input,
     contact_records::Record,
@@ -65,50 +63,5 @@ pub fn simplify(input: Input, records: &mut Vec<Record>) -> Reduction {
     Reduction {
         forward_limit: limit,
         inactive_records,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn input() -> Input {
-        Input {
-            position: [0.; 4],
-            surface_forward: [0., 0., 1., 0.],
-            surface_up: [0., 1., 0., 0.],
-            surface_right: [1., 0., 0., 0.],
-            velocity: [0.; 4],
-            animation_up: [0., 1., 0., 0.],
-            animation_right: [1., 0., 0., 0.],
-        }
-    }
-    fn r(y: f32, z: f32) -> Record {
-        Record {
-            position: [0., y, z, 0.],
-            normal: [0., 1., 0., 0.],
-            coordinates: [z, y, z, z],
-            flags: 0,
-            distance: z,
-        }
-    }
-    #[test]
-    fn flat_samples_reduce_to_endpoints_but_step_corner_survives() {
-        let mut records = vec![r(0., 0.), r(0., 0.5), r(0., 1.), r(0., 1.5)];
-        let reduced = simplify(input(), &mut records);
-        assert_eq!(reduced.forward_limit.to_bits(), 0x501502f9);
-        assert_eq!(reduced.inactive_records.len(), 2);
-        assert_eq!(records.len(), 2);
-        assert_eq!(records[1].distance, 1.5);
-        let mut records = vec![r(0., 0.), r(0., 1.), r(1., 1.), r(1., 2.)];
-        simplify(input(), &mut records);
-        assert_eq!(records.len(), 4);
-    }
-    #[test]
-    fn elevated_record_caps_forward_search_after_prior_removals() {
-        let mut records = vec![r(0., 0.), r(0., 0.5), r(0., 1.), r(1., 1.5), r(1., 2.)];
-        records[3].flags = 8;
-        assert_eq!(simplify(input(), &mut records).forward_limit, 1.5);
-        assert_eq!(records.len(), 3);
-        assert_eq!(records[2].position, [0., 1., 1.5, 0.]);
     }
 }

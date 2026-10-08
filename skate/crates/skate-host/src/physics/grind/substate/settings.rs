@@ -60,8 +60,6 @@ impl Settings {
             .vertical
             .get(mode as usize)
             .ok_or_else(|| format!("Invalid grind jump physics mode {mode}"))?;
-        //Virtual64:82D40D60 common (including Darkslide),82D41CE8 board,
-        //82D42720 tip. No strength clamp exists in these scalar getters.
         let group = match family {
             Family::Boardslide => 1,
             Family::Tipslide => 2,
@@ -74,7 +72,6 @@ impl Settings {
 
 pub(super) fn side(family: Family, geometry_kind: u32) -> f32 {
     match family {
-        //82D41320 reads processed1464, returning literal820997B8 or82165A10.
         Family::Boardslide | Family::Darkslide => {
             if geometry_kind == 2 {
                 f32::from_bits(0x3f66_6666)
@@ -82,9 +79,7 @@ pub(super) fn side(family: Family, geometry_kind: u32) -> f32 {
                 0.
             }
         }
-        //82D42AE8 literal820997B8.
         Family::Backslash => f32::from_bits(0x3f66_6666),
-        //82D41FB0 literal8209975C; shared50-50/tip/5-O virtual60.
         _ => f32::from_bits(0x3f00_0000),
     }
 }

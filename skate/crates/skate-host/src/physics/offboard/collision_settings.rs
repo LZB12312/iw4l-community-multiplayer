@@ -1,5 +1,3 @@
-//! Stock physics_wipeout fields consumed by Biped collision check82D90148.
-//! Retain this once with the physical player's off-board settings.
 use skate_core::player::offboard::ground_lifecycle::CollisionSettings;
 use skate_data::collections::Collections;
 

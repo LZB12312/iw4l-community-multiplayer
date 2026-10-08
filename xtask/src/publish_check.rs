@@ -28,6 +28,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::shell::Res;
+mod data;
 
 /// The IW4 image range. A literal inside it is an address.
 const IMAGE_BASE: u64 = 0x0040_0000;
@@ -139,8 +140,20 @@ fn pasted_key(text: &str) -> bool {
 /// `PRONE_TRACE_MASK: u32 =`, `lcg:`, `MASK_SHOT is`. Naming it *after* the
 /// literal does not count, so a citation cannot hide behind a later word.
 const NAMES_A_PATTERN: &[&str] = &[
-    "MASK", "FLAG", "BITS", "STAND", "CONTENTS", "SEED", "LCG", "MAGIC", "PATTERN", "PRIME",
+    "MASK",
+    "FLAG",
+    "BITS",
+    "STAND",
+    "CONTENTS",
+    "SEED",
+    "LCG",
+    "MAGIC",
+    "PATTERN",
+    "PRIME",
     "SHUFFLE",
+    "RADIX",
+    "TICKS_PER_SECOND",
+    "COORD_LIMIT",
 ];
 
 /// How far back to read for that name, and where to stop early: a `;` or a `)`
@@ -366,7 +379,7 @@ fn gsc_citation(lower: &str) -> bool {
         >= 16
 }
 
-fn scan_line(line: &str) -> Option<String> {
+fn scan_line(line: &str, literals: &[(usize, usize)]) -> Option<String> {
     let lower = line.to_ascii_lowercase();
     let bytes = lower.as_bytes();
     for i in 0..bytes.len() {
@@ -390,13 +403,16 @@ fn scan_line(line: &str) -> Option<String> {
                 }
             }
         }
+        let named_data = literals.iter().any(|(start, end)| *start <= i && i < *end);
         if let Some(end) = address_at(bytes, i)
+            && !named_data
             && !reads_as_pattern(line, i, end)
             && !is_from_bits_arg(line, i)
         {
             return Some("retail address".to_string());
         }
         if let Some(end) = decimal_at(bytes, i)
+            && !named_data
             && !reads_as_pattern(line, i, end)
             && !is_from_bits_arg(line, i)
         {
@@ -469,8 +485,13 @@ pub fn run_cli(root: &Path) -> Res<()> {
             continue;
         }
         scanned += 1;
+        let data = if rel.ends_with(".rs") {
+            data::named_literals(&text, NAMES_A_PATTERN)
+        } else {
+            data::Literals::new()
+        };
         for (n, line) in text.lines().enumerate() {
-            if let Some(what) = scan_line(line) {
+            if let Some(what) = scan_line(line, data.get(&(n + 1)).map_or(&[], Vec::as_slice)) {
                 offsets.push(Finding {
                     path: path.clone(),
                     line: n + 1,

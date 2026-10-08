@@ -1,5 +1,3 @@
-//! Physical side effects of Enter82D3F318/Exit82D3F430, all six families.
-//! State latches/frame initialization are distinct from these body operations.
 use skate_core::physics::{
     board::BodyId, board_runtime::BoardRuntime, skeleton_body::SkeletonCollisionMode,
 };
@@ -13,8 +11,6 @@ pub(crate) fn enter(
 ) {
     board.hook_mut().drive.disable_animation(animated_290);
     *skeleton_16505 = true;
-    //82D91330 disables these four volumes permanently (counter0), not the
-    //six-body/two-frame collision suppression used by KnownAir grind assistance.
     for part in FEET {
         collision.parts[part].volume_group = 4;
         collision.parts[part].enabled = false;
@@ -32,7 +28,6 @@ pub(crate) fn exit(
     collision: &mut SkeletonCollisionMode,
     // BoneHasCollision values from CURRENT's stock part definitions in FEET order.
     bone_has_collision: [bool; 4],
-    // Existing82C091F8 standard setting, already scaled by822F860C.
     standard_angular_drag: f32,
 ) {
     for (part, enabled) in FEET.into_iter().zip(bone_has_collision) {
@@ -45,7 +40,6 @@ pub(crate) fn exit(
     clear_wheel_spin(board);
 }
 
-///82D3F710. These are actual wheel collision bytes844..847.
 pub(crate) fn manage_wheel_spin(board: &mut BoardRuntime, contact: [bool; 4]) {
     for (wheel, contact) in board.bodies_mut()[..4].iter_mut().zip(contact) {
         wheel.inertia.angular_drag =
@@ -53,7 +47,6 @@ pub(crate) fn manage_wheel_spin(board: &mut BoardRuntime, contact: [bool; 4]) {
     }
 }
 
-///82D3F7D0/S2 82D85228 SetPartAngularDrag; ZIP's linear_drag write was wrong.
 pub(crate) fn clear_wheel_spin(board: &mut BoardRuntime) {
     for wheel in &mut board.bodies_mut()[..4] {
         wheel.inertia.angular_drag = 0.0;

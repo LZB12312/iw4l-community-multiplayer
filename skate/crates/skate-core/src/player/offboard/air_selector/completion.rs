@@ -1,4 +1,3 @@
-//! S3 82D6D020/CC50/E8A0. Incoming scoring/requery are comparison only.
 use super::{Candidate, Context, DT, Selector, ledge, math::*};
 use crate::air::trajectory::{Prediction, QueryResult};
 impl Selector {
@@ -103,8 +102,6 @@ impl Selector {
         }
         Ok(index)
     }
-    ///82D6E8A0. A miss clears pending only. First hit seeds comparison state;
-    ///subsequent moved hits update landing observations, not trajectory8144.
     pub fn complete_requery(&mut self, prediction: Prediction) -> Result<(), &'static str> {
         if !self.requery_pending_8499 {
             return Err("BipedAir requery completion without submission");

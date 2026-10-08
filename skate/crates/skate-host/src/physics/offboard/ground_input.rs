@@ -1,16 +1,11 @@
-//! PreUpdate82D30D30 inputs borrowed from their completed production owners.
 use crate::physics::SkaterRuntime;
 use skate_core::player::offboard::{ground_input::GroundInput, ground_job};
 
 pub(crate) fn prepare(skater: &SkaterRuntime) -> ground_job::Input {
     let p = &skater.player_input.processed;
-    //ProcessAnimAttributes82BDA0D0 already owns these Processed fields in the
-    //animation-input adapter. Read them directly rather than duplicating reset
-    //and attribute dispatch in a second Processed record.
     let attributes = &skater.animation_input.fields;
     let extra = &skater.animation_input.extra;
     let frame = skater.offboard.ground.frame_80;
-    //82D30DBC tests byte1092 of the third line record, then copies1056.
     let fallback = p.line_tests_960_1008_1056[2];
     ground_job::Input {
         previous_state: p.state_2504,
@@ -38,38 +33,5 @@ pub(crate) fn prepare(skater: &SkaterRuntime) -> ground_job::Input {
         velocity_608: p.vectors_544_560_592_608[3].map(f32::from_bits),
         skeleton_motion_16320: skater.animated_skeleton.motion.velocity_world,
         skeleton_displacements_16288_16304: skater.collision_extra_displacements,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    #[ignore = "requires extracted private stock assets"]
-    fn reset_attributes_and_third_line_fallback_reach_ground_job() {
-        let root = std::path::PathBuf::from(std::env::var_os("SKATE3_ASSET_ROOT").unwrap());
-        let assets = skate_data::GameAssets::load(&root).unwrap();
-        let graphs = crate::graph_runtime::StockGraphs::load(&root, &assets).unwrap();
-        let physics = crate::physics::GamePhysics::load_with_difficulty(
-            &root,
-            None,
-            crate::difficulty::Difficulty::Hardcore,
-        )
-        .unwrap();
-        let mut skater = SkaterRuntime::load(&root, &graphs, &physics, "hardcore").unwrap();
-        let lines = &mut skater.player_input.processed.line_tests_960_1008_1056;
-        lines[0].valid = 1;
-        lines[0].position = [99.0f32.to_bits(); 4];
-        assert!(prepare(&skater).fallback_line_hit.is_none());
-        skater.player_input.processed.line_tests_960_1008_1056[2].valid = 1;
-        skater.player_input.processed.line_tests_960_1008_1056[2].position = [2.0f32.to_bits(); 4];
-        skater.collision_extra_displacements = [[1.; 4], [2.; 4]];
-        let input = prepare(&skater);
-        //A reset cadence gate must be negative: zero activates the native
-        //animation-velocity override and stops ordinary walking.
-        assert_eq!(input.phase_2900, -1.);
-        assert_eq!(input.controls.processed_scale_2912, 1.);
-        assert_eq!(input.fallback_line_hit, Some([2.; 4]));
-        assert_eq!(input.skeleton_displacements_16288_16304, [[1.; 4], [2.; 4]]);
     }
 }

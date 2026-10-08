@@ -1,4 +1,3 @@
-//! Persistent SkeletonIK state and the GeneralUpdate82BDCA38 stage order.
 use super::{
     blend,
     contact::{ContactInput, ContactState},
@@ -10,8 +9,6 @@ use super::{
 };
 use crate::physics::skeleton_animation_record::AnimationPartTransform as Transform;
 
-///82BED688 binds the toe targets to foot/toe volumes and the hand targets to
-///their hand volumes. The optional second volume is distinct from chain parents.
 pub const LIMBS: [LimbBinding; 4] = [
     LimbBinding {
         part: 15,
@@ -41,8 +38,6 @@ pub struct FootIkState {
 }
 impl Default for FootIkState {
     fn default() -> Self {
-        //82BED780 resets the retained histories and enables feet; it is not
-        //the wipeout-entry solve82BF1B90, which disables feet after its update.
         Self {
             limbs: [LimbStatus::default(); 4],
             frames: [LimbFrames::default(); 4],

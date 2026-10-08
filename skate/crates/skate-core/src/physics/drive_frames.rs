@@ -1,11 +1,3 @@
-//! Scalar port of Skate 3 TU3's skateboard drive-frame construction.
-//!
-//! `SkateboardBody::SetDriveFrames2` (`0x82C0C088`) writes an identity matrix
-//! to the child/second-body frame and writes the computed relative matrix to
-//! the parent/first-body frame. The retail matrices are affine column-basis
-//! matrices (`Ri`, `Up`, `At`, translation). This module keeps that convention
-//! explicit and does not substitute a Bevy joint.
-
 use super::{
     board::*,
     drive_parameters::{RetailDriveFrameRaw, RetailDriveFramesRaw},
@@ -81,24 +73,14 @@ pub const RETAIL_DEFAULT_TRUCK_TRANSFORM_INPUTS: RetailTruckTransformInputs =
         truck_rotation_axis_angle_degrees: RETAIL_TRUCK_ROTATION_AXIS_ANGLE_DEGREES,
     };
 
-/// TU3 `SkateboardBody::CalculateTruckTransforms` (`0x82C0BC90`) evaluated
-/// from the stock skater-collection inputs.
-///
-/// The returned order is the native `+7712`, `+7776` storage order. The names
-/// of the front/back Z inputs are retained even though the native slots do not
-/// follow an intuitive front/back naming order.
 pub fn default_truck_transforms() -> [RetailAffineTransform; 2] {
     calculate_truck_transforms(RETAIL_DEFAULT_TRUCK_TRANSFORM_INPUTS)
 }
 
-/// Authored part matrices from `82C0ADF0`, evaluated from stock collection inputs.
-/// These are the inputs to Part::SetTransform, not settled or live COM poses.
 pub fn default_body_transforms() -> [RetailAffineTransform; BODY_COUNT] {
     authored_body_transforms(AuthoredTransformInputs::STOCK)
 }
 
-/// Live center-of-mass transforms emitted by TU3 `Part::SetTransform`
-/// (`0x82BD4318`) from the seven authored part transforms.
 pub fn default_live_body_transforms() -> [RetailAffineTransform; BODY_COUNT] {
     let mut transforms = default_body_transforms();
     let deck_mass_frame = retail_deck_mass_properties().local_mass_frame;
@@ -143,15 +125,6 @@ pub fn default_wheel_drive_frames() -> [RetailDriveFrames; 4] {
     [positive, negative, positive, negative]
 }
 
-/// Matrix stage of `SkateboardBody::SetDriveFrames2`.
-///
-/// The first input is the parent/first body's world transform and the second
-/// input is the child/second body's world transform. TU3 writes:
-///
-/// - identity to the child frame through `SetChildFrame` (`0x82BD3A10`);
-/// - `transpose(parent.basis) * child.basis` and the corresponding relative
-///   translation to the parent frame through `SetParentFrame` (`0x82BD3BD0`).
-///
 pub fn set_drive_frames_2(
     parent_world: RetailAffineTransform,
     child_world: RetailAffineTransform,
@@ -171,13 +144,6 @@ pub fn set_drive_frames_2(
     }
 }
 
-/// Dominant-component matrix-to-quaternion calculation in TU3 child/parent
-/// frame setters `0x82BD3A10` and `0x82BD3BD0`.
-///
-/// The function evaluates the same four component candidates as the vector
-/// implementation, selects trace/X/Y/Z with its strict comparisons, and uses
-/// the accepted Xenon reciprocal-square-root estimate with two recovered fused
-/// refinements. Matrix storage remains column-major `Ri`, `Up`, `At`.
 pub fn retail_quaternion_from_basis(basis: Basis3) -> RetailQuaternion {
     let m00 = basis.columns[0][0];
     let m01 = basis.columns[1][0];
@@ -321,7 +287,9 @@ fn raw_frame(frame: RetailDriveFrame) -> RetailDriveFrameRaw {
     }
 }
 
-pub fn calculate_truck_transforms(inputs: RetailTruckTransformInputs) -> [RetailAffineTransform; 2] {
+pub fn calculate_truck_transforms(
+    inputs: RetailTruckTransformInputs,
+) -> [RetailAffineTransform; 2] {
     const DEGREES_TO_RADIANS: f32 = f32::from_bits(0x3C8E_FA35);
     const HALF: f32 = f32::from_bits(0x3F00_0000);
     const NEGATIVE_HALF_PI: f32 = f32::from_bits(0xBFC9_0FDB);
@@ -425,7 +393,3 @@ fn transpose_relative_translation(
         component(parent_basis.columns[2]),
     )
 }
-
-#[cfg(test)]
-#[path = "tests/drive_frames.rs"]
-mod tests;

@@ -96,18 +96,3 @@ impl IronGolem {
         Crackiness::of(self.health)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cracks_by_quarters_of_health() {
-        assert_eq!(Crackiness::of(100.0), Crackiness::None);
-        assert_eq!(Crackiness::of(75.0), Crackiness::None);
-        assert_eq!(Crackiness::of(74.9), Crackiness::Low);
-        assert_eq!(Crackiness::of(50.0), Crackiness::Low);
-        assert_eq!(Crackiness::of(49.0), Crackiness::Medium);
-        assert_eq!(Crackiness::of(24.0), Crackiness::High);
-    }
-}

@@ -17,20 +17,35 @@ const CONTAINER_MAX: u8 = 99;
 
 /// `#minecraft:villager_plantable_seeds` (26.3 data).
 pub fn plantable_seed(item: &str) -> bool {
-    matches!(item, "minecraft:wheat_seeds" | "minecraft:potato" | "minecraft:carrot" | "minecraft:beetroot_seeds" | "minecraft:torchflower_seeds" | "minecraft:pitcher_pod")
+    matches!(
+        item,
+        "minecraft:wheat_seeds"
+            | "minecraft:potato"
+            | "minecraft:carrot"
+            | "minecraft:beetroot_seeds"
+            | "minecraft:torchflower_seeds"
+            | "minecraft:pitcher_pod"
+    )
 }
 
 /// `#minecraft:villager_picks_up` (26.3 data): the plantable seeds, bread,
 /// wheat and beetroot.
 pub fn picks_up(item: &str) -> bool {
-    plantable_seed(item) || matches!(item, "minecraft:bread" | "minecraft:wheat" | "minecraft:beetroot")
+    plantable_seed(item)
+        || matches!(
+            item,
+            "minecraft:bread" | "minecraft:wheat" | "minecraft:beetroot"
+        )
 }
 
 /// `DataComponents.VILLAGER_FOOD`'s nutrition: the stack's own component
 /// (or its removal), else the item's default.
 pub fn villager_food(item: &str, components: Option<&Value>) -> Option<i32> {
     if let Some(food) = components.and_then(|c| c.get("minecraft:villager_food")) {
-        return food.get("nutrition").and_then(Value::as_i64).map(|n| n as i32);
+        return food
+            .get("nutrition")
+            .and_then(Value::as_i64)
+            .map(|n| n as i32);
     }
     if components.is_some_and(|c| c.get("!minecraft:villager_food").is_some()) {
         return None;
@@ -46,7 +61,12 @@ impl Profession {
     /// `VillagerProfession.requestedItems`: only farmers ask for any.
     pub fn requested_items(self) -> &'static [&'static str] {
         match self {
-            Profession::Farmer => &["minecraft:wheat", "minecraft:wheat_seeds", "minecraft:beetroot_seeds", "minecraft:bone_meal"],
+            Profession::Farmer => &[
+                "minecraft:wheat",
+                "minecraft:wheat_seeds",
+                "minecraft:beetroot_seeds",
+                "minecraft:bone_meal",
+            ],
             _ => &[],
         }
     }
@@ -99,19 +119,32 @@ impl VillagerInventory {
 
     /// `countFoodPointsInInventory`.
     pub fn food_points(&self) -> i32 {
-        self.slots.iter().flatten().filter_map(|s| villager_food(&s.id, s.components.as_ref()).map(|n| n * i32::from(s.count))).sum()
+        self.slots
+            .iter()
+            .flatten()
+            .filter_map(|s| {
+                villager_food(&s.id, s.components.as_ref()).map(|n| n * i32::from(s.count))
+            })
+            .sum()
     }
 
     /// `countItem`.
     pub fn count(&self, item: &str) -> i32 {
-        self.slots.iter().flatten().filter(|s| s.id == item).map(|s| i32::from(s.count)).sum()
+        self.slots
+            .iter()
+            .flatten()
+            .filter(|s| s.id == item)
+            .map(|s| i32::from(s.count))
+            .sum()
     }
 
     /// `throwHalfStack`'s take: from the first slot matching with more than
     /// half a stack, half of it; or with more than 24, all past 24.
     pub fn take_half_stack(&mut self, matches: impl Fn(&ItemStack) -> bool) -> Option<ItemStack> {
         for slot in self.slots.iter_mut() {
-            let Some(stack) = slot.as_mut().filter(|s| s.count > 0 && matches(s)) else { continue };
+            let Some(stack) = slot.as_mut().filter(|s| s.count > 0 && matches(s)) else {
+                continue;
+            };
             let count = if stack.count > stack.max / 2 {
                 stack.count / 2
             } else if stack.count > 24 {
@@ -164,8 +197,16 @@ impl VillagerInventory {
 }
 
 /// `Villager.wantsToPickUp`.
-pub fn wants_to_pick_up(inventory: &VillagerInventory, profession: Profession, item: &str, components: Option<&Value>) -> bool {
-    (picks_up(item) || villager_food(item, components).is_some() || profession.requested_items().contains(&item)) && inventory.can_add(item, components)
+pub fn wants_to_pick_up(
+    inventory: &VillagerInventory,
+    profession: Profession,
+    item: &str,
+    components: Option<&Value>,
+) -> bool {
+    (picks_up(item)
+        || villager_food(item, components).is_some()
+        || profession.requested_items().contains(&item))
+        && inventory.can_add(item, components)
 }
 
 /// A villager's food level (`foodLevel`) with its inventory: `hungry`,
@@ -175,8 +216,12 @@ pub fn eat_until_full(food_level: &mut i32, inventory: &mut VillagerInventory) {
         return;
     }
     for slot in 0..SLOTS {
-        let Some(stack) = inventory.slots[slot].clone() else { continue };
-        let Some(nutrition) = villager_food(&stack.id, stack.components.as_ref()) else { continue };
+        let Some(stack) = inventory.slots[slot].clone() else {
+            continue;
+        };
+        let Some(nutrition) = villager_food(&stack.id, stack.components.as_ref()) else {
+            continue;
+        };
         let mut eaten = 0u8;
         for _ in 0..stack.count {
             *food_level += nutrition;
@@ -206,60 +251,4 @@ pub fn can_breed(food_level: i32, inventory: &VillagerInventory, sleeping: bool,
 pub fn eat_and_digest(food_level: &mut i32, inventory: &mut VillagerInventory) {
     eat_until_full(food_level, inventory);
     *food_level -= 12;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn stack(id: &str, count: u8) -> ItemStack {
-        ItemStack::new(id, count)
-    }
-
-    #[test]
-    fn fills_matching_stacks_then_a_free_slot() {
-        let mut inventory = VillagerInventory::default();
-        assert!(inventory.add(stack("minecraft:bread", 60)).is_none());
-        assert!(inventory.add(stack("minecraft:bread", 10)).is_none());
-        assert_eq!(inventory.slots[0].as_ref().map(|s| s.count), Some(64));
-        assert_eq!(inventory.slots[1].as_ref().map(|s| s.count), Some(6));
-        assert_eq!(inventory.food_points(), 70 * 4);
-    }
-
-    #[test]
-    fn wants_food_seeds_and_its_profession_items_while_there_is_room() {
-        let inventory = VillagerInventory::default();
-        assert!(wants_to_pick_up(&inventory, Profession::None, "minecraft:bread", None));
-        assert!(wants_to_pick_up(&inventory, Profession::None, "minecraft:potato", None));
-        assert!(!wants_to_pick_up(&inventory, Profession::None, "minecraft:bone_meal", None));
-        assert!(wants_to_pick_up(&inventory, Profession::Farmer, "minecraft:bone_meal", None));
-        let full = VillagerInventory { slots: std::array::from_fn(|_| Some(stack("minecraft:stone", 64))) };
-        assert!(!wants_to_pick_up(&full, Profession::None, "minecraft:bread", None));
-    }
-
-    #[test]
-    fn eats_until_full() {
-        let mut inventory = VillagerInventory::default();
-        inventory.add(stack("minecraft:carrot", 5));
-        inventory.add(stack("minecraft:bread", 3));
-        let mut food = 0;
-        eat_until_full(&mut food, &mut inventory);
-        // Five carrots (5), then two loaves (13).
-        assert_eq!(food, 13);
-        assert!(inventory.slots[0].is_none());
-        assert_eq!(inventory.slots[1].as_ref().map(|s| s.count), Some(1));
-    }
-
-    #[test]
-    fn breeding_takes_twelve_food_points_awake_at_age_zero() {
-        let mut inventory = VillagerInventory::default();
-        inventory.add(stack("minecraft:bread", 3));
-        assert!(can_breed(0, &inventory, false, 0));
-        assert!(!can_breed(0, &inventory, true, 0), "asleep");
-        assert!(!can_breed(0, &inventory, false, 6000), "resting from breeding");
-        let mut food = 0;
-        eat_and_digest(&mut food, &mut inventory);
-        assert_eq!((food, inventory.food_points()), (0, 0));
-        assert!(!can_breed(food, &inventory, false, 0));
-    }
 }

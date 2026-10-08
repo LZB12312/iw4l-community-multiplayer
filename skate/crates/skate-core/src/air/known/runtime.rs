@@ -15,19 +15,13 @@ pub trait KnownAirMath {
     fn divide_vector_by_scalar(&mut self, vector: Vector4, scalar: f32) -> Vector4;
     /// The two `vrsqrtefp128` refinements, zero selection, and returned length.
     fn normalize_safe_with_length(&mut self, vector: Vector4) -> (Vector4, f32);
-    /// `0x8286CD88`, including its native orientation and degeneracy behavior.
     fn signed_angle_about_axis(&mut self, from: Vector4, to: Vector4, axis: Vector4) -> f32;
-    /// `0x8258DB98` exactly; callers retain every observed invocation.
     fn wrap_angle_8258db98(&mut self, angle: f32) -> f32;
-    /// VMX geometry at `0x82D35A0C..0x82D35B78`. The surrounding trajectory
-    /// evaluation, curve evaluation, blend, board write, and speed publication
-    /// remain explicit in readable Rust.
     fn restore_velocity_geometry_82d35998(
         &mut self,
         trajectory_velocity: Vector4,
         ground_normal: Vector4,
     ) -> RestoreVelocityGeometry;
-    /// Affine point transform at `0x82D36AE4..0x82D36B30`.
     fn transform_point_82d36880(&mut self, transform: AffineTransform, point: Vector4) -> Vector4;
 }
 

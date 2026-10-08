@@ -1,4 +1,3 @@
-//! Rounded triangle query82ADEB70: bounds, face, overlap, then feature walk.
 use super::{
     native_arithmetic,
     triangle_closest::closest,
@@ -7,7 +6,6 @@ use super::{
 };
 use crate::math::Vector3;
 
-/// Literal8212BF74, also used by closest-feature and walk denominator gates.
 pub(super) const MIN_RECIPROCAL: f32 = f32::from_bits(0x0020_0000);
 
 pub(super) fn sweep(
@@ -85,8 +83,6 @@ pub(super) fn sweep(
     }
     if feature.region == 6 {
         result.position = start;
-        //82ADEFA0 compares the absolute determinant retained in f1; it has
-        // already been negated by82ADEC30 for a reverse-facing query.
         if determinant < 0.0 {
             result.normal = scale(result.normal, -1.0);
         }

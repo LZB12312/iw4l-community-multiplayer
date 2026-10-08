@@ -1,4 +1,3 @@
-//! Original Wipeout Update82D3C02C..C288; completed query precedes next submit.
 use crate::physics::air_trajectory::AirTrajectoryRuntime;
 use skate_core::{
     air::trajectory::{QueryRequest, QueryResult, Trajectory},

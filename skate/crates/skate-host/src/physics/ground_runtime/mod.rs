@@ -16,7 +16,7 @@ mod services;
 mod settings;
 pub(crate) use launch::{GroundLaunchInfo, GroundLaunchPhysical};
 pub(crate) use services::{GroundControllers, GroundPhysicalFrame};
-pub(crate) use settings::{GroundSettings, GroundProfiles};
+pub(crate) use settings::{GroundProfiles, GroundSettings};
 use skate_core::{
     math::Vector3,
     physics::{
@@ -47,8 +47,6 @@ pub(crate) struct GroundRuntime {
     pub collision_force: Option<CollisionForceResponse>,
 }
 impl GroundRuntime {
-    /// Skateboard Reset82C060B0 publishes [0,1,0,0] to the retained
-    /// toolkit normal192. Do not reset Ground contact-response state here.
     pub fn reset_board_toolkit(&mut self) {
         self.retained_board_normal = [0.0, 1.0, 0.0, 0.0];
     }
@@ -56,7 +54,6 @@ impl GroundRuntime {
         let feet = |field| data.float("physics_feet", "default", field);
         let collision = |field| data.float("physics_collision", "default", field);
         Ok(Self {
-            //SkateboardReset82C05F50 explicitly clears192..208, then sets196=1.
             retained_board_normal: [0.0, 1.0, 0.0, 0.0],
             launch_cone_x: data.float("physics_trajectory", "default", "ConeAngleX")?,
             launch_cone_z: data.float("physics_trajectory", "default", "ConeAngleZ")?,
@@ -92,8 +89,6 @@ impl GroundRuntime {
             collision_force: None,
         })
     }
-    /// Slide82D3AA74..AA9C passes a fresh zero previous vector each update.
-    /// This call does not overwrite Ground's separately retained contact state.
     pub fn contact_response_with_previous(
         &self,
         frame: GroundContactFrame,
@@ -102,15 +97,11 @@ impl GroundRuntime {
     ) -> GroundContactResponse {
         wall_ride_response(&self.wall_ride, physical, frame, previous)
     }
-    /// Called immediately after contact response and before animated/physical
-    /// branch selection at82D389DC. This changes the solver's actual deck.
     pub fn update_body_accumulator(&mut self, board: &mut BoardRuntime) {
         deck_angular_correction::apply_ground_body_torque(
             &mut board.bodies_mut()[BodyId::Deck.index()].rates,
         );
     }
-    /// Native82D944E8 output publication. Do not discard an existing ground
-    /// collision vector on a false return; caller's collision-fade state owns it.
     pub fn calculate_collision_force(
         &mut self,
         physical: CollisionResponsePhysical,
@@ -139,8 +130,6 @@ impl GroundRuntime {
             xyz(displacement),
         );
     }
-    ///82C04168 publishes the requested linear velocity to all seven real body
-    /// parts, preserving angular velocity and accumulated forces.
     pub fn set_animated_velocity(&mut self, board: &mut BoardRuntime, velocity: [f32; 4]) {
         for body in board.bodies_mut() {
             body.rates.linear_velocity = xyz(velocity);

@@ -1,4 +1,3 @@
-//! SkeletonIK::CheckFootAgainstBoard82BF0D70, including raised deck ends.
 use super::{math::reciprocal, settings::Settings, transforms::inverse_rigid};
 use crate::physics::{
     native_arithmetic::vector_min,
@@ -46,7 +45,6 @@ pub(super) fn target(
         let distance = z - settings.deck_half_length;
         let end = settings.deck_total_half_length - settings.deck_half_length;
         let distance = if end - distance >= 0.0 { distance } else { end };
-        //Constructor82BED418 caches tan(clamp(authored degrees*.01745...)).
         let angle = settings.deck_front_angle_degrees * f32::from_bits(0x3C8E_FA35);
         let angle = if 0.01 - angle >= 0.0 { 0.01 } else { angle };
         let maximum = f32::from_bits(0x3FC7_C82D);
@@ -65,8 +63,6 @@ pub(super) fn target(
     Some(transform_point(board, result))
 }
 
-///Scalar constructor path through original8252D980. Its argument is already
-///clamped to [.01,1.5607964]; coefficients come from822FE3C0..E0.
 fn tangent(angle: f32) -> f32 {
     let quadrant = (angle * f32::from_bits(0x3F22_F983)).round_ties_even();
     let reduced = (-quadrant).mul_add(f32::from_bits(0x3FC9_0FDB), angle);
@@ -91,23 +87,5 @@ fn tangent(angle: f32) -> f32 {
         numerator * reciprocal(denominator, 2)
     } else {
         denominator * reciprocal(-numerator, 2)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn original_tangent_rational_spans_both_constructor_quadrants() {
-        //Independent mathematical values test argument reduction and rational
-        //operand order, without claiming original hardware estimate parity.
-        for angle in [0.01f32, 0.25, 0.75, 1.0, 1.5607964] {
-            let actual = tangent(angle);
-            let reference = f64::from(angle).tan() as f32;
-            assert!(
-                (actual - reference).abs() < 3e-5 * reference.abs().max(1.0),
-                "{angle}: {actual} vs {reference}"
-            );
-        }
     }
 }

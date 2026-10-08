@@ -11,6 +11,8 @@ master_protocol.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 zip.workspace = true
+syn = { version = "2.0.119", features = ["full", "visit"] }
+proc-macro2 = { version = "1.0.107", features = ["span-locations"] }
 
 [lints]
 workspace = true

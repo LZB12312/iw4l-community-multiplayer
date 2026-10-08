@@ -327,7 +327,13 @@ pub(crate) fn update_killfeed(
         hide(&mut pass);
         return;
     }
-    if view.is_some_and(|v| v.in_killcam()) {
+    let meat_visible = presented.snapshot().is_some_and(|snapshot| {
+        snapshot
+            .meta
+            .for_client(local.0)
+            .is_some_and(|meta| meta.skate_damage.display_active(snapshot.tick.0))
+    });
+    if view.is_some_and(|v| v.in_killcam()) || meat_visible {
         hide(&mut pass);
         return;
     }

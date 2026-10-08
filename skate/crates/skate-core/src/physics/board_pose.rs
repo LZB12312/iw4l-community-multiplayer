@@ -1,5 +1,3 @@
-//! Complete TU3 board SetTransform 82C0B2C8 and its part/pose dependencies.
-//! This changes poses only; it does not infer startup, settle joints or reset rates.
 mod arithmetic;
 mod normalization;
 mod part;

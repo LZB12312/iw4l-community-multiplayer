@@ -1,4 +1,3 @@
-//! FootPlant601, vtable82327400 and manager82D704B0/82D70E40.
 use super::{Footplant, math::*};
 use crate::physics::{GamePhysics, SkaterRuntime, air_phase, plant_skeleton};
 
@@ -11,7 +10,6 @@ pub(in crate::physics) fn enter(
         .hook_mut()
         .drive
         .enable_angular_only(&mut skater.ground_lifecycle.board_animated_290);
-    //82D91330 sets the foot/toe volume group and clears their disable counters.
     for part in [15, 16, 19, 20] {
         skater.skeleton_collision.parts[part].volume_group = 4;
         skater.skeleton_collision.parts[part].enabled = false;
@@ -49,13 +47,11 @@ impl Footplant {
             .evaluate(length(scale(radial, dot(velocity, radial))));
         let rotation = cross(offset, velocity);
         let angular_speed = length(rotation);
-        //830BD300 is initialized by82F82690 from821647E0.
         if !(angular_speed > f32::from_bits(0x3780_0000)) {
             return 0;
         }
         let axis = scale(rotation, reciprocal(angular_speed));
         let angular_rate = angular_speed * multiplier;
-        //8286CD88 projects both vectors into the plane;8296EC98 signs acos.
         let normal = scale(axis, -1.0);
         let up = [0.0, 1.0, 0.0, 0.0];
         let projected_up = normalize(sub(up, scale(normal, dot(up, normal))));
@@ -103,8 +99,6 @@ impl Footplant {
         (4 - (self.scalar_596 * f32::from_bits(0xc26f_ffff)) as i32) as u32
     }
 
-    ///82D70CE0: authored BodyAdjustX/Z move the release point, retaining
-    ///the last handle length.82C1E170 removes only positive up projection.
     fn adjust(&mut self, t: f32, input: [f32; 2]) {
         let amount = (1.0 - t).mul_add(0.02, t * 0.01);
         let mut movement = [input[0] * amount, 0.0, input[1] * amount, 0.0];
@@ -159,12 +153,18 @@ pub(in crate::physics) fn update(
         info.player_jumped = true;
         let input = air_phase::selector_input(physics, skater)?;
         skater.trajectory.launch(info, input, &physics.world)?;
-        skater.trajectory.update(input, &physics.world, crate::physics::air_trajectory::GrindContext::from_processed(&skater.player_input.processed, crate::physics::solve::deck_frame(&physics.board)[3]))?;
+        skater.trajectory.update(
+            input,
+            &physics.world,
+            crate::physics::air_trajectory::GrindContext::from_processed(
+                &skater.player_input.processed,
+                crate::physics::solve::deck_frame(&physics.board)[3],
+            ),
+        )?;
     }
     Ok(())
 }
 
-///82D4C6D8, after the shared plant collision check82D8FDC0.
 pub(in crate::physics) fn post_physics(skater: &mut SkaterRuntime) {
     let p = &skater.player_input.processed;
     let down = scale(p.vectors_544_560_592_608[0].map(f32::from_bits), -1.0);

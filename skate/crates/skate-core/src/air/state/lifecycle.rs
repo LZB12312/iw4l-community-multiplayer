@@ -14,7 +14,6 @@ const OFFBOARD_VERTICAL_SCALE: f32 = f32::from_bits(0x3F26_6666); // 0.65
 const OFFBOARD_VERTICAL_LIMIT: f32 = f32::from_bits(0x4040_0000); // 3.0
 const OUTPUT_SCALAR_184: f32 = f32::from_bits(0x4080_0000); // 4.0
 
-/// Full TU3 `PhysState_PhysicsAir::Enter`, `0x82D34388`.
 pub fn enter(
     state: &mut PhysicsAirState,
     frame: &PhysicsAirFrame,
@@ -68,14 +67,12 @@ pub fn enter(
     }
 }
 
-/// TU3 `PhysState_PhysicsAir::Exit`, `0x82D346A0`.
 pub fn exit(state: &mut PhysicsAirState, reckoning: &mut PhysicsAirReckoningFields) {
     state.use_centre_of_mass_velocity = false;
     reckoning.body_spin_speed_1572 = 0.0;
     reckoning.body_spin_angle_1568 = 0.0;
 }
 
-/// TU3 `PhysState_PhysicsAir::FillPhysOut`, `0x82D34E90`.
 pub fn fill_physics_output(state: &PhysicsAirState) -> PhysicsAirOutput {
     PhysicsAirOutput {
         is_at_apex: state.reached_apex,

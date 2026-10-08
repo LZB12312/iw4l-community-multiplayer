@@ -14,10 +14,11 @@ use skate_core::input::body_flip_signal;
 use skate_core::input::graph_intents::{CreateMgIntent, IntentMutation};
 #[path = "action_board_adjust.rs"]
 mod board_adjust;
+use super::outputs::{
+    ActionGraphInput, ActionGraphOutput, GraphCapabilityReport, GraphDiagnostics,
+};
 use skate_data::collections::Collections;
-use super::outputs::{ActionGraphInput, ActionGraphOutput, GraphCapabilityReport, GraphDiagnostics};
 
-/// Original State output consumed by82BA1680/82BA16F0.
 #[derive(Clone, Copy, Debug)]
 pub struct PhysicalConditions {
     pub requests_dismount: bool,
@@ -48,8 +49,6 @@ pub struct ActionHost {
     board_adjust: Vec<board_adjust::State>,
     body_flip: Vec<body_flip_signal::State>,
     body_flip_settings: Option<body_flip_signal::Settings>,
-    /// JuiceHook instance+8 starts with the native null intent name. Its
-    /// update removes that pending key and resets it,82BA39A8.
     juice_pending: Vec<String>,
     trick_handlers: Vec<crate::input::gesture_mapping::State>,
 }
@@ -78,20 +77,18 @@ impl ActionHost {
         for &operation in &graph.runtime.operations.conditions {
             if let Some(instance) = instances.get(operation) {
                 if let Some(unsupported) = instance.unsupported() {
-                    capabilities.unsupported_conditions.push(format!(
-                        "{:?} `{}`",
-                        unsupported.kind, unsupported.name
-                    ));
+                    capabilities
+                        .unsupported_conditions
+                        .push(format!("{:?} `{}`", unsupported.kind, unsupported.name));
                 }
             }
         }
         for &operation in &graph.runtime.operations.hooks {
             if let Some(instance) = instances.get(operation) {
                 if let Some(unsupported) = instance.unsupported() {
-                    capabilities.unsupported_hooks.push(format!(
-                        "{:?} `{}`",
-                        unsupported.kind, unsupported.name
-                    ));
+                    capabilities
+                        .unsupported_hooks
+                        .push(format!("{:?} `{}`", unsupported.kind, unsupported.name));
                 }
             }
         }
@@ -99,8 +96,6 @@ impl ActionHost {
         super::condition_nodes::bind_current_states(graph, &mut instances);
         let mut host = Self::new(instances, graph.runtime.operations.clone());
         host.body_flip_settings = Some(body_flip_signal::Settings {
-            //82BA35E0/3790 read Globals296;8289F8F0 binds hash
-            //3FC308E69AEA6385 (body_flip), independently checked in stock data.
             gesture_window: data.float("anim_motion", "body_flip", "extend_bodyflip_gesture")?,
             takeoff_window: data.float("anim_motion", "body_flip", "extend_takeoff_point")?,
         });
@@ -215,7 +210,8 @@ impl ActionHost {
         if let Some((magnitude, angle)) = self.board_adjust[behavior].update(
             self.action_intents.get("BoardAdjustMag").copied(),
             self.action_intents.get("BoardAdjustAngle").copied(),
-            instance.config.angle_filter, instance.config.negate_on_mirror,
+            instance.config.angle_filter,
+            instance.config.negate_on_mirror,
             self.stance.is_some_and(|(_, mirrored)| mirrored),
         ) {
             self.motion_intents.insert(magnitude_name, magnitude);
@@ -225,7 +221,6 @@ impl ActionHost {
             self.motion_intents.remove(angle_name);
         }
     }
-
 }
 
 impl ConditionHost for ActionHost {
@@ -289,11 +284,22 @@ impl Host for ActionHost {
         let Some(instance) = self.operation(behavior).cloned() else {
             return;
         };
-        if let ActionOperation::CreateTrickIntentFromGesture { group, override_name } = &instance.operation {
+        if let ActionOperation::CreateTrickIntentFromGesture {
+            group,
+            override_name,
+        } = &instance.operation
+        {
             if let Some((_, mirrored)) = self.stance {
-                self.trick_handlers[behavior].begin(*group, override_name.as_deref(), &self.action_intents, &mut self.motion_intents, mirrored);
+                self.trick_handlers[behavior].begin(
+                    *group,
+                    override_name.as_deref(),
+                    &self.action_intents,
+                    &mut self.motion_intents,
+                    mirrored,
+                );
             } else {
-                self.errors.push("CreateTrickIntentFromGesture requires published skater stance");
+                self.errors
+                    .push("CreateTrickIntentFromGesture requires published skater stance");
             }
             return;
         }
@@ -349,7 +355,10 @@ impl Host for ActionHost {
         let Some(instance) = self.operation(behavior).cloned() else {
             return;
         };
-        if matches!(instance.operation, ActionOperation::CreateTrickIntentFromGesture { .. }) {
+        if matches!(
+            instance.operation,
+            ActionOperation::CreateTrickIntentFromGesture { .. }
+        ) {
             self.trick_handlers[behavior].update(&mut self.motion_intents);
             return;
         }
@@ -373,7 +382,6 @@ impl Host for ActionHost {
                     .push("BodyFlippingSignal requires published filtered state");
                 return;
             };
-            // TU3 initializers82F84DA8/82F84DC0 bind these exact keys.
             let names = ["FrontFlip", "BackFlip"];
             let present = names.map(|name| self.action_intents.contains_key(name));
             match self.body_flip[behavior].update(present, physical.category, frame.dt, settings) {
@@ -428,14 +436,21 @@ impl Host for ActionHost {
             return;
         };
         if matches!(instance.operation, ActionOperation::BoardAdjust) {
-            //82BA2EB8: remove both authored names; End does not reset state.
-            for name in [instance.config.mg_intent_mag.as_deref(),
-                         instance.config.mg_intent_angle.as_deref()].into_iter().flatten() {
+            for name in [
+                instance.config.mg_intent_mag.as_deref(),
+                instance.config.mg_intent_angle.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            {
                 self.motion_intents.remove(name);
             }
             return;
         }
-        if matches!(instance.operation, ActionOperation::CreateTrickIntentFromGesture { .. }) {
+        if matches!(
+            instance.operation,
+            ActionOperation::CreateTrickIntentFromGesture { .. }
+        ) {
             self.trick_handlers[behavior].end(&mut self.motion_intents);
             return;
         }

@@ -8,7 +8,7 @@ use crate::scene::{Block, BlockPos, HandcraftedScene, Scene};
 use crate::terrain::BlockStates;
 use minecraftoss_core::{BlockStateId, Chunk, ChunkPos};
 use minecraftoss_world::chunk_map::WorldGen;
-use minecraftoss_world::level::{update, Level};
+use minecraftoss_world::level::{Level, update};
 use minecraftoss_world::natural_spawner::tick::{CensusMob, SpawnPlayer};
 use std::sync::Arc;
 
@@ -83,9 +83,15 @@ pub enum MerchantOp {
     /// An offer picked in the list.
     Select(i32),
     /// A payment slot clicked (shift: moved back).
-    Payment { slot: usize, right: bool, shift: bool },
+    Payment {
+        slot: usize,
+        right: bool,
+        shift: bool,
+    },
     /// The result clicked (shift: traded as often as it goes).
-    Result { shift: bool },
+    Result {
+        shift: bool,
+    },
     Close,
 }
 
@@ -154,7 +160,11 @@ pub struct ServerTnt {
     pub fuse: i32,
 }
 
-fn stack_of(item: &str, count: i32, components: Option<&str>) -> minecraftoss_core::item::ItemStack {
+fn stack_of(
+    item: &str,
+    count: i32,
+    components: Option<&str>,
+) -> minecraftoss_core::item::ItemStack {
     let mut stack = minecraftoss_core::item::ItemStack::new(item, count);
     stack.components = components.map(|json| minecraftoss_core::nbt::Tag::String(json.to_owned()));
     stack
@@ -176,15 +186,24 @@ impl ServerSim {
         let worldgen: &'static WorldGen = leaked;
         let range = states.vertical_range();
         let mut level = Level::new(&worldgen.library, range.start, range.end - range.start);
-        level.random_sequences = minecraftoss_core::loot::RandomSequences::new(worldgen.terrain.seed);
+        level.random_sequences =
+            minecraftoss_core::loot::RandomSequences::new(worldgen.terrain.seed);
         if let Err(e) = level.set_dimension(dimension_type) {
             eprintln!("world simulation without environment: {e}");
         }
         let mob_tables = crate::server_mobs::MobTables::new(&level, &states);
         // Natural spawning, when the entity catalog can create mobs.
         if level.registries().entities.is_some() {
-            match minecraftoss_world::natural_spawner::CreatureSpawns::load(worldgen.terrain.registries.clone(), dimension_type, false) {
-                Ok(spawns) => level.natural_spawning = Some(minecraftoss_world::level::spawning::NaturalSpawning::new(Arc::new(spawns))),
+            match minecraftoss_world::natural_spawner::CreatureSpawns::load(
+                worldgen.terrain.registries.clone(),
+                dimension_type,
+                false,
+            ) {
+                Ok(spawns) => {
+                    level.natural_spawning = Some(
+                        minecraftoss_world::level::spawning::NaturalSpawning::new(Arc::new(spawns)),
+                    )
+                }
                 Err(e) => eprintln!("natural spawning unavailable: {e}"),
             }
         }
@@ -193,8 +212,13 @@ impl ServerSim {
         mobs.set_players_pickable(true);
         // New mobs' UUIDs differ from session to session, as vanilla's
         // random ones do.
-        mobs.set_uuid_salt(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64));
-        mobs.pois = minecraftoss_entities::poi::PoiManager::new(range.start >> 4, (range.end - 1) >> 4);
+        mobs.set_uuid_salt(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_nanos() as u64),
+        );
+        mobs.pois =
+            minecraftoss_entities::poi::PoiManager::new(range.start >> 4, (range.end - 1) >> 4);
         Self {
             level,
             states,
@@ -215,8 +239,12 @@ impl ServerSim {
     /// Loads the entity and shearing loot tables and the villager trade
     /// sets from the data JAR, with the world seed's random sequences.
     pub fn load_loot(&mut self, jar: &std::path::Path, seed: u64) {
-        self.entity_loot = minecraftoss_entities::loot::EntityLootBook::from_jar(jar, seed).map_err(|e| eprintln!("server entity loot unavailable: {e:#}")).ok();
-        self.shearing_loot = minecraftoss_entities::loot::ShearingLootBook::from_jar(jar, seed).map_err(|e| eprintln!("server shearing loot unavailable: {e:#}")).ok();
+        self.entity_loot = minecraftoss_entities::loot::EntityLootBook::from_jar(jar, seed)
+            .map_err(|e| eprintln!("server entity loot unavailable: {e:#}"))
+            .ok();
+        self.shearing_loot = minecraftoss_entities::loot::ShearingLootBook::from_jar(jar, seed)
+            .map_err(|e| eprintln!("server shearing loot unavailable: {e:#}"))
+            .ok();
         // The trade sets read the items' enchantability and stack sizes
         // from the exported item catalog: beside a JAR fetched into a
         // MinecraftOSS-shaped folder, in a checkout, or under the working
@@ -224,7 +252,8 @@ impl ServerSim {
         const CATALOG: &str = "artifacts/item-catalog/26.3.json";
         let catalog = [
             jar.parent().map(|root| root.join(CATALOG)),
-            std::env::var_os("MINECRAFTOSS_ROOT").map(|root| std::path::Path::new(&root).join(CATALOG)),
+            std::env::var_os("MINECRAFTOSS_ROOT")
+                .map(|root| std::path::Path::new(&root).join(CATALOG)),
             Some(std::path::PathBuf::from(CATALOG)),
         ]
         .into_iter()
@@ -240,7 +269,14 @@ impl ServerSim {
     /// A player's hit (`attack`, with what the player brings to it) or item
     /// use on a mob, with a copy of the player's inventory. Drops enter the
     /// level as item entities.
-    pub fn mob_action(&mut self, hit: minecraftoss_entities::world::MobHit, attack: Option<minecraftoss_entities::world::PlayerAttack>, mut inventory: minecraftoss_player::inventory::Inventory, selected: usize, infinite: bool) -> MobResult {
+    pub fn mob_action(
+        &mut self,
+        hit: minecraftoss_entities::world::MobHit,
+        attack: Option<minecraftoss_entities::world::PlayerAttack>,
+        mut inventory: minecraftoss_player::inventory::Inventory,
+        selected: usize,
+        infinite: bool,
+    ) -> MobResult {
         let before = inventory.slots.clone();
         let mut actor = crate::mob_actions::Actor {
             inventory: &mut inventory,
@@ -271,18 +307,36 @@ impl ServerSim {
             .map(|(slot, (now, _))| (slot, now.clone()))
             .collect();
         self.spawn_trade_experience();
-        MobResult { sounds: outcome.sounds, slots, merchant: self.merchant_view(0) }
+        MobResult {
+            sounds: outcome.sounds,
+            slots,
+            merchant: self.merchant_view(0),
+        }
     }
 
     /// The player's trading screen as the client shows it.
     pub fn merchant_view(&mut self, player: u64) -> Option<MerchantView> {
         let menu = self.mobs.merchant_menu(player)?.clone();
-        let offers = self.mobs.villager_offers(menu.villager).map(<[_]>::to_vec).unwrap_or_default();
-        let villager = self.mobs.villagers().iter().find(|e| e.id == menu.villager)?;
+        let offers = self
+            .mobs
+            .villager_offers(menu.villager)
+            .map(<[_]>::to_vec)
+            .unwrap_or_default();
+        let villager = self
+            .mobs
+            .villagers()
+            .iter()
+            .find(|e| e.id == menu.villager)?;
         let mut max_stacks = Vec::new();
         for offer in &offers {
-            for id in std::iter::once(&offer.buy.id).chain(offer.buy_b.as_ref().map(|b| &b.id)).chain(std::iter::once(&offer.sell.id)) {
-                if !max_stacks.iter().any(|(item, _): &(String, i32)| item == id) {
+            for id in std::iter::once(&offer.buy.id)
+                .chain(offer.buy_b.as_ref().map(|b| &b.id))
+                .chain(std::iter::once(&offer.sell.id))
+            {
+                if !max_stacks
+                    .iter()
+                    .any(|(item, _): &(String, i32)| item == id)
+                {
                     max_stacks.push((id.clone(), self.mobs.item_max_stack(id)));
                 }
             }
@@ -305,29 +359,58 @@ impl ServerSim {
     /// state, the slots it changed and the cursor. Closing returns the
     /// payments and the cursor to the inventory; what does not fit drops
     /// at the player's feet.
-    pub fn merchant(&mut self, op: MerchantOp, mut inventory: minecraftoss_player::inventory::Inventory, selected: usize, feet: [f64; 3]) -> MerchantUpdate {
+    pub fn merchant(
+        &mut self,
+        op: MerchantOp,
+        mut inventory: minecraftoss_player::inventory::Inventory,
+        selected: usize,
+        feet: [f64; 3],
+    ) -> MerchantUpdate {
         let before = inventory.slots.clone();
         match op {
             MerchantOp::Select(index) => self.mobs.merchant_select(0, index, &mut inventory),
-            MerchantOp::Payment { slot, right, shift } => self.mobs.merchant_click_payment(0, slot, right, shift, &mut inventory),
-            MerchantOp::Result { shift } => self.mobs.merchant_click_result(0, shift, &mut inventory),
+            MerchantOp::Payment { slot, right, shift } => {
+                self.mobs
+                    .merchant_click_payment(0, slot, right, shift, &mut inventory)
+            }
+            MerchantOp::Result { shift } => {
+                self.mobs.merchant_click_result(0, shift, &mut inventory)
+            }
             MerchantOp::Close => {
                 for stack in self.mobs.merchant_close(0, &mut inventory, selected) {
                     let components = stack.components.as_ref().map(|c| c.to_string());
-                    self.level.spawn_at_location(feet, stack_of(&stack.id, i32::from(stack.count), components.as_deref()));
+                    self.level.spawn_at_location(
+                        feet,
+                        stack_of(&stack.id, i32::from(stack.count), components.as_deref()),
+                    );
                 }
                 self.merchant_closing = false;
             }
         }
         self.spawn_trade_experience();
-        let slots = inventory.slots.iter().zip(&before).enumerate().filter(|(_, (now, was))| now != was).map(|(slot, (now, _))| (slot, now.clone())).collect();
-        MerchantUpdate { view: self.merchant_view(0), slots, cursor: inventory.cursor.clone(), closing: false }
+        let slots = inventory
+            .slots
+            .iter()
+            .zip(&before)
+            .enumerate()
+            .filter(|(_, (now, was))| now != was)
+            .map(|(slot, (now, _))| (slot, now.clone()))
+            .collect();
+        MerchantUpdate {
+            view: self.merchant_view(0),
+            slots,
+            cursor: inventory.cursor.clone(),
+            closing: false,
+        }
     }
 
     /// `ServerPlayer.tick`'s `stillValid` check on an open trading screen:
     /// once the villager is out of reach, dead or done trading, the client
     /// is asked (once) to close it.
-    fn check_merchant(&mut self, players: &[minecraftoss_entities::tempt::PlayerCandidate]) -> Option<MerchantUpdate> {
+    fn check_merchant(
+        &mut self,
+        players: &[minecraftoss_entities::tempt::PlayerCandidate],
+    ) -> Option<MerchantUpdate> {
         if self.merchant_closing || self.mobs.merchant_menu(0).is_none() {
             return None;
         }
@@ -337,7 +420,12 @@ impl ServerSim {
             return None;
         }
         self.merchant_closing = true;
-        Some(MerchantUpdate { view: None, slots: Vec::new(), cursor: None, closing: true })
+        Some(MerchantUpdate {
+            view: None,
+            slots: Vec::new(),
+            cursor: None,
+            closing: true,
+        })
     }
 
     /// The orbs trades dropped, each whole into the level.
@@ -348,7 +436,10 @@ impl ServerSim {
     }
 
     /// Where the level's entities are saved (the chunk map's storage).
-    pub fn set_entity_storage(&mut self, storage: Option<Arc<minecraftoss_world::storage::ChunkStorage>>) {
+    pub fn set_entity_storage(
+        &mut self,
+        storage: Option<Arc<minecraftoss_world::storage::ChunkStorage>>,
+    ) {
         self.storage = storage;
     }
 
@@ -381,11 +472,19 @@ impl ServerSim {
         for (i, section) in chunk.sections().iter().enumerate() {
             let sy = chunk.min_section_y() + i as i32;
             let maybe = match &section.blocks {
-                minecraftoss_core::palette::PalettedContainer::Single(state) => kind(*state).is_some(),
-                minecraftoss_core::palette::PalettedContainer::Direct(values) => values.iter().any(|&s| kind(s).is_some()),
+                minecraftoss_core::palette::PalettedContainer::Single(state) => {
+                    kind(*state).is_some()
+                }
+                minecraftoss_core::palette::PalettedContainer::Direct(values) => {
+                    values.iter().any(|&s| kind(s).is_some())
+                }
             };
             if maybe {
-                self.mobs.pois.load_section((chunk.pos.x, sy, chunk.pos.z), |(x, y, z)| kind(section.block((x & 15) as usize, (y & 15) as usize, (z & 15) as usize)));
+                self.mobs
+                    .pois
+                    .load_section((chunk.pos.x, sy, chunk.pos.z), |(x, y, z)| {
+                        kind(section.block((x & 15) as usize, (y & 15) as usize, (z & 15) as usize))
+                    });
             }
         }
     }
@@ -395,7 +494,12 @@ impl ServerSim {
     fn sync_pois(&mut self) {
         for (x, y, z) in self.level.take_block_log() {
             let state = self.level.block(minecraftoss_core::BlockPos::new(x, y, z));
-            let new = self.mob_tables.pois.get(state.0 as usize).copied().flatten();
+            let new = self
+                .mob_tables
+                .pois
+                .get(state.0 as usize)
+                .copied()
+                .flatten();
             let old = self.mobs.pois.kind((x, y, z));
             self.mobs.pois.block_changed((x, y, z), old, new);
         }
@@ -413,7 +517,10 @@ impl ServerSim {
             Some(id) => {
                 self.mob_tags.insert(id, tag);
             }
-            None => self.dormant.push((minecraftoss_world::natural_spawner::tick::census_of(&tag), tag)),
+            None => self.dormant.push((
+                minecraftoss_world::natural_spawner::tick::census_of(&tag),
+                tag,
+            )),
         }
     }
 
@@ -422,13 +529,26 @@ impl ServerSim {
     /// and its items and experience orbs. Unloading also takes them out.
     fn save_chunk_entities(&mut self, pos: ChunkPos, unload: bool) {
         let inside = |p: glam::DVec3| crate::server_mobs::in_chunk(p, pos);
-        let mut tags: Vec<minecraftoss_core::nbt::Tag> = crate::server_mobs::mob_tags(&self.mobs, inside, &self.mob_tags).into_iter().map(|(_, tag)| tag).collect();
-        tags.extend(self.dormant.iter().filter(|(group, _)| inside(glam::DVec3::from_array(group[0].pos))).map(|(_, tag)| tag.clone()));
+        let mut tags: Vec<minecraftoss_core::nbt::Tag> =
+            crate::server_mobs::mob_tags(&self.mobs, inside, &self.mob_tags)
+                .into_iter()
+                .map(|(_, tag)| tag)
+                .collect();
+        tags.extend(
+            self.dormant
+                .iter()
+                .filter(|(group, _)| inside(glam::DVec3::from_array(group[0].pos)))
+                .map(|(_, tag)| tag.clone()),
+        );
         tags.extend(crate::server_mobs::level_entity_tags(&self.level, inside));
         if unload {
             self.mobs.remove_where(inside);
-            self.dormant.retain(|(group, _)| !inside(glam::DVec3::from_array(group[0].pos)));
-            self.level.entities.retain(|e| !(inside(glam::DVec3::from_array(e.pos)) && (e.item_data().is_some() || e.orb_data().is_some())));
+            self.dormant
+                .retain(|(group, _)| !inside(glam::DVec3::from_array(group[0].pos)));
+            self.level.entities.retain(|e| {
+                !(inside(glam::DVec3::from_array(e.pos))
+                    && (e.item_data().is_some() || e.orb_data().is_some()))
+            });
             let alive: std::collections::HashSet<u64> = self.mobs.mob_ids().collect();
             self.mob_tags.retain(|id, _| alive.contains(id));
         }
@@ -457,8 +577,16 @@ impl ServerSim {
     /// its spawn counter), the mob census for its caps, and the simulation
     /// area.
     pub fn prepare_spawning(&mut self, players: &[minecraftoss_entities::tempt::PlayerCandidate]) {
-        let Some(natural) = &mut self.level.natural_spawning else { return };
-        let spawn_players: Vec<SpawnPlayer> = players.iter().map(|p| SpawnPlayer { pos: p.position.to_array(), spectator: p.spectator }).collect();
+        let Some(natural) = &mut self.level.natural_spawning else {
+            return;
+        };
+        let spawn_players: Vec<SpawnPlayer> = players
+            .iter()
+            .map(|p| SpawnPlayer {
+                pos: p.position.to_array(),
+                spectator: p.spectator,
+            })
+            .collect();
         natural.set_players(&spawn_players);
         let mut census: Vec<CensusMob> = self
             .mobs
@@ -470,15 +598,32 @@ impl ServerSim {
                 CensusMob {
                     kind: m.kind.to_owned(),
                     pos: p.to_array(),
-                    bb: [p.x - half, p.y, p.z - half, p.x + half, p.y + f64::from(m.height), p.z + half],
+                    bb: [
+                        p.x - half,
+                        p.y,
+                        p.z - half,
+                        p.x + half,
+                        p.y + f64::from(m.height),
+                        p.z + half,
+                    ],
                     persistent: m.persistent,
                     riding: false,
                 }
             })
             .collect();
-        census.extend(self.dormant.iter().flat_map(|(group, _)| group.iter().cloned()));
+        census.extend(
+            self.dormant
+                .iter()
+                .flat_map(|(group, _)| group.iter().cloned()),
+        );
         natural.census = census;
-        natural.simulation = self.level.ticking_chunks.iter().flatten().copied().collect();
+        natural.simulation = self
+            .level
+            .ticking_chunks
+            .iter()
+            .flatten()
+            .copied()
+            .collect();
     }
 
     /// Mobs natural spawning made join the entity world; types it does not
@@ -491,23 +636,44 @@ impl ServerSim {
     }
 
     /// `Mob.checkDespawn` for the mobs in loaded chunks, before they tick.
-    fn despawn_mobs(&mut self, players: &[minecraftoss_entities::tempt::PlayerCandidate], difficulty: i32) {
-        let feet: Vec<glam::DVec3> = players.iter().filter(|p| !p.spectator).map(|p| p.position).collect();
+    fn despawn_mobs(
+        &mut self,
+        players: &[minecraftoss_entities::tempt::PlayerCandidate],
+        difficulty: i32,
+    ) {
+        let feet: Vec<glam::DVec3> = players
+            .iter()
+            .filter(|p| !p.spectator)
+            .map(|p| p.position)
+            .collect();
         let level = &self.level;
-        let loaded = |p: glam::DVec3| level.chunk(ChunkPos::new((p.x.floor() as i32) >> 4, (p.z.floor() as i32) >> 4)).is_some();
+        let loaded = |p: glam::DVec3| {
+            level
+                .chunk(ChunkPos::new(
+                    (p.x.floor() as i32) >> 4,
+                    (p.z.floor() as i32) >> 4,
+                ))
+                .is_some()
+        };
         self.mobs.check_despawn(&feet, difficulty == 0, &loaded);
         // Dormant monsters go in peaceful and beyond 128 blocks (they never
         // idle: they do not tick).
         self.dormant.retain(|(group, _)| {
             let root = &group[0];
-            if root.persistent || minecraftoss_world::natural_spawner::spawning::MobCategory::of_type(&root.kind) != Some(minecraftoss_world::natural_spawner::spawning::MobCategory::Monster) {
+            if root.persistent
+                || minecraftoss_world::natural_spawner::spawning::MobCategory::of_type(&root.kind)
+                    != Some(minecraftoss_world::natural_spawner::spawning::MobCategory::Monster)
+            {
                 return true;
             }
             if difficulty == 0 {
                 return false;
             }
             let at = glam::DVec3::from_array(root.pos);
-            feet.iter().map(|p| p.distance_squared(at)).min_by(f64::total_cmp).is_none_or(|d| d <= 128.0 * 128.0)
+            feet.iter()
+                .map(|p| p.distance_squared(at))
+                .min_by(f64::total_cmp)
+                .is_none_or(|d| d <= 128.0 * 128.0)
         });
     }
 
@@ -523,30 +689,64 @@ impl ServerSim {
 
     /// Mobs tick after the level, inside the entity-ticking range (the
     /// level's ticking chunks, `DistanceManager.inEntityTickingRange`).
-    pub fn tick_mobs(&mut self, players: &[minecraftoss_entities::tempt::PlayerCandidate], bright_outside: bool) {
+    pub fn tick_mobs(
+        &mut self,
+        players: &[minecraftoss_entities::tempt::PlayerCandidate],
+        bright_outside: bool,
+    ) {
         self.sync_pois();
-        let ticking: std::collections::HashSet<ChunkPos> = self.level.ticking_chunks.iter().flatten().copied().collect();
+        let ticking: std::collections::HashSet<ChunkPos> = self
+            .level
+            .ticking_chunks
+            .iter()
+            .flatten()
+            .copied()
+            .collect();
         self.mobs.set_bright_outside(bright_outside);
         self.mobs.set_monsters_burn(self.level.monsters_burn());
-        let Self { level, states, mobs, mob_tables, .. } = self;
-        let mut world = crate::server_mobs::MobWorld { level: std::cell::RefCell::new(level), states, tables: mob_tables };
-        let ticks = |p: glam::DVec3| ticking.contains(&ChunkPos::new((p.x.floor() as i32) >> 4, (p.z.floor() as i32) >> 4));
+        let Self {
+            level,
+            states,
+            mobs,
+            mob_tables,
+            ..
+        } = self;
+        let mut world = crate::server_mobs::MobWorld {
+            level: std::cell::RefCell::new(level),
+            states,
+            tables: mob_tables,
+        };
+        let ticks = |p: glam::DVec3| {
+            ticking.contains(&ChunkPos::new(
+                (p.x.floor() as i32) >> 4,
+                (p.z.floor() as i32) >> 4,
+            ))
+        };
         // Brains draw from the level's own random, and villagers keep the
         // overworld clock's schedule.
         mobs.set_day_time(world.level.borrow().overworld_clock());
         let shared = match &world.level.borrow().random {
-            minecraftoss_core::random::AnyRandom::Legacy(random) => Some((random.state(), random.gaussian_cache())),
+            minecraftoss_core::random::AnyRandom::Legacy(random) => {
+                Some((random.state(), random.gaussian_cache()))
+            }
             _ => None,
         };
         if let Some((state, _)) = shared {
-            *mobs.level_random_mut() = minecraftoss_player::rng::LegacyRandom::from_raw_state(state);
+            *mobs.level_random_mut() =
+                minecraftoss_player::rng::LegacyRandom::from_raw_state(state);
         }
         mobs.tick_with_players_where(&mut world, players, &ticks);
         // Births and summons are listed for replays that tag them; the game
         // needs no list.
-        let _ = (mobs.take_born_villagers(), mobs.take_born_wolves(), mobs.take_summoned_golems());
+        let _ = (
+            mobs.take_born_villagers(),
+            mobs.take_born_wolves(),
+            mobs.take_summoned_golems(),
+        );
         if let Some((_, gaussian)) = shared {
-            if let minecraftoss_core::random::AnyRandom::Legacy(random) = &mut world.level.borrow_mut().random {
+            if let minecraftoss_core::random::AnyRandom::Legacy(random) =
+                &mut world.level.borrow_mut().random
+            {
                 random.set_seed((mobs.level_random_mut().raw_state() ^ 0x5DEE_CE66D) as i64);
                 random.set_gaussian_cache(gaussian);
             }
@@ -566,7 +766,8 @@ impl ServerSim {
     /// The loot and experience of the mobs that died, into the level as
     /// item entities and experience orbs (`dropAllDeathLoot`).
     fn drop_death_loot(&mut self) {
-        let (drops, experience) = crate::mob_actions::death_remains(&mut self.mobs, self.entity_loot.as_mut());
+        let (drops, experience) =
+            crate::mob_actions::death_remains(&mut self.mobs, self.entity_loot.as_mut());
         for (stack, position) in drops {
             let components = stack.components.as_ref().map(|c| c.to_string());
             let stack = stack_of(&stack.id, i32::from(stack.count), components.as_deref());
@@ -597,7 +798,15 @@ impl ServerSim {
         self.level
             .entities
             .iter()
-            .filter_map(|e| e.orb_data().map(|d| ServerOrb { id: e.id, position: e.pos, previous_position: e.old_position(), value: d.value, tick_count: e.tick_count }))
+            .filter_map(|e| {
+                e.orb_data().map(|d| ServerOrb {
+                    id: e.id,
+                    position: e.pos,
+                    previous_position: e.old_position(),
+                    value: d.value,
+                    tick_count: e.tick_count,
+                })
+            })
             .collect()
     }
 
@@ -608,12 +817,21 @@ impl ServerSim {
 
     /// `summon minecraft:experience_orb` with its `Value`: a still orb.
     pub fn summon_orb(&mut self, position: [f64; 3], value: i32) {
-        self.level.add_entity(minecraftoss_world::level::entity::Entity::experience_orb(position, value));
+        self.level
+            .add_entity(minecraftoss_world::level::entity::Entity::experience_orb(
+                position, value,
+            ));
     }
 
     /// `/summon` for a mob: the level makes its tag (`SummonCommand`), and
     /// it joins the entity world as a loaded mob would.
-    pub fn summon(&mut self, kind: &str, position: [f64; 3], nbt: Option<&minecraftoss_core::nbt::Tag>, y_rot: f32) -> Result<(), String> {
+    pub fn summon(
+        &mut self,
+        kind: &str,
+        position: [f64; 3],
+        nbt: Option<&minecraftoss_core::nbt::Tag>,
+        y_rot: f32,
+    ) -> Result<(), String> {
         let tag = self.level.summon_mob(kind, position, nbt, y_rot)?;
         // A new brain reads the schedule for the time it is.
         self.mobs.set_day_time(self.level.overworld_clock());
@@ -629,8 +847,18 @@ impl ServerSim {
     fn explode_creepers(&mut self) {
         use minecraftoss_world::level::explosion::{BlockInteraction, Explosion};
         for blast in self.mobs.take_creeper_explosions() {
-            let interaction = if self.mobs.mob_griefing() { BlockInteraction::DestroyWithDecay } else { BlockInteraction::Keep };
-            self.level.explode(Explosion { center: blast.position.to_array(), radius: blast.radius, fire: false, interaction, source: None });
+            let interaction = if self.mobs.mob_griefing() {
+                BlockInteraction::DestroyWithDecay
+            } else {
+                BlockInteraction::Keep
+            };
+            self.level.explode(Explosion {
+                center: blast.position.to_array(),
+                radius: blast.radius,
+                fire: false,
+                interaction,
+                source: None,
+            });
             self.explosions.push(blast);
         }
     }
@@ -642,7 +870,11 @@ impl ServerSim {
 
     /// The mobs a player at `position` tracks (`ChunkMap.TrackedEntity`:
     /// within `range` blocks horizontally).
-    pub fn tracked_mobs(&self, position: [f64; 3], range: f64) -> minecraftoss_entities::world::EntityWorld {
+    pub fn tracked_mobs(
+        &self,
+        position: [f64; 3],
+        range: f64,
+    ) -> minecraftoss_entities::world::EntityWorld {
         let range_sq = range * range;
         self.mobs.clone_where(|p| {
             let (dx, dz) = (p.x - position[0], p.z - position[2]);
@@ -658,7 +890,9 @@ impl ServerSim {
     }
 
     fn state_of(&self, block: Option<&Block>) -> BlockStateId {
-        block.and_then(|b| self.states.state_of(b)).unwrap_or(BlockStateId::AIR)
+        block
+            .and_then(|b| self.states.state_of(b))
+            .unwrap_or(BlockStateId::AIR)
     }
 
     /// Applies a player's edit that the client scene already shows.
@@ -683,7 +917,10 @@ impl ServerSim {
     /// `useWithoutItem` on a simulated block; false when not simulated.
     pub fn use_block(&mut self, pos: BlockPos, player_facing: &str) -> bool {
         let facing = minecraftoss_core::pos::Direction::from_name(player_facing);
-        self.level.use_block_facing(minecraftoss_core::BlockPos::new(pos.0, pos.1, pos.2), facing)
+        self.level.use_block_facing(
+            minecraftoss_core::BlockPos::new(pos.0, pos.1, pos.2),
+            facing,
+        )
     }
 
     /// `BoneMealItem.useOn` on a clicked face: grow the block, or water
@@ -693,13 +930,20 @@ impl ServerSim {
         if self.level.grow_crop(at) {
             return true;
         }
-        let Some(face) = minecraftoss_core::pos::Direction::from_name(face) else { return false };
+        let Some(face) = minecraftoss_core::pos::Direction::from_name(face) else {
+            return false;
+        };
         let state = self.level.block(at);
-        self.level.registries().blocks.is_face_sturdy(state, face, minecraftoss_core::SupportType::Full) && self.level.grow_water_plant(at.relative(face, 1))
+        self.level.registries().blocks.is_face_sturdy(
+            state,
+            face,
+            minecraftoss_core::SupportType::Full,
+        ) && self.level.grow_water_plant(at.relative(face, 1))
     }
 
     pub fn attack_block(&mut self, pos: BlockPos) -> bool {
-        self.level.attack_block(minecraftoss_core::BlockPos::new(pos.0, pos.1, pos.2))
+        self.level
+            .attack_block(minecraftoss_core::BlockPos::new(pos.0, pos.1, pos.2))
     }
 
     /// The players the level can see (fire spreads near them), and the
@@ -737,8 +981,23 @@ impl ServerSim {
     /// Hands an item entity the client created (a drop, a spill) to the
     /// server, which simulates it from then on; returns its entity ID.
     #[allow(clippy::too_many_arguments)]
-    pub fn spawn_item(&mut self, item: &str, count: i32, components: Option<&str>, position: [f64; 3], velocity: [f64; 3], pickup_delay: i32, age: i32) -> i32 {
-        self.level.spawn_item_with(position, stack_of(item, count, components), velocity, pickup_delay, age)
+    pub fn spawn_item(
+        &mut self,
+        item: &str,
+        count: i32,
+        components: Option<&str>,
+        position: [f64; 3],
+        velocity: [f64; 3],
+        pickup_delay: i32,
+        age: i32,
+    ) -> i32 {
+        self.level.spawn_item_with(
+            position,
+            stack_of(item, count, components),
+            velocity,
+            pickup_delay,
+            age,
+        )
     }
 
     /// The server's item entities.
@@ -771,7 +1030,13 @@ impl ServerSim {
                 e.falling_data().map(|d| ServerFallingBlock {
                     position: e.pos,
                     previous_position: e.old_position(),
-                    block: self.level.registries().blocks.block(self.level.registries().blocks.block_of(d.state)).name.to_string(),
+                    block: self
+                        .level
+                        .registries()
+                        .blocks
+                        .block(self.level.registries().blocks.block_of(d.state))
+                        .name
+                        .to_string(),
                 })
             })
             .collect()
@@ -782,7 +1047,13 @@ impl ServerSim {
         self.level
             .entities
             .iter()
-            .filter_map(|e| e.tnt_data().map(|d| ServerTnt { position: e.pos, previous_position: e.old_position(), fuse: d.fuse }))
+            .filter_map(|e| {
+                e.tnt_data().map(|d| ServerTnt {
+                    position: e.pos,
+                    previous_position: e.old_position(),
+                    fuse: d.fuse,
+                })
+            })
             .collect()
     }
 
@@ -790,7 +1061,11 @@ impl ServerSim {
     /// offers each touching stack (item, count, components) and returns how
     /// many the inventory took. Returns (entity ID, position, item, count,
     /// components) per pickup.
-    pub fn pickup(&mut self, feet: [f64; 3], mut take: impl FnMut(&str, i32, Option<&str>) -> i32) -> Vec<(i32, [f64; 3], String, i32, Option<String>)> {
+    pub fn pickup(
+        &mut self,
+        feet: [f64; 3],
+        mut take: impl FnMut(&str, i32, Option<&str>) -> i32,
+    ) -> Vec<(i32, [f64; 3], String, i32, Option<String>)> {
         self.level
             .player_touch_items(feet, |stack| {
                 let components = components_of(stack);
@@ -808,13 +1083,22 @@ impl ServerSim {
     pub fn take_changes(&mut self) -> Vec<(BlockPos, Option<Block>)> {
         let changed = self.level.take_changed();
         if std::env::var_os("MINECRAFTOSS_DEBUG_SERVER").is_some() && !changed.is_empty() {
-            eprintln!("server changes at tick {}: {} (first {:?})", self.level.game_time, changed.len(), &changed[..changed.len().min(4)]);
+            eprintln!(
+                "server changes at tick {}: {} (first {:?})",
+                self.level.game_time,
+                changed.len(),
+                &changed[..changed.len().min(4)]
+            );
         }
         changed
             .into_iter()
             .map(|(x, y, z)| {
                 let state = self.level.block(minecraftoss_core::BlockPos::new(x, y, z));
-                let block = if self.level.registries().blocks.is_air(state) { None } else { self.states.block(state).cloned() };
+                let block = if self.level.registries().blocks.is_air(state) {
+                    None
+                } else {
+                    self.states.block(state).cloned()
+                };
                 ((x, y, z), block)
             })
             .collect()
@@ -826,25 +1110,65 @@ pub enum Command {
     LoadChunk(Arc<Chunk>),
     UnloadChunk(ChunkPos),
     /// A block the client set, as the client scene now shows it.
-    PlayerEdit { pos: BlockPos, block: Option<Block>, edit: PlayerEdit },
-    UseBlock { pos: BlockPos, facing: &'static str },
-    BoneMeal { pos: BlockPos, face: &'static str },
+    PlayerEdit {
+        pos: BlockPos,
+        block: Option<Block>,
+        edit: PlayerEdit,
+    },
+    UseBlock {
+        pos: BlockPos,
+        facing: &'static str,
+    },
+    BoneMeal {
+        pos: BlockPos,
+        face: &'static str,
+    },
     Attack(BlockPos),
-    SpawnItem { item: String, count: i32, components: Option<String>, position: [f64; 3], velocity: [f64; 3], pickup_delay: i32, age: i32 },
+    SpawnItem {
+        item: String,
+        count: i32,
+        components: Option<String>,
+        position: [f64; 3],
+        velocity: [f64; 3],
+        pickup_delay: i32,
+        age: i32,
+    },
     /// The recipe book, for mobs.
     RecipeBook(Arc<minecraftoss_player::crafting::RecipeBook>),
     /// The data JAR and world seed the server's loot tables come from.
-    LootTables { jar: std::path::PathBuf, seed: u64 },
+    LootTables {
+        jar: std::path::PathBuf,
+        seed: u64,
+    },
     /// `summon minecraft:experience_orb`.
-    SummonOrb { position: [f64; 3], value: i32 },
+    SummonOrb {
+        position: [f64; 3],
+        value: i32,
+    },
     /// `/summon` for a mob, with the command's NBT and the new mob's own
     /// random yaw.
-    Summon { kind: String, position: [f64; 3], nbt: Option<minecraftoss_core::nbt::Tag>, y_rot: f32 },
+    Summon {
+        kind: String,
+        position: [f64; 3],
+        nbt: Option<minecraftoss_core::nbt::Tag>,
+        y_rot: f32,
+    },
     /// A player's hit (`attack`) or item use on a mob, with a copy of its
     /// inventory.
-    MobAction { hit: minecraftoss_entities::world::MobHit, attack: Option<minecraftoss_entities::world::PlayerAttack>, inventory: Box<minecraftoss_player::inventory::Inventory>, selected: usize, infinite: bool },
+    MobAction {
+        hit: minecraftoss_entities::world::MobHit,
+        attack: Option<minecraftoss_entities::world::PlayerAttack>,
+        inventory: Box<minecraftoss_player::inventory::Inventory>,
+        selected: usize,
+        infinite: bool,
+    },
     /// An operation on the player's trading screen.
-    Merchant { op: MerchantOp, inventory: Box<minecraftoss_player::inventory::Inventory>, selected: usize, feet: [f64; 3] },
+    Merchant {
+        op: MerchantOp,
+        inventory: Box<minecraftoss_player::inventory::Inventory>,
+        selected: usize,
+        feet: [f64; 3],
+    },
     /// One server tick, with the player's state for it.
     Tick(Box<TickInput>),
 }
@@ -858,7 +1182,11 @@ pub struct TickInput {
     pub simulation_distance: i32,
     /// The player's feet, when it can pick items up, with its inventory and
     /// selected slot (the server offers touching stacks to this copy).
-    pub pickup: Option<([f64; 3], Box<minecraftoss_player::inventory::Inventory>, usize)>,
+    pub pickup: Option<(
+        [f64; 3],
+        Box<minecraftoss_player::inventory::Inventory>,
+        usize,
+    )>,
     /// The player as mobs see it (held food, whether it can be targeted).
     pub mob_players: Vec<minecraftoss_entities::tempt::PlayerCandidate>,
     /// Where each of those players looks (endermen read stares from it).
@@ -933,15 +1261,28 @@ impl ServerHandle {
     pub fn spawn(sim: ServerSim) -> Self {
         let states = sim.states.clone();
         let count = sim.level.registries().blocks.state_count();
-        let uses: Vec<bool> = (0..count).map(|i| sim.level.handles_use(BlockStateId(i as u16))).collect();
-        let attacks: Vec<bool> = (0..count).map(|i| sim.level.handles_attack(BlockStateId(i as u16))).collect();
+        let uses: Vec<bool> = (0..count)
+            .map(|i| sim.level.handles_use(BlockStateId(i as u16)))
+            .collect();
+        let attacks: Vec<bool> = (0..count)
+            .map(|i| sim.level.handles_attack(BlockStateId(i as u16)))
+            .collect();
         let (commands, receiver) = std::sync::mpsc::channel::<Command>();
         let (sender, outputs) = std::sync::mpsc::channel::<Output>();
         let thread = std::thread::Builder::new()
             .name("Server thread".into())
             .spawn(move || server_loop(sim, receiver, sender))
             .expect("server thread starts");
-        Self { commands: Some(commands), outputs, states, uses: Arc::new(uses), attacks: Arc::new(attacks), sent: 0, waited: Vec::new(), thread: Some(thread) }
+        Self {
+            commands: Some(commands),
+            outputs,
+            states,
+            uses: Arc::new(uses),
+            attacks: Arc::new(attacks),
+            sent: 0,
+            waited: Vec::new(),
+            thread: Some(thread),
+        }
     }
 
     fn send(&mut self, command: Command) {
@@ -975,8 +1316,15 @@ impl ServerHandle {
 
     /// `useWithoutItem` on a simulated block: true (and sent) when the level
     /// acts on the block the scene shows.
-    pub fn use_block(&mut self, scene: &HandcraftedScene, pos: BlockPos, facing: &'static str) -> bool {
-        let handled = self.state_in(scene, pos).is_some_and(|s| self.uses.get(usize::from(s.0)).copied().unwrap_or(false));
+    pub fn use_block(
+        &mut self,
+        scene: &HandcraftedScene,
+        pos: BlockPos,
+        facing: &'static str,
+    ) -> bool {
+        let handled = self
+            .state_in(scene, pos)
+            .is_some_and(|s| self.uses.get(usize::from(s.0)).copied().unwrap_or(false));
         if handled {
             self.send(Command::UseBlock { pos, facing });
         }
@@ -990,7 +1338,9 @@ impl ServerHandle {
 
     /// A player's attack; true (and sent) when the level acts on the block.
     pub fn attack_block(&mut self, scene: &HandcraftedScene, pos: BlockPos) -> bool {
-        let handled = self.state_in(scene, pos).is_some_and(|s| self.attacks.get(usize::from(s.0)).copied().unwrap_or(false));
+        let handled = self
+            .state_in(scene, pos)
+            .is_some_and(|s| self.attacks.get(usize::from(s.0)).copied().unwrap_or(false));
         if handled {
             self.send(Command::Attack(pos));
         }
@@ -998,8 +1348,25 @@ impl ServerHandle {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn spawn_item(&mut self, item: &str, count: i32, components: Option<&str>, position: [f64; 3], velocity: [f64; 3], pickup_delay: i32, age: i32) {
-        self.send(Command::SpawnItem { item: item.to_owned(), count, components: components.map(str::to_owned), position, velocity, pickup_delay, age });
+    pub fn spawn_item(
+        &mut self,
+        item: &str,
+        count: i32,
+        components: Option<&str>,
+        position: [f64; 3],
+        velocity: [f64; 3],
+        pickup_delay: i32,
+        age: i32,
+    ) {
+        self.send(Command::SpawnItem {
+            item: item.to_owned(),
+            count,
+            components: components.map(str::to_owned),
+            position,
+            velocity,
+            pickup_delay,
+            age,
+        });
     }
 
     pub fn tick(&mut self, input: TickInput) {
@@ -1016,8 +1383,19 @@ impl ServerHandle {
 
     /// An operation on the player's trading screen, with a copy of the
     /// player's inventory.
-    pub fn merchant(&mut self, op: MerchantOp, inventory: &minecraftoss_player::inventory::Inventory, selected: usize, feet: [f64; 3]) {
-        self.send(Command::Merchant { op, inventory: Box::new(inventory.clone()), selected, feet });
+    pub fn merchant(
+        &mut self,
+        op: MerchantOp,
+        inventory: &minecraftoss_player::inventory::Inventory,
+        selected: usize,
+        feet: [f64; 3],
+    ) {
+        self.send(Command::Merchant {
+            op,
+            inventory: Box::new(inventory.clone()),
+            selected,
+            feet,
+        });
     }
 
     /// Summons a still experience orb worth `value`.
@@ -1029,16 +1407,42 @@ impl ServerHandle {
     /// mob's yaw comes from its own random (`LivingEntity`'s constructor:
     /// `nextFloat() * (float)(Math.PI * 2)`, in degrees), seeded here from
     /// the clock as a fresh entity's is.
-    pub fn summon(&mut self, kind: String, position: [f64; 3], nbt: Option<minecraftoss_core::nbt::Tag>) {
-        let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos() as i64);
-        let y_rot = minecraftoss_core::random::LegacyRandom::new(nanos).next_f32() * (std::f64::consts::PI * 2.0) as f32;
-        self.send(Command::Summon { kind, position, nbt, y_rot });
+    pub fn summon(
+        &mut self,
+        kind: String,
+        position: [f64; 3],
+        nbt: Option<minecraftoss_core::nbt::Tag>,
+    ) {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos() as i64);
+        let y_rot = minecraftoss_core::random::LegacyRandom::new(nanos).next_f32()
+            * (std::f64::consts::PI * 2.0) as f32;
+        self.send(Command::Summon {
+            kind,
+            position,
+            nbt,
+            y_rot,
+        });
     }
 
     /// Hands a player's hit or use on a mob to the server; its result
     /// arrives in an output.
-    pub fn mob_action(&mut self, hit: minecraftoss_entities::world::MobHit, attack: Option<minecraftoss_entities::world::PlayerAttack>, inventory: &minecraftoss_player::inventory::Inventory, selected: usize, infinite: bool) {
-        self.send(Command::MobAction { hit, attack, inventory: Box::new(inventory.clone()), selected, infinite });
+    pub fn mob_action(
+        &mut self,
+        hit: minecraftoss_entities::world::MobHit,
+        attack: Option<minecraftoss_entities::world::PlayerAttack>,
+        inventory: &minecraftoss_player::inventory::Inventory,
+        selected: usize,
+        infinite: bool,
+    ) {
+        self.send(Command::MobAction {
+            hit,
+            attack,
+            inventory: Box::new(inventory.clone()),
+            selected,
+            infinite,
+        });
     }
 
     /// Outputs the server has produced since the last call.
@@ -1071,7 +1475,12 @@ impl Drop for ServerHandle {
     }
 }
 
-fn make_stack(recipes: &minecraftoss_player::crafting::RecipeBook, item: &str, count: i32, components: Option<&str>) -> minecraftoss_player::inventory::ItemStack {
+fn make_stack(
+    recipes: &minecraftoss_player::crafting::RecipeBook,
+    item: &str,
+    count: i32,
+    components: Option<&str>,
+) -> minecraftoss_player::inventory::ItemStack {
     let mut stack = minecraftoss_player::inventory::ItemStack::new(item, count.clamp(0, 255) as u8);
     stack.components = components.and_then(|c| serde_json::from_str(c).ok());
     if stack.components.is_none() {
@@ -1080,7 +1489,11 @@ fn make_stack(recipes: &minecraftoss_player::crafting::RecipeBook, item: &str, c
     stack
 }
 
-fn server_loop(mut sim: ServerSim, commands: std::sync::mpsc::Receiver<Command>, outputs: std::sync::mpsc::Sender<Output>) {
+fn server_loop(
+    mut sim: ServerSim,
+    commands: std::sync::mpsc::Receiver<Command>,
+    outputs: std::sync::mpsc::Sender<Output>,
+) {
     let mut handled = 0u64;
     while let Ok(first) = commands.recv() {
         let mut out = Output::default();
@@ -1091,7 +1504,9 @@ fn server_loop(mut sim: ServerSim, commands: std::sync::mpsc::Receiver<Command>,
             match command {
                 Command::LoadChunk(chunk) => sim.load_chunk(&chunk),
                 Command::UnloadChunk(pos) => sim.unload_chunk(pos),
-                Command::PlayerEdit { pos, block, edit } => sim.player_edit_block(pos, block.as_ref(), edit),
+                Command::PlayerEdit { pos, block, edit } => {
+                    sim.player_edit_block(pos, block.as_ref(), edit)
+                }
                 Command::UseBlock { pos, facing } => {
                     sim.use_block(pos, facing);
                 }
@@ -1103,20 +1518,57 @@ fn server_loop(mut sim: ServerSim, commands: std::sync::mpsc::Receiver<Command>,
                 Command::Attack(pos) => {
                     sim.attack_block(pos);
                 }
-                Command::SpawnItem { item, count, components, position, velocity, pickup_delay, age } => {
-                    sim.spawn_item(&item, count, components.as_deref(), position, velocity, pickup_delay, age);
+                Command::SpawnItem {
+                    item,
+                    count,
+                    components,
+                    position,
+                    velocity,
+                    pickup_delay,
+                    age,
+                } => {
+                    sim.spawn_item(
+                        &item,
+                        count,
+                        components.as_deref(),
+                        position,
+                        velocity,
+                        pickup_delay,
+                        age,
+                    );
                 }
                 Command::RecipeBook(recipes) => sim.set_recipe_book(recipes),
                 Command::LootTables { jar, seed } => sim.load_loot(&jar, seed),
                 Command::SummonOrb { position, value } => sim.summon_orb(position, value),
-                Command::Summon { kind, position, nbt, y_rot } => {
-                    out.summoned.push(sim.summon(&kind, position, nbt.as_ref(), y_rot).map(|()| kind));
+                Command::Summon {
+                    kind,
+                    position,
+                    nbt,
+                    y_rot,
+                } => {
+                    out.summoned.push(
+                        sim.summon(&kind, position, nbt.as_ref(), y_rot)
+                            .map(|()| kind),
+                    );
                 }
-                Command::MobAction { hit, attack, inventory, selected, infinite } => {
-                    out.mob_results.push(sim.mob_action(hit, attack, *inventory, selected, infinite));
+                Command::MobAction {
+                    hit,
+                    attack,
+                    inventory,
+                    selected,
+                    infinite,
+                } => {
+                    out.mob_results
+                        .push(sim.mob_action(hit, attack, *inventory, selected, infinite));
                 }
-                Command::Merchant { op, inventory, selected, feet } => {
-                    out.merchant.push(sim.merchant(op, *inventory, selected, feet));
+                Command::Merchant {
+                    op,
+                    inventory,
+                    selected,
+                    feet,
+                } => {
+                    out.merchant
+                        .push(sim.merchant(op, *inventory, selected, feet));
                 }
                 Command::Tick(input) => {
                     let started = std::time::Instant::now();
@@ -1130,7 +1582,12 @@ fn server_loop(mut sim: ServerSim, commands: std::sync::mpsc::Receiver<Command>,
                     sim.set_time(input.day_ticks);
                     sim.set_players(&input.players, input.difficulty);
                     // Living, non-spectating players draw experience orbs.
-                    sim.level.living_players = input.mob_players.iter().filter(|p| p.alive && !p.spectator).map(|p| (p.position.to_array(), f64::from(p.eye_height))).collect();
+                    sim.level.living_players = input
+                        .mob_players
+                        .iter()
+                        .filter(|p| p.alive && !p.spectator)
+                        .map(|p| (p.position.to_array(), f64::from(p.eye_height)))
+                        .collect();
                     sim.set_simulation_area(input.simulation_center, input.simulation_distance);
                     if let Some(natural) = &mut sim.level.natural_spawning {
                         natural.spawn_mobs = input.spawn_mobs;
@@ -1150,7 +1607,13 @@ fn server_loop(mut sim: ServerSim, commands: std::sync::mpsc::Receiver<Command>,
                     sim.mobs.set_player_vitals(input.mob_vitals.clone());
                     // What the player holds, as villagers see it
                     // (`ShowTradesToPlayer`).
-                    let held = input.pickup.as_ref().and_then(|(_, inventory, selected)| inventory.slots.get(*selected).and_then(Option::as_ref).map(|s| s.id.clone()));
+                    let held = input.pickup.as_ref().and_then(|(_, inventory, selected)| {
+                        inventory
+                            .slots
+                            .get(*selected)
+                            .and_then(Option::as_ref)
+                            .map(|s| s.id.clone())
+                    });
                     sim.mobs.set_player_main_hand(0, held.as_deref());
                     sim.tick_mobs(&input.mob_players, input.bright_outside);
                     sim.spawn_trade_experience();
@@ -1161,7 +1624,9 @@ fn server_loop(mut sim: ServerSim, commands: std::sync::mpsc::Receiver<Command>,
                     out.explosions.extend(sim.take_explosions());
                     out.mob_sounds.extend(sim.mobs.take_sounds());
                     sim.level.last_tick_phases[5] += mobs_started.elapsed().as_secs_f64() * 1000.0;
-                    out.mobs = Some(Box::new(sim.tracked_mobs(input.tracking.0, input.tracking.1)));
+                    out.mobs = Some(Box::new(
+                        sim.tracked_mobs(input.tracking.0, input.tracking.1),
+                    ));
                     let pickup_feet = input.pickup.as_ref().map(|(feet, _, _)| *feet);
                     if let Some((feet, mut inventory, selected)) = input.pickup {
                         let recipes = inventory.recipes.clone();
@@ -1176,9 +1641,18 @@ fn server_loop(mut sim: ServerSim, commands: std::sync::mpsc::Receiver<Command>,
                     }
                     // After the items, one experience orb.
                     out.orbs_taken.extend(sim.take_experience(pickup_feet));
-                    out.entities = Some(EntitySnapshot { items: sim.items(), tnt: sim.primed_tnt(), falling: sim.falling_blocks(), orbs: sim.orbs() });
+                    out.entities = Some(EntitySnapshot {
+                        items: sim.items(),
+                        tnt: sim.primed_tnt(),
+                        falling: sim.falling_blocks(),
+                        orbs: sim.orbs(),
+                    });
                     let (solves, ms) = sim.level.light_solves.replace((0, 0.0));
-                    out.tick_phases = Some((sim.level.last_tick_phases, (solves, ms), started.elapsed().as_secs_f64() * 1000.0));
+                    out.tick_phases = Some((
+                        sim.level.last_tick_phases,
+                        (solves, ms),
+                        started.elapsed().as_secs_f64() * 1000.0,
+                    ));
                 }
             }
         }
@@ -1190,1246 +1664,4 @@ fn server_loop(mut sim: ServerSim, commands: std::sync::mpsc::Receiver<Command>,
     }
     // The client closed the world: its entities are saved.
     sim.save_all_entities();
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use minecraftoss_core::registries::DataPaths;
-    use minecraftoss_core::Registries;
-    use minecraftoss_generator::terrain::TerrainGenerator;
-    use minecraftoss_world::chunk_map::ChunkMap;
-
-    /// A block the player places reaches the level, which runs the block's
-    /// behaviour and reports the blocks it changed back to the scene.
-    #[test]
-    fn placed_water_flows_through_the_level() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 0).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 0, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 2, 4);
-        let mut server = ServerSim::new(worldgen, states.clone(), "minecraft:overworld");
-        let mut scene = HandcraftedScene::streamed(states);
-        for x in -1..=1 {
-            for z in -1..=1 {
-                let chunk = map.load_now(ChunkPos::new(x, z));
-                server.load_chunk(&chunk);
-                scene.insert_chunk(chunk);
-            }
-        }
-        // A water source in the air above the terrain.
-        let pos = (8, 200, 8);
-        scene.set(pos, Some(Block::new("minecraft:water")));
-        server.player_edit(&scene, pos, PlayerEdit::Place);
-        let placed = server.take_changes();
-        assert_eq!(placed.len(), 1, "{placed:?}");
-        let mut flowed = 0;
-        for _ in 0..10 {
-            server.tick();
-            flowed += server.take_changes().len();
-        }
-        assert!(flowed > 0, "water should fall from the source");
-    }
-
-    /// Creatures the SPAWN step generated join the server's mobs with their
-    /// chunk, once per session, and wander while inside the ticking area.
-    #[test]
-    fn generated_mobs_join_the_server_and_wander() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        // Plains around chunk (20, 128), a SPAWN probe with creatures.
-        let mut generated = 0;
-        for x in 15..=25 {
-            for z in 123..=133 {
-                let chunk = map.load_now(ChunkPos::new(x, z));
-                generated += chunk.generation.entities.iter().filter(|t| t.get("id").and_then(minecraftoss_core::nbt::Tag::as_str).is_some_and(|id| ["minecraft:cow", "minecraft:pig", "minecraft:chicken", "minecraft:sheep"].contains(&id))).count();
-                server.load_chunk(&chunk);
-            }
-        }
-        assert!(generated > 0, "seed 1234 generates animals there");
-        let animals = |world: &minecraftoss_entities::world::EntityWorld| world.cows().iter().filter(|c| c.horse.is_none()).count() + world.pigs().len() + world.chickens().len() + world.sheep().len();
-        assert_eq!(animals(&server.mobs), generated, "every generated animal joins");
-        // Loading a chunk again does not add its creatures twice.
-        server.load_chunk(&map.load_now(ChunkPos::new(20, 128)));
-        assert_eq!(animals(&server.mobs), generated);
-        let start: Vec<glam::DVec3> = server.mobs.cows().iter().map(|c| c.cow.body.position).chain(server.mobs.sheep().iter().map(|s| s.body.position)).collect();
-        server.set_simulation_area((20, 128), 5);
-        for _ in 0..400 {
-            server.tick();
-            server.tick_mobs(&[], true);
-        }
-        let end: Vec<glam::DVec3> = server.mobs.cows().iter().map(|c| c.cow.body.position).chain(server.mobs.sheep().iter().map(|s| s.body.position)).collect();
-        let moved = start.iter().zip(&end).filter(|(a, b)| a.distance(**b) > 0.5).count();
-        assert!(moved > 0, "some animal strolls within 20 seconds: {start:?} -> {end:?}");
-        assert!(end.iter().all(|p| p.y > 40.0), "animals stay on the ground: {end:?}");
-        // The client tracks the ones near its player.
-        let near = server.tracked_mobs([328.0, 80.0, 2056.0], 32.0);
-        assert!(animals(&near) <= animals(&server.mobs));
-    }
-
-    /// Generated animals wander about a player among them, climbing the
-    /// terrain's steps (`jumpFromGround`); around a spectator they idle
-    /// once `noActionTime` passes 100, as `Mob.checkDespawn` only resets it
-    /// near a player it counts.
-    #[test]
-    fn idle_animals_wander_near_a_player() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 15..=25 {
-            for z in 123..=133 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        // Among the first animals generated.
-        let herd = server.mobs.cows().iter().map(|e| e.cow.body.position).chain(server.mobs.sheep().iter().map(|e| e.body.position)).next().expect("animals");
-        let mut player = minecraftoss_entities::tempt::PlayerCandidate {
-            id: 0,
-            position: herd + glam::DVec3::new(3.0, 4.0, 0.0),
-            eye_height: 1.62,
-            main_hand_cow_food: false,
-            offhand_cow_food: false,
-            main_hand_pig_food: false,
-            offhand_pig_food: false,
-            main_hand_chicken_food: false,
-            offhand_chicken_food: false,
-            main_hand_carrot_on_a_stick: false,
-            offhand_carrot_on_a_stick: false,
-            main_hand_wolf_interest: false,
-            offhand_wolf_interest: false,
-            main_hand_horse_tempt: false,
-            offhand_horse_tempt: false,
-            alive: true,
-            spectator: false,
-            attackable: true,
-        };
-        let mut share = Vec::new();
-        for spectator in [false, true] {
-            player.spectator = spectator;
-            let (mut moving, mut samples) = (0, 0);
-            let mut last: std::collections::HashMap<u64, glam::DVec3> = Default::default();
-            for tick in 0..1200 {
-                server.set_players(&[player.position.to_array()], 2);
-                server.set_simulation_area((20, 128), 5);
-                server.tick();
-                server.despawn_mobs(&[player], 2);
-                server.tick_mobs(&[player], true);
-                let w = &server.mobs;
-                let animals = w.cows().iter().map(|e| (e.id, e.cow.body.position)).chain(w.sheep().iter().map(|e| (e.id, e.body.position)));
-                for (id, p) in animals {
-                    if p.distance(player.position) > 32.0 {
-                        continue;
-                    }
-                    if let Some(old) = last.insert(id, p) {
-                        if tick >= 200 {
-                            samples += 1;
-                            moving += usize::from(glam::DVec2::new(old.x - p.x, old.z - p.z).length() > 0.01);
-                        }
-                    }
-                }
-            }
-            share.push(moving as f64 / samples.max(1) as f64);
-        }
-        assert!(share[0] > 0.15, "animals walk about a player: {share:?}");
-        assert!(share[1] < 0.01, "and idle about a spectator: {share:?}");
-    }
-
-    /// Mobs leave with their chunk into the entity storage and come back
-    /// from it as they were: where they wandered, hurt, sheared, and one
-    /// killed stays dead, not respawned from generation.
-    #[test]
-    fn mobs_are_saved_with_their_chunks() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let dir = std::env::temp_dir().join(format!("minecraftoss-entity-save-{}", std::process::id()));
-        let storage = Arc::new(minecraftoss_world::storage::ChunkStorage::new(&dir, "minecraft:overworld", registries.clone(), -64, 384));
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        server.set_entity_storage(Some(storage));
-        let chunks: Vec<std::sync::Arc<Chunk>> = (15..=25).flat_map(|x| (123..=133).map(move |z| (x, z))).map(|(x, z)| map.load_now(ChunkPos::new(x, z))).collect();
-        for chunk in &chunks {
-            server.load_chunk(chunk);
-        }
-        server.set_simulation_area((20, 128), 5);
-        for _ in 0..100 {
-            server.tick();
-            server.tick_mobs(&[], true);
-        }
-        let animals = |world: &minecraftoss_entities::world::EntityWorld| world.cows().iter().filter(|c| c.horse.is_none()).count() + world.pigs().len() + world.chickens().len() + world.sheep().len();
-        let before = animals(&server.mobs);
-        assert!(before > 1, "seed 1234 has animals there");
-        // Hurt one animal and kill another.
-        let hurt_id = server.mobs.mob_ids().next().unwrap();
-        let victim = server.mobs.mob_ids().nth(1).unwrap();
-        let hurt_at = server.mobs.body_mut(hurt_id).unwrap().position;
-        for (id, amount) in [(hurt_id, 1.0), (victim, 100.0)] {
-            if let Some(e) = server.mobs.cow_mut(id) { e.hurt(amount, minecraftoss_entities::world::DamageSourceKind::Generic); }
-            if let Some(e) = server.mobs.sheep_mut(id) { e.hurt(amount, minecraftoss_entities::world::DamageSourceKind::Generic); }
-            if let Some(e) = server.mobs.pig_mut(id) { e.hurt(amount, minecraftoss_entities::world::DamageSourceKind::Generic); }
-            if let Some(e) = server.mobs.chicken_mut(id) { e.hurt(amount); }
-        }
-        let positions: Vec<glam::DVec3> = server.mobs.cows().iter().map(|c| c.cow.body.position).collect();
-        for chunk in &chunks {
-            server.unload_chunk(chunk.pos);
-        }
-        assert_eq!(animals(&server.mobs), 0, "unloading takes the mobs out");
-        for chunk in &chunks {
-            server.load_chunk(chunk);
-        }
-        assert_eq!(animals(&server.mobs), before - 1, "they come back without the one killed");
-        let back: Vec<glam::DVec3> = server.mobs.cows().iter().map(|c| c.cow.body.position).collect();
-        assert!(positions.iter().all(|p| back.iter().any(|b| b.distance(*p) < 1.0e-9)), "where they were: {positions:?} -> {back:?}");
-        let health = [server.mobs.cows().iter().map(|c| (c.cow.body.position, c.cow.health)).collect::<Vec<_>>(), server.mobs.sheep().iter().map(|s| (s.body.position, s.health)).collect(), server.mobs.pigs().iter().map(|p| (p.pig.body.position, p.pig.health)).collect(), server.mobs.chickens().iter().map(|c| (c.chicken.body.position, c.chicken.health)).collect()].concat();
-        let (_, restored) = health.iter().find(|(p, _)| p.distance(hurt_at) < 2.0).copied().expect("the hurt animal is back");
-        assert!(restored < 10.0, "hurt as it was: {restored}");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    /// At midnight on Normal, natural spawning fills the dark around a
-    /// player with monsters up to the cap, and they despawn once the player
-    /// is far away.
-    #[test]
-    fn night_spawns_monsters_around_the_player() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 11..=29 {
-            for z in 119..=137 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let surface = minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, 328, 2056);
-        let mut player = minecraftoss_entities::tempt::PlayerCandidate {
-            id: 0,
-            position: glam::DVec3::new(328.5, f64::from(surface), 2056.5),
-            eye_height: 1.62,
-            main_hand_cow_food: false,
-            offhand_cow_food: false,
-            main_hand_pig_food: false,
-            offhand_pig_food: false,
-            main_hand_chicken_food: false,
-            offhand_chicken_food: false,
-            main_hand_carrot_on_a_stick: false,
-            offhand_carrot_on_a_stick: false,
-            main_hand_wolf_interest: false,
-            offhand_wolf_interest: false,
-            main_hand_horse_tempt: false,
-            offhand_horse_tempt: false,
-            alive: true,
-            spectator: false,
-            attackable: true,
-        };
-        let monsters = |server: &ServerSim| {
-            let census = server.mobs.census();
-            // Dormant monsters count; generated minecarts and horses wait
-            // dormant too.
-            let monster = |kind: &str| minecraftoss_world::natural_spawner::spawning::MobCategory::of_type(kind) == Some(minecraftoss_world::natural_spawner::spawning::MobCategory::Monster);
-            census.iter().filter(|m| ["minecraft:zombie", "minecraft:skeleton"].contains(&m.kind)).count() + server.dormant.iter().filter(|(g, _)| monster(&g[0].kind)).count()
-        };
-        server.set_time(18000);
-        for _ in 0..40 {
-            server.set_players(&[player.position.to_array()], 2);
-            server.set_simulation_area((20, 128), 5);
-            server.prepare_spawning(&[player]);
-            server.tick();
-            server.take_spawned();
-            server.despawn_mobs(&[player], 2);
-            server.tick_mobs(&[player], false);
-        }
-        let spawned = monsters(&server);
-        assert!(spawned > 20, "the night brings monsters: {spawned}");
-        // The cap is 70 for the 289 chunks around one player, overshot at
-        // most by one tick's spawning.
-        assert!(spawned <= 70 + 40, "monsters stay near the cap: {spawned}");
-        assert!(server.mobs.zombies().iter().all(|z| z.zombie.body.position.distance(player.position) <= 132.0 + 40.0));
-        // Far away, they despawn.
-        player.position.x += 3000.0;
-        server.prepare_spawning(&[player]);
-        server.despawn_mobs(&[player], 2);
-        assert_eq!(monsters(&server), 0, "monsters beyond 128 blocks despawn");
-    }
-
-    /// `/summon`: a mob made without NBT is finalized as a fresh spawn and
-    /// joins the entity world; NBT is loaded over the fresh mob; monsters
-    /// are refused in peaceful.
-    /// A summoned villager's brain walks it about at the time of day it
-    /// idles in.
-    #[test]
-    fn villagers_wander_by_day() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 19..=21 {
-            for z in 127..=129 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let surface = minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, 328, 2056);
-        let at = [328.5, f64::from(surface), 2056.5];
-        server.set_players(&[at], 2);
-        server.set_time(1000);
-        server.summon("minecraft:villager", at, None, 0.0).unwrap();
-        let start = server.mobs.villagers()[0].villager.body.position;
-        let mut farthest = 0.0_f64;
-        for _ in 0..600 {
-            server.set_players(&[at], 2);
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], true);
-            let villager = &server.mobs.villagers()[0];
-            assert!(villager.villager.health > 0.0, "it lives");
-            farthest = farthest.max(villager.villager.body.position.distance(start));
-        }
-        assert!(farthest > 1.0, "it wandered ({farthest})");
-        // At night a homeless villager rests: it heads for (any) village.
-        server.set_time(13000);
-        for _ in 0..40 {
-            server.set_players(&[at], 2);
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], true);
-        }
-        let brain = &server.mobs.villagers()[0].ai.as_ref().unwrap().brain;
-        assert!(brain.activities.active.contains(&minecraftoss_entities::villager_brain::Activity::Rest), "it rests at night");
-    }
-
-    /// A summoned iron golem strolls about (no village near: any spot),
-    /// and comes back from its saved tag cracked, built by a player or not.
-    #[test]
-    fn iron_golems_stroll_and_keep_their_tags() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 19..=21 {
-            for z in 127..=129 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let surface = minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, 328, 2056);
-        let at = [328.5, f64::from(surface), 2056.5];
-        server.set_players(&[at], 2);
-        server.set_time(1000);
-        let nbt = minecraftoss_core::snbt::parse_compound("{PlayerCreated:1b}").unwrap();
-        server.summon("minecraft:iron_golem", at, Some(&nbt), 0.0).unwrap();
-        let start = server.mobs.iron_golems()[0].golem.body.position;
-        let mut farthest = 0.0_f64;
-        for _ in 0..2000 {
-            server.set_players(&[at], 2);
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], true);
-            let golem = &server.mobs.iron_golems()[0];
-            assert!(golem.golem.health > 0.0, "it lives");
-            farthest = farthest.max(golem.golem.body.position.distance(start));
-        }
-        assert!(farthest > 1.0, "it strolled ({farthest})");
-        let id = server.mobs.iron_golems()[0].id;
-        server.mobs.iron_golem_mut(id).unwrap().hurt(55.0);
-        let tags = crate::server_mobs::mob_tags(&server.mobs, |_| true, &std::collections::HashMap::new());
-        let (_, tag) = tags.iter().find(|(tag_id, _)| *tag_id == id).expect("the golem is saved");
-        let mut loaded = minecraftoss_entities::world::EntityWorld::default();
-        crate::server_mobs::spawn_saved(&mut loaded, tag).expect("golems load");
-        let golem = &loaded.iron_golems()[0].golem;
-        assert_eq!(golem.health, 45.0);
-        assert!(golem.player_created, "built by a player");
-        assert_eq!(golem.crackiness(), minecraftoss_entities::iron_golem::Crackiness::Medium);
-    }
-
-    /// A summoned wolf wanders about, and comes back from its saved tag
-    /// with its variant, voice, collar, owner and sitting order.
-    #[test]
-    fn wolves_wander_and_keep_their_tags() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 19..=21 {
-            for z in 127..=129 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let surface = minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, 328, 2056);
-        let at = [328.5, f64::from(surface), 2056.5];
-        server.set_players(&[at], 2);
-        server.set_time(1000);
-        let nbt = minecraftoss_core::snbt::parse_compound("{variant:\"minecraft:woods\",sound_variant:\"minecraft:big\"}").unwrap();
-        server.summon("minecraft:wolf", at, Some(&nbt), 0.0).unwrap();
-        let start = server.mobs.wolves()[0].wolf.body.position;
-        let mut farthest = 0.0_f64;
-        for _ in 0..1200 {
-            server.set_players(&[at], 2);
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], true);
-            let wolf = &server.mobs.wolves()[0];
-            assert!(wolf.wolf.health > 0.0, "it lives");
-            farthest = farthest.max(wolf.wolf.body.position.distance(start));
-        }
-        assert!(farthest > 1.0, "it wandered ({farthest})");
-        let id = server.mobs.wolves()[0].id;
-        {
-            // Tamed by someone and told to sit, in a blue collar.
-            let wolf = &mut server.mobs.wolf_mut(id).unwrap().wolf;
-            wolf.owner = Some(0x1234_5678_9abc_def0_0fed_cba9_8765_4321);
-            wolf.set_tame(true, true);
-            wolf.ordered_to_sit = true;
-            wolf.collar = 11;
-        }
-        let tags = crate::server_mobs::mob_tags(&server.mobs, |_| true, &std::collections::HashMap::new());
-        let (_, tag) = tags.iter().find(|(tag_id, _)| *tag_id == id).expect("the wolf is saved");
-        let mut loaded = minecraftoss_entities::world::EntityWorld::default();
-        crate::server_mobs::spawn_saved(&mut loaded, tag).expect("wolves load");
-        let wolf = &loaded.wolves()[0].wolf;
-        assert_eq!((wolf.variant.as_str(), wolf.sound_variant.as_str()), ("woods", "big"));
-        assert_eq!(wolf.max_health(), 40.0, "taming's health stays");
-        assert_eq!(wolf.collar, 11);
-        assert_eq!(wolf.owner, Some(0x1234_5678_9abc_def0_0fed_cba9_8765_4321));
-        assert!(wolf.tame && wolf.ordered_to_sit && wolf.sitting, "tame and sitting");
-    }
-
-    /// A librarian makes its offers from the data JAR's trade sets when
-    /// they are first needed; they are saved with it (`Offers`, typed as
-    /// vanilla writes them) and come back unchanged, while a villager that
-    /// never made any saves none. Its gossip and UUID come back too.
-    #[test]
-    fn villagers_keep_their_offers_and_gossip() {
-        use minecraftoss_core::nbt::Tag;
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let jar = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../harness/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-common-1fad6b3808/26.3/minecraft-common-1fad6b3808-26.3.jar");
-        if !jar.exists() || registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        server.load_loot(&jar, 1234);
-        let nbt = minecraftoss_core::snbt::parse_compound("{NoAI:1b,VillagerData:{type:\"minecraft:plains\",profession:\"minecraft:librarian\",level:3}}").unwrap();
-        server.summon("minecraft:villager", [0.5, 100.0, 0.5], Some(&nbt), 0.0).unwrap();
-        server.summon("minecraft:villager", [4.5, 100.0, 0.5], Some(&nbt), 0.0).unwrap();
-        let (id, idle) = (server.mobs.villagers()[0].id, server.mobs.villagers()[1].id);
-        let offers = server.mobs.villager_offers(id).expect("a villager").to_vec();
-        let about = server.mobs.uuid_of(idle);
-        server.mobs.villager_hurt_by(id, idle);
-        std::sync::Arc::make_mut(&mut server.mobs.villager_mut(id).unwrap().gossips).add(7, minecraftoss_entities::gossip::GossipType::Trading, 12);
-        server.mobs.villager_mut(id).unwrap().last_gossip_decay = 1234;
-        let gossip = server.mobs.villager_mut(id).unwrap().gossips.unpack();
-        assert_eq!(gossip.len(), 2);
-        // `updateTrades`: the two of its current level's set only.
-        assert_eq!(offers.len(), 2, "{offers:?}");
-        let tags = crate::server_mobs::mob_tags(&server.mobs, |_| true, &std::collections::HashMap::new());
-        let (_, tag) = tags.iter().find(|(tag_id, _)| *tag_id == id).expect("the villager is saved");
-        let recipes = tag.get("Offers").and_then(|o| o.get("Recipes")).and_then(Tag::as_list).expect("its offers are saved");
-        assert_eq!(recipes.len(), 2);
-        assert!(recipes.iter().all(|r| matches!(r.get("priceMultiplier"), Some(Tag::Float(_)))), "price multipliers are floats");
-        assert!(matches!(tag.get("LastRestock"), Some(Tag::Long(0))));
-        let (_, idle_tag) = tags.iter().find(|(tag_id, _)| *tag_id == idle).unwrap();
-        assert!(idle_tag.get("Offers").is_none(), "no offers made, none saved");
-        let mut loaded = minecraftoss_entities::world::EntityWorld::default();
-        let back = crate::server_mobs::spawn_saved(&mut loaded, tag).expect("villagers load");
-        assert_eq!(loaded.villager_mut(back).unwrap().offers.as_deref(), Some(&offers[..]));
-        assert_eq!(loaded.villager_mut(back).unwrap().gossips.unpack(), gossip);
-        assert_eq!(loaded.villager_mut(back).unwrap().last_gossip_decay, 1234);
-        assert_eq!(loaded.uuid_of(back), server.mobs.uuid_of(id), "it keeps its UUID");
-        assert!(gossip.iter().any(|g| g.0 == about), "gossip about the other villager");
-    }
-
-    /// Using a farmer opens its trades; picking one moves the wheat in,
-    /// shift-clicking the result trades until the wheat runs short (levelling
-    /// the farmer up and dropping experience), and closing gives the rest
-    /// back.
-    #[test]
-    fn players_trade_with_villagers() {
-        use minecraftoss_player::inventory::{Inventory, ItemStack};
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let jar = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../harness/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-common-1fad6b3808/26.3/minecraft-common-1fad6b3808-26.3.jar");
-        if !jar.exists() || registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        server.load_loot(&jar, 1234);
-        let nbt = minecraftoss_core::snbt::parse_compound(
-            "{NoAI:1b,Xp:8,VillagerData:{type:\"minecraft:plains\",profession:\"minecraft:farmer\",level:1},Offers:{Recipes:[{buy:{id:\"minecraft:wheat\",count:20},sell:{id:\"minecraft:emerald\",count:1},maxUses:16,xp:2,priceMultiplier:0.05f}]}}",
-        )
-        .unwrap();
-        server.summon("minecraft:villager", [0.5, 100.0, 0.5], Some(&nbt), 0.0).unwrap();
-        let id = server.mobs.villagers()[0].id;
-        let mut inventory = Inventory::default();
-        let mut wheat = ItemStack::new("minecraft:wheat", 50);
-        wheat.max = 64;
-        inventory.slots[9] = Some(wheat);
-        let result = server.mob_action(minecraftoss_entities::world::MobHit::Villager(id), None, inventory.clone(), 0, false);
-        let view = result.merchant.expect("the trading screen opens");
-        assert_eq!((view.profession, view.level, view.offers.len()), ("minecraft:farmer", 1, 1));
-        let apply = |inventory: &mut Inventory, update: &MerchantUpdate| {
-            for (slot, stack) in &update.slots {
-                inventory.slots[*slot] = stack.clone();
-            }
-            inventory.cursor = update.cursor.clone();
-        };
-        let update = server.merchant(MerchantOp::Select(0), inventory.clone(), 0, [0.0; 3]);
-        apply(&mut inventory, &update);
-        let view = update.view.expect("still open");
-        assert_eq!(view.payment[0].as_ref().map(|s| s.count), Some(50), "the wheat moved in");
-        assert_eq!(view.result.as_ref().map(|s| s.id.as_str()), Some("minecraft:emerald"));
-        let update = server.merchant(MerchantOp::Result { shift: true }, inventory.clone(), 0, [0.0; 3]);
-        apply(&mut inventory, &update);
-        let view = update.view.expect("still open");
-        assert_eq!(view.payment[0].as_ref().map(|s| s.count), Some(10), "two trades of twenty");
-        assert_eq!(inventory.count("minecraft:emerald"), 2);
-        assert_eq!((view.level, view.xp), (2, 12), "the first trade levelled the farmer up");
-        assert!(view.offers.len() > 1, "with its next level's offers");
-        assert!(server.level.experience_total() > 0, "trades dropped experience");
-        let update = server.merchant(MerchantOp::Close, inventory.clone(), 0, [0.0; 3]);
-        apply(&mut inventory, &update);
-        assert!(update.view.is_none(), "closed");
-        assert_eq!(inventory.count("minecraft:wheat"), 10, "the rest came back");
-        assert!(server.mobs.villagers()[0].trading_player.is_none());
-    }
-
-    /// A villager claims the bed and bell placed near it by day, and sleeps
-    /// in the bed at night: the level's blocks feed the points of interest.
-    #[test]
-    fn villagers_claim_beds_and_sleep() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 19..=21 {
-            for z in 127..=129 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let height = |server: &ServerSim, x, z| minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, x, z);
-        let surface = height(&server, 328, 2056);
-        let place = |server: &mut ServerSim, x: i32, z: i32, block: Block| {
-            let y = height(server, x, z);
-            let state = server.state_of(Some(&block));
-            server.level.set_block_and_update(minecraftoss_core::BlockPos::new(x, y, z), state);
-            (x, y, z)
-        };
-        let bell = place(&mut server, 330, 2056, Block::new("minecraft:bell"));
-        let bed = |part: &str| Block::new("minecraft:red_bed").with("facing", "east").with("part", part).with("occupied", "false");
-        place(&mut server, 326, 2058, bed("foot"));
-        let head = place(&mut server, 327, 2058, bed("head"));
-        let at = [328.5, f64::from(surface), 2056.5];
-        server.set_players(&[at], 2);
-        server.set_time(1000);
-        server.summon("minecraft:villager", at, None, 0.0).unwrap();
-        let tick = |server: &mut ServerSim| {
-            server.set_players(&[at], 2);
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], true);
-        };
-        for _ in 0..200 {
-            tick(&mut server);
-        }
-        let memories = &server.mobs.villagers()[0].ai.as_ref().unwrap().brain.memories;
-        assert_eq!(memories.home.get().copied(), Some(head), "it claims the bed");
-        assert_eq!(memories.meeting_point.get().copied(), Some(bell), "it claims the bell");
-        assert_eq!(server.mobs.pois.record(head).map(|r| r.free_tickets), Some(0));
-        server.set_time(12500);
-        let mut slept = false;
-        for _ in 0..600 {
-            tick(&mut server);
-            slept |= server.mobs.villagers()[0].sleeping == Some(head);
-        }
-        assert!(slept, "it sleeps in its bed at night");
-        // A lectern nearby by day: it becomes a librarian and works there.
-        let lectern = place(&mut server, 331, 2054, Block::new("minecraft:lectern"));
-        server.set_time(1800);
-        let mut worked = false;
-        for _ in 0..800 {
-            tick(&mut server);
-            worked |= server.mobs.villagers()[0].ai.as_ref().unwrap().brain.running().iter().any(|b| b == "RunOne:WorkAtPoi");
-        }
-        let villager = &server.mobs.villagers()[0];
-        assert_eq!(villager.villager.profession, minecraftoss_entities::villager::Profession::Librarian, "it takes the lectern's profession");
-        assert_eq!(villager.ai.as_ref().unwrap().brain.memories.job_site.get().copied(), Some(lectern));
-        assert!(worked, "it works at its lectern");
-    }
-
-    /// A farmer takes the composter by its field, harvests the ripe wheat
-    /// (the level drops its loot, which the farmer picks up) and sows the
-    /// bare farmland again.
-    #[test]
-    fn farmers_harvest_and_sow() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 19..=21 {
-            for z in 127..=129 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let height = |server: &ServerSim, x, z| minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, x, z);
-        let ground = height(&server, 328, 2056);
-        let set = |server: &mut ServerSim, (x, y, z): (i32, i32, i32), block: Block| {
-            let state = server.state_of(Some(&block));
-            server.level.set_block_and_update(minecraftoss_core::BlockPos::new(x, y, z), state);
-        };
-        // A flat stone yard with a three-by-three field of ripe wheat beside
-        // a composter.
-        for x in 322..=334 {
-            for z in 2050..=2062 {
-                for y in ground..ground + 4 {
-                    set(&mut server, (x, y, z), Block::new("minecraft:air"));
-                }
-                set(&mut server, (x, ground - 1, z), Block::new("minecraft:stone"));
-            }
-        }
-        let mut field = Vec::new();
-        for x in 328..=330 {
-            for z in 2055..=2057 {
-                set(&mut server, (x, ground - 1, z), Block::new("minecraft:farmland").with("moisture", "7"));
-                set(&mut server, (x, ground, z), Block::new("minecraft:wheat").with("age", "7"));
-                field.push((x, ground, z));
-            }
-        }
-        set(&mut server, (327, ground, 2056), Block::new("minecraft:composter").with("level", "0"));
-        let at = [326.5, f64::from(ground), 2056.5];
-        server.set_players(&[at], 2);
-        server.set_time(3000);
-        let farmer = minecraftoss_core::snbt::parse_compound(
-            "{CanPickUpLoot:1b,Xp:1,VillagerData:{type:\"minecraft:plains\",profession:\"minecraft:farmer\",level:1},Inventory:[{id:\"minecraft:wheat_seeds\",count:4}]}",
-        )
-        .unwrap();
-        server.summon("minecraft:villager", at, Some(&farmer), 0.0).unwrap();
-        let age = |server: &ServerSim, (x, y, z): (i32, i32, i32)| {
-            let state = server.level.block(minecraftoss_core::BlockPos::new(x, y, z));
-            let blocks = &server.level.registries().blocks;
-            (blocks.block(blocks.block_of(state)).name.as_str().to_owned(), blocks.property(state, "age").map(str::to_owned))
-        };
-        let mut sown = false;
-        for _ in 0..2400 {
-            server.set_players(&[at], 2);
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], true);
-            sown |= field.iter().any(|&pos| age(&server, pos) == ("minecraft:wheat".to_owned(), Some("0".to_owned())));
-            if sown {
-                break;
-            }
-        }
-        let villager = &server.mobs.villagers()[0];
-        assert!(villager.ai.as_ref().unwrap().brain.memories.job_site.get().is_some(), "it takes the composter");
-        assert!(sown, "it harvested ripe wheat and sowed the farmland again");
-        assert!(field.iter().any(|&pos| age(&server, pos).1.as_deref() != Some("7")), "a ripe crop was harvested");
-    }
-
-    /// A villager with plenty of bread throws some to one with none as they
-    /// meet, and the hungry one picks it up from the level.
-    #[test]
-    fn villagers_share_food() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 19..=21 {
-            for z in 127..=129 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let height = |server: &ServerSim, x, z| minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, x, z);
-        let at = [328.5, f64::from(height(&server, 328, 2056)), 2056.5];
-        server.set_players(&[at], 2);
-        server.set_time(1000);
-        let plenty = minecraftoss_core::snbt::parse_compound("{CanPickUpLoot:1b,Inventory:[{id:\"minecraft:bread\",count:30}]}").unwrap();
-        let none = minecraftoss_core::snbt::parse_compound("{CanPickUpLoot:1b}").unwrap();
-        server.summon("minecraft:villager", at, Some(&plenty), 0.0).unwrap();
-        server.summon("minecraft:villager", [at[0] + 2.0, at[1], at[2] + 1.0], Some(&none), 90.0).unwrap();
-        let hungry = server.mobs.villagers()[1].id;
-        let fed = |server: &ServerSim| server.mobs.villagers().iter().find(|v| v.id == hungry).unwrap().inventory.count("minecraft:bread");
-        for _ in 0..1200 {
-            server.set_players(&[at], 2);
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], true);
-            if fed(&server) > 0 {
-                break;
-            }
-        }
-        assert_eq!(fed(&server), 6, "six loaves thrown (thirty less twenty-four) and picked up");
-        assert_eq!(server.mobs.villagers()[0].inventory.count("minecraft:bread"), 24);
-    }
-
-    /// Two villagers with bread near free beds have a baby, which takes a
-    /// bed; they eat their bread and rest from breeding.
-    #[test]
-    fn villagers_breed_into_a_free_bed() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 19..=21 {
-            for z in 127..=129 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let height = |server: &ServerSim, x, z| minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, x, z);
-        let place = |server: &mut ServerSim, x: i32, z: i32, block: Block| {
-            let y = height(server, x, z);
-            let state = server.state_of(Some(&block));
-            server.level.set_block_and_update(minecraftoss_core::BlockPos::new(x, y, z), state);
-            (x, y, z)
-        };
-        let bed = |part: &str| Block::new("minecraft:red_bed").with("facing", "east").with("part", part).with("occupied", "false");
-        let mut beds = Vec::new();
-        for z in [2052, 2055, 2058] {
-            place(&mut server, 326, z, bed("foot"));
-            beds.push(place(&mut server, 327, z, bed("head")));
-        }
-        let at = [329.5, f64::from(height(&server, 329, 2055)), 2055.5];
-        server.set_players(&[at], 2);
-        server.set_time(1000);
-        let fed = minecraftoss_core::snbt::parse_compound("{CanPickUpLoot:1b,Inventory:[{id:\"minecraft:bread\",count:3}]}").unwrap();
-        server.summon("minecraft:villager", at, Some(&fed), 0.0).unwrap();
-        server.summon("minecraft:villager", [at[0] + 2.0, at[1], at[2] + 1.0], Some(&fed), 90.0).unwrap();
-        let parents: Vec<u64> = server.mobs.villagers().iter().map(|v| v.id).collect();
-        for _ in 0..2400 {
-            server.set_players(&[at], 2);
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], true);
-            if server.mobs.villagers().len() > 2 {
-                break;
-            }
-        }
-        let villagers = server.mobs.villagers();
-        let baby = villagers.iter().find(|v| !parents.contains(&v.id)).expect("the villagers had a baby");
-        assert!(baby.villager.age.baby());
-        let home = baby.ai.as_ref().unwrap().brain.memories.home.get().copied();
-        assert!(home.is_some_and(|h| beds.contains(&h)), "the baby has a bed: {home:?}");
-        for parent in villagers.iter().filter(|v| parents.contains(&v.id)) {
-            assert!(parent.villager.age.ticks > 0, "the parents rest from breeding");
-            assert_eq!(parent.inventory.food_points(), 0, "the parents ate their bread");
-        }
-    }
-
-    /// A villager that can pick things up walks to bread lying near it and
-    /// takes it; one summoned without `CanPickUpLoot` leaves its bread be,
-    /// and the flag survives saving.
-    #[test]
-    fn villagers_pick_up_food() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 19..=21 {
-            for z in 127..=129 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let height = |server: &ServerSim, x, z| minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, x, z);
-        let at = [328.5, f64::from(height(&server, 328, 2056)), 2056.5];
-        let other = [334.5, f64::from(height(&server, 334, 2062)), 2062.5];
-        server.set_players(&[at], 2);
-        server.set_time(1000);
-        let loot = minecraftoss_core::snbt::parse_compound("{CanPickUpLoot:1b}").unwrap();
-        server.summon("minecraft:villager", at, Some(&loot), 0.0).unwrap();
-        server.summon("minecraft:villager", other, None, 0.0).unwrap();
-        let (picker, idle) = (server.mobs.villagers()[0].id, server.mobs.villagers()[1].id);
-        let bread = |count| minecraftoss_world::level::container::Stack::new("minecraft:bread", count);
-        let near = [at[0] + 2.0, f64::from(height(&server, 330, 2056)), at[2]];
-        let kept = server.level.spawn_item_with([other[0] + 0.5, other[1], other[2]], bread(2), [0.0; 3], 0, 0);
-        let taken = server.level.spawn_item_with(near, bread(3), [0.0; 3], 0, 0);
-        for _ in 0..200 {
-            server.set_players(&[at], 2);
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], true);
-        }
-        let villager = |id| server.mobs.villagers().iter().find(|v| v.id == id).unwrap();
-        assert_eq!(villager(picker).inventory.food_points(), 12, "it took the three loaves");
-        assert!(server.level.item_entity(taken).is_none(), "the bread is gone");
-        assert!(!villager(idle).can_pick_up_loot, "a summoned villager is told whether it may");
-        assert_eq!(villager(idle).inventory.food_points(), 0);
-        assert_eq!(server.level.item_entity(kept).map(|(_, stack, _)| stack.count), Some(2), "its bread lies where it was");
-        let tags = crate::server_mobs::mob_tags(&server.mobs, |_| true, &std::collections::HashMap::new());
-        let (_, tag) = tags.iter().find(|(tag_id, _)| *tag_id == picker).unwrap();
-        let mut loaded = minecraftoss_entities::world::EntityWorld::default();
-        let back = crate::server_mobs::spawn_saved(&mut loaded, tag).unwrap();
-        let back = loaded.villager_mut(back).unwrap();
-        assert!(back.can_pick_up_loot);
-        assert_eq!(back.inventory.food_points(), 12, "its inventory is saved");
-    }
-
-    #[test]
-    fn summon_makes_mobs() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        if registries.entities.is_none() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 6, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 19..=21 {
-            for z in 127..=129 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        let surface = minecraftoss_generator::feature::World::height_at(&server.level, minecraftoss_core::chunk::HeightmapKind::MotionBlocking, 328, 2056);
-        let at = [328.5, f64::from(surface), 2056.5];
-        server.set_players(&[at], 2);
-        let before = server.mobs.zombies().len();
-        server.summon("minecraft:husk", at, None, 1.5).unwrap();
-        let nbt = minecraftoss_core::snbt::parse_compound(r#"{IsBaby:1b,PersistenceRequired:1b,VillagerData:{type:"minecraft:desert",profession:"minecraft:farmer",level:1}}"#).unwrap();
-        server.summon("minecraft:zombie_villager", [at[0] + 2.0, at[1], at[2]], Some(&nbt), 0.0).unwrap();
-        let zombies = server.mobs.zombies();
-        assert_eq!(zombies.len(), before + 2, "both join the entity world");
-        let husk = zombies.iter().find(|z| z.zombie.kind == minecraftoss_entities::zombie::ZombieKind::Husk).unwrap();
-        assert_eq!(husk.zombie.body.position.to_array(), at, "at the command's position");
-        let villager = zombies.iter().find(|z| z.zombie.kind == minecraftoss_entities::zombie::ZombieKind::ZombieVillager).unwrap();
-        assert!(villager.zombie.baby && villager.zombie.persistence_required, "the NBT is loaded");
-        assert_eq!(villager.zombie.villager, Some(("minecraft:desert".to_owned(), "minecraft:farmer".to_owned())));
-        server.summon("minecraft:cow", at, None, 0.0).unwrap();
-        assert_eq!(server.mobs.cows().len(), 1, "animals are summoned too");
-        // A villager loads without its brain (not ported) instead of
-        // tripping the entity world's assertion.
-        server.summon("minecraft:villager", at, None, 0.0).unwrap();
-        assert_eq!(server.mobs.villagers().len(), 1);
-        // `NoAI` holds a mob still, turned to its saved yaw.
-        let still = minecraftoss_core::snbt::parse_compound("{NoAI:1b,Rotation:[180f,0f]}").unwrap();
-        server.summon("minecraft:zombie", [at[0] - 2.0, at[1], at[2]], Some(&still), 0.0).unwrap();
-        let zombie = server.mobs.zombies().iter().find(|z| z.no_ai).expect("a NoAI zombie");
-        assert_eq!((zombie.yaw, zombie.body_rotation.body_yaw, zombie.look_control.head_yaw), (180.0, 180.0, 180.0));
-        let id = zombie.id;
-        for _ in 0..20 {
-            server.tick_mobs(&[], false);
-        }
-        let zombie = server.mobs.zombies().iter().find(|z| z.id == id).unwrap();
-        assert_eq!(zombie.zombie.body.position.to_array(), [at[0] - 2.0, at[1], at[2]], "it stays put");
-        // A horse loads its variant and grazing (`EatingHaystack`), which
-        // lasts fifty ticks though it has no AI.
-        let grazing = minecraftoss_core::snbt::parse_compound("{NoAI:1b,Variant:1027,EatingHaystack:1b,Age:-24000}").unwrap();
-        server.summon("minecraft:horse", [at[0] + 4.0, at[1], at[2]], Some(&grazing), 0.0).unwrap();
-        let horse = server.mobs.cows().iter().find_map(|c| c.horse.clone()).expect("a horse");
-        assert_eq!((horse.variant, horse.eating), (1027, true));
-        for _ in 0..40 {
-            server.set_simulation_area((20, 128), 4);
-            server.tick();
-            server.tick_mobs(&[], false);
-        }
-        let horse = server.mobs.cows().iter().find_map(|c| c.horse.clone()).unwrap();
-        assert!(horse.eating && horse.eat_anim == 1.0, "{horse:?}");
-        server.set_players(&[at], 0);
-        assert!(server.summon("minecraft:zombie", at, None, 0.0).is_err(), "no monsters in peaceful");
-        assert!(server.summon("minecraft:cow", at, None, 0.0).is_ok(), "animals come in peaceful");
-    }
-
-    /// A creeper sees the player across a platform, walks up, swells and
-    /// blows up: the blast breaks the planks (mobs may grief), hurts and
-    /// pushes the player, and the client hears of it.
-    #[test]
-    fn creeper_stalks_and_blows_up_the_player() {
-        use minecraftoss_core::nbt::Tag;
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 0).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 0, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 2, 4);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in -1..=2 {
-            for z in -1..=1 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        // A plank platform high above the terrain.
-        for x in 0..=24 {
-            for z in 0..=12 {
-                server.player_edit_block((x, 200, z), Some(&Block::new("minecraft:oak_planks")), PlayerEdit::Place);
-            }
-        }
-        server.take_changes();
-        let player = minecraftoss_entities::tempt::PlayerCandidate {
-            id: 0,
-            position: glam::DVec3::new(18.5, 201.0, 6.5),
-            eye_height: 1.62,
-            main_hand_cow_food: false,
-            offhand_cow_food: false,
-            main_hand_pig_food: false,
-            offhand_pig_food: false,
-            main_hand_chicken_food: false,
-            offhand_chicken_food: false,
-            main_hand_carrot_on_a_stick: false,
-            offhand_carrot_on_a_stick: false,
-            main_hand_wolf_interest: false,
-            offhand_wolf_interest: false,
-            main_hand_horse_tempt: false,
-            offhand_horse_tempt: false,
-            alive: true,
-            spectator: false,
-            attackable: true,
-        };
-        let mut tag = std::collections::BTreeMap::new();
-        tag.insert("id".to_owned(), Tag::String("minecraft:creeper".to_owned()));
-        tag.insert("Pos".to_owned(), Tag::List(vec![Tag::Double(8.5), Tag::Double(201.0), Tag::Double(6.5)]));
-        tag.insert("Rotation".to_owned(), Tag::List(vec![Tag::Float(0.0), Tag::Float(0.0)]));
-        tag.insert("UUID".to_owned(), Tag::IntArray(vec![1, 2, 3, 4]));
-        let id = crate::server_mobs::spawn_saved(&mut server.mobs, &Tag::Compound(tag)).expect("creepers are simulated");
-        assert!(server.mobs.creepers().iter().any(|c| c.id == id && !c.no_ai));
-        server.set_time(18000);
-        let (mut hits, mut blasts, mut broken) = (Vec::new(), Vec::new(), 0);
-        for _ in 0..400 {
-            server.set_players(&[player.position.to_array()], 2);
-            server.set_simulation_area((0, 0), 4);
-            server.tick();
-            server.tick_mobs(&[player], false);
-            hits.extend(server.mobs.take_player_hits());
-            blasts.extend(server.take_explosions());
-            broken += server.take_changes().iter().filter(|(pos, block)| pos.1 == 200 && block.is_none()).count();
-            if !blasts.is_empty() {
-                break;
-            }
-        }
-        assert_eq!(blasts.len(), 1, "the creeper explodes");
-        assert!(server.mobs.creepers().iter().all(|c| c.id != id), "and is gone");
-        let blast = blasts[0];
-        assert!(blast.position.distance(player.position) < 3.5, "beside the player: {:?}", blast.position);
-        assert!(broken > 0, "the blast breaks planks");
-        let hit = hits.iter().find(|h| matches!(h.kind, minecraftoss_entities::world::PlayerHitKind::Explosion { .. })).expect("the blast hits the player");
-        assert!(hit.damage > 10.0, "a close blast hurts: {}", hit.damage);
-    }
-
-    /// A player's wheat makes a generated cow fall in love (using up the
-    /// wheat), and hits kill it, dropping its loot into the level.
-    #[test]
-    fn players_feed_and_hit_server_mobs() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let jar = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../harness/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-common-1fad6b3808/26.3/minecraft-common-1fad6b3808-26.3.jar");
-        if !jar.exists() {
-            return;
-        }
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 4, 8);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        server.load_loot(&jar, 1234);
-        let recipes = Arc::new(minecraftoss_player::crafting::RecipeBook::from_jar(&jar).unwrap());
-        server.set_recipe_book(recipes.clone());
-        for x in 20..=23 {
-            for z in 129..=132 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        server.set_simulation_area((21, 130), 4);
-        let cow = server.mobs.cows().iter().find(|c| !c.cow.age.baby()).map(|c| c.id).expect("an adult cow near (356, 65, 2097)");
-        let hit = minecraftoss_entities::world::MobHit::Cow(cow);
-        let mut inventory = minecraftoss_player::inventory::Inventory::default();
-        inventory.recipes = recipes;
-        inventory.slots[0] = Some(minecraftoss_player::inventory::ItemStack::new("minecraft:wheat", 3));
-        let fed = server.mob_action(hit, None, inventory.clone(), 0, false);
-        assert_eq!(fed.slots.len(), 1, "one wheat is used: {:?}", fed.slots);
-        assert_eq!(fed.slots[0].1.as_ref().map(|s| s.count), Some(2));
-        assert!(server.mobs.cow_mut(cow).unwrap().cow.in_love > 0, "the cow falls in love");
-        // Full-strength bare-handed hits, one point each past each hurt
-        // cooldown, until it dies.
-        let items_before = server.items().len();
-        let mut sounds = Vec::new();
-        for _ in 0..40 {
-            let at = server.mobs.cows().iter().find(|c| c.id == cow).map(|c| c.cow.body.position);
-            let Some(at) = at else { break };
-            let attack = minecraftoss_entities::world::PlayerAttack {
-                player_id: 0,
-                position: at + glam::DVec3::X,
-                yaw: 90.0,
-                attack_damage: 1.0,
-                strength: 1.0,
-                sprinting: false,
-                can_critical: false,
-                can_sweep: false,
-            };
-            let result = server.mob_action(hit, Some(attack), inventory.clone(), 0, false);
-            sounds.extend(result.sounds.into_iter().map(|s| s.event).filter(|s| s.starts_with("entity.cow")));
-            for _ in 0..11 {
-                server.tick_mobs(&[], true);
-            }
-            if sounds.last().is_some_and(|s| s.ends_with("death")) {
-                break;
-            }
-        }
-        assert!(sounds.first().is_some_and(|s| s.ends_with(".hurt")), "{sounds:?}");
-        assert!(sounds.last().is_some_and(|s| s.ends_with(".death")), "the cow dies: {sounds:?}");
-        assert!(server.items().len() > items_before, "its loot drops into the level");
-    }
-
-    /// Five experience land as orbs of vanilla's sizes (3, 1 and 1); the
-    /// orbs are drawn to a player standing beside them, who takes one every
-    /// other tick until none are left.
-    #[test]
-    fn experience_orbs_are_awarded_and_taken() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 0).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 0, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 2, 4);
-        let mut server = ServerSim::new(worldgen, states.clone(), "minecraft:overworld");
-        let mut scene = HandcraftedScene::streamed(states);
-        for x in -1..=1 {
-            for z in -1..=1 {
-                let chunk = map.load_now(ChunkPos::new(x, z));
-                server.load_chunk(&chunk);
-                scene.insert_chunk(chunk);
-            }
-        }
-        // A floating platform, high above the terrain.
-        for x in 2..=14 {
-            for z in 2..=14 {
-                scene.set((x, 200, z), Some(Block::new("minecraft:stone")));
-                server.player_edit(&scene, (x, 200, z), PlayerEdit::Place);
-            }
-        }
-        server.award_experience([8.5, 201.0, 8.5], 5);
-        let mut values: Vec<i32> = server.orbs().iter().map(|o| o.value).collect();
-        values.sort_unstable();
-        assert_eq!(values, [1, 1, 3]);
-        let feet = [10.5, 201.0, 8.5];
-        server.level.living_players = vec![(feet, 1.62)];
-        let mut taken = Vec::new();
-        for tick in 0..60 {
-            server.tick();
-            if let Some((_, _, value)) = server.take_experience(Some(feet)) {
-                taken.push((tick, value));
-            }
-        }
-        assert_eq!(taken.iter().map(|(_, v)| v).sum::<i32>(), 5, "every orb is taken: {taken:?}");
-        assert!(taken.windows(2).all(|w| w[1].0 - w[0].0 >= 2), "one orb every other tick at most: {taken:?}");
-        assert!(server.orbs().is_empty());
-    }
-
-    /// `cargo test --release -p minecraftoss-viewer --lib mob_tick_cost -- --ignored --nocapture`
-    #[test]
-    #[ignore = "timing measurement"]
-    fn mob_tick_cost() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 1234).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 1234, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 10, 16);
-        let mut server = ServerSim::new(worldgen, states, "minecraft:overworld");
-        for x in 10..=30 {
-            for z in 118..=138 {
-                server.load_chunk(&map.load_now(ChunkPos::new(x, z)));
-            }
-        }
-        server.set_simulation_area((20, 128), 10);
-        let mut times = Vec::new();
-        for _ in 0..600 {
-            let started = std::time::Instant::now();
-            server.tick_mobs(&[], true);
-            times.push(started.elapsed().as_secs_f64() * 1000.0);
-        }
-        times.sort_by(f64::total_cmp);
-        let p = |q: usize| times[(times.len() - 1) * q / 100];
-        eprintln!("{} mobs: tick p50 {:.2} p95 {:.2} p99 {:.2} max {:.2} ms", server.mobs.len(), p(50), p(95), p(99), times[times.len() - 1]);
-    }
-
-    /// TNT primed by a placed redstone block becomes an entity the client
-    /// can render, explodes, and leaves items the player can pick up.
-    #[test]
-    fn primed_tnt_explodes_and_drops_items() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 0).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 0, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 2, 4);
-        let mut server = ServerSim::new(worldgen, states.clone(), "minecraft:overworld");
-        let mut scene = HandcraftedScene::streamed(states);
-        for x in -1..=1 {
-            for z in -1..=1 {
-                let chunk = map.load_now(ChunkPos::new(x, z));
-                server.load_chunk(&chunk);
-                scene.insert_chunk(chunk);
-            }
-        }
-        // A floating platform of planks with TNT on it, high above terrain.
-        for x in 4..=12 {
-            for z in 4..=12 {
-                scene.set((x, 200, z), Some(Block::new("minecraft:oak_planks")));
-                server.player_edit(&scene, (x, 200, z), PlayerEdit::Place);
-            }
-        }
-        scene.set((8, 201, 8), Some(Block::new("minecraft:tnt")));
-        server.player_edit(&scene, (8, 201, 8), PlayerEdit::Place);
-        scene.set((9, 201, 8), Some(Block::new("minecraft:redstone_block")));
-        server.player_edit(&scene, (9, 201, 8), PlayerEdit::Place);
-        server.take_changes();
-        assert_eq!(server.primed_tnt().len(), 1, "the TNT should prime");
-        for _ in 0..90 {
-            server.tick();
-        }
-        assert!(server.primed_tnt().is_empty(), "the TNT should have exploded");
-        let changes = server.take_changes();
-        assert!(changes.iter().any(|(pos, block)| *pos == (8, 200, 8) && block.is_none()), "the blast should break the planks under it");
-        let items = server.items();
-        assert!(items.iter().any(|i| i.item == "minecraft:oak_planks"), "broken planks drop: {items:?}");
-        // Let the drops land, then pick them up standing among them.
-        for _ in 0..60 {
-            server.tick();
-        }
-        let item = server.items().into_iter().find(|i| i.pickup_delay == 0).expect("a landed item");
-        let mut taken = 0;
-        let picked = server.pickup([item.position[0], item.position[1], item.position[2]], |_, count, _| {
-            taken += count;
-            count
-        });
-        assert!(!picked.is_empty() && taken > 0, "the player should pick up touching items");
-        assert!(server.items().iter().all(|i| i.id != picked[0].0), "a fully picked-up item is removed");
-    }
-
-    /// Sand placed in the air falls as an entity and lands on the ground.
-    #[test]
-    fn placed_sand_falls_and_lands() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 0).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 0, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 2, 4);
-        let mut server = ServerSim::new(worldgen, states.clone(), "minecraft:overworld");
-        let mut scene = HandcraftedScene::streamed(states);
-        for x in -1..=1 {
-            for z in -1..=1 {
-                let chunk = map.load_now(ChunkPos::new(x, z));
-                server.load_chunk(&chunk);
-                scene.insert_chunk(chunk);
-            }
-        }
-        scene.set((8, 200, 8), Some(Block::new("minecraft:stone")));
-        server.player_edit(&scene, (8, 200, 8), PlayerEdit::Place);
-        scene.set((8, 205, 8), Some(Block::new("minecraft:sand")));
-        server.player_edit(&scene, (8, 205, 8), PlayerEdit::Place);
-        server.take_changes();
-        for _ in 0..3 {
-            server.tick();
-        }
-        assert_eq!(server.falling_blocks().len(), 1, "the sand should be falling");
-        for _ in 0..40 {
-            server.tick();
-        }
-        assert!(server.falling_blocks().is_empty(), "the sand should have landed");
-        let changes = server.take_changes();
-        assert!(changes.iter().any(|(pos, block)| *pos == (8, 201, 8) && block.as_ref().is_some_and(|b| *b == Block::new("minecraft:sand"))), "{changes:?}");
-    }
-
-    /// Bone meal the player uses on a crop grows it through the level.
-    #[test]
-    fn bone_meal_grows_a_crop() {
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = Arc::new(registries);
-        let worldgen = Arc::new(WorldGen::new(Arc::new(TerrainGenerator::overworld(registries.clone(), 0).unwrap())).unwrap());
-        let states = Arc::new(BlockStates::new(registries.clone(), 0, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen.clone(), 2, 4);
-        let mut server = ServerSim::new(worldgen, states.clone(), "minecraft:overworld");
-        let mut scene = HandcraftedScene::streamed(states);
-        for x in -1..=1 {
-            for z in -1..=1 {
-                let chunk = map.load_now(ChunkPos::new(x, z));
-                server.load_chunk(&chunk);
-                scene.insert_chunk(chunk);
-            }
-        }
-        scene.set((8, 200, 8), Some(Block::new("minecraft:farmland")));
-        server.player_edit(&scene, (8, 200, 8), PlayerEdit::Place);
-        scene.set((8, 201, 8), Some(Block::new("minecraft:wheat")));
-        server.player_edit(&scene, (8, 201, 8), PlayerEdit::Place);
-        server.take_changes();
-        assert!(server.bone_meal((8, 201, 8), "up"), "wheat takes bone meal");
-        let changes = server.take_changes();
-        let grown = changes.iter().find(|(pos, _)| *pos == (8, 201, 8)).and_then(|(_, b)| b.clone()).expect("the wheat changed");
-        let age: i32 = grown.properties.get("age").and_then(|a| a.parse().ok()).unwrap_or(0);
-        assert!((2..=5).contains(&age), "bone meal adds 2 to 5 ages: {age}");
-        assert!(!server.bone_meal((8, 200, 8), "up"), "farmland does not take bone meal");
-    }
 }

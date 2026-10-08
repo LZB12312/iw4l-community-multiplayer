@@ -29,6 +29,8 @@ bots = { path = "../bots" }
 hud = { path = "../hud" }
 entity_iw4.workspace = true
 perf.workspace = true
+serde_json.workspace = true
+serde.workspace = true
 
 [lints]
 workspace = true

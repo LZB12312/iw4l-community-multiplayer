@@ -1,6 +1,6 @@
 //! Additional TU3 deck/truck contact queries and family admission leaves.
-use super::*;
 use super::admission::{Admission, EntryKind};
+use super::*;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Contact {
@@ -31,7 +31,6 @@ fn rectangle(a: V, b: V, c: V, d: V, reference: V, edges: &[Primitive]) -> Optio
     best
 }
 
-///82C1F968: inverted deck only, .3 longitudinal half-length, inverted depth.
 pub fn inverted_contact(
     board: [V; 4],
     flags: u32,
@@ -42,14 +41,11 @@ pub fn inverted_contact(
     if flags & 0x0020_0000 == 0 {
         return None;
     }
-    //82C1F968 uses the same diagonal as82C1FB98.
     let mut inverted = board;
     inverted[1] = scale(board[1], -1.0);
     deck_contact(inverted, 0, epsilon, depth, 0.3, edges)
 }
 
-///82C20130: longitudinal trapezoids beyond each truck, with the native
-///current-tip suppression so the loaded end does not swap on each tick.
 pub fn tip_contacts(
     board: [V; 4],
     flags_2484: u32,
@@ -89,8 +85,6 @@ fn geometry(hit: TruckContact, edge: Primitive) -> FiftyFiftyCandidate {
     }
 }
 
-///82D883E0: a tip on a height-discontinuous edge becomes a backslash when
-///the deck lies over the higher side. Existing tipslides remain tipslides.
 pub fn is_backslash(
     board_position: V,
     point: V,
@@ -115,7 +109,6 @@ pub fn is_backslash(
     dot3(sub(board_position, point), higher) > 0.0
 }
 
-///82D88E88. Unlike boardslides, inverted decks have no truck-clearance test.
 pub fn darkslide(
     board: [V; 4],
     hit: TruckContact,
@@ -127,13 +120,17 @@ pub fn darkslide(
 ) -> Option<Contact> {
     let mut g = geometry(hit, edge);
     let delta = sub(edge.end, edge.start);
-    g.direction = scale(delta, arithmetic::reciprocal(arithmetic::square_root(dot3(delta, delta))));
+    g.direction = scale(
+        delta,
+        arithmetic::reciprocal(arithmetic::square_root(dot3(delta, delta))),
+    );
     if dot3(upright_normal(g.direction), scale(board[1], -1.0)) <= 0.45 {
         return None;
     }
-    //82D8907C deliberately tests state400, even for darkslide kind5.
     let decision = admission.test(400, g.direction, false);
-    if !decision.allowed { return None; }
+    if !decision.allowed {
+        return None;
+    }
     let depth = dot3(sub(board[3], hit.position), board[1]);
     if dot3(scale(board[1], depth), scale(board[1], depth)) >= 0.005625 {
         return None;
@@ -149,8 +146,6 @@ pub fn darkslide(
     })
 }
 
-///82D89898/82D89820: valid single-truck contacts. Selection between two valid
-///ends is performed below using the native travel-relative branches.
 pub fn five_o(
     board: [V; 4],
     hits: [Option<TruckContact>; 2],
@@ -170,11 +165,16 @@ pub fn five_o(
             let g = geometry(hit, edges[hit.primitive]);
             let depth = dot3(sub(board[3], hit.position), board[1]);
             let projected = scale(board[1], depth);
-            if dot3(projected, projected) >= f32::from_bits(0x3c8a71de) { return None; }
+            if dot3(projected, projected) >= f32::from_bits(0x3c8a71de) {
+                return None;
+            }
             let decision = admission.test(403, g.direction, true);
             if !decision.allowed
                 || dot3(board[0], g.direction).abs() >= 0.906
-                || dot3(board[1], g.direction).abs() >= 0.46 { return None; }
+                || dot3(board[1], g.direction).abs() >= 0.46
+            {
+                return None;
+            }
             Some((g, decision.kind))
         })
     });
@@ -210,8 +210,6 @@ pub fn five_o(
     })
 }
 
-///82D89428 selects the positive tip first, then checks penetration, descent,
-///cross-rail velocity and the animation's lateral balance intent.
 pub fn tipslide(
     board: [V; 4],
     hits: [Option<TruckContact>; 2],
@@ -232,9 +230,12 @@ pub fn tipslide(
     let hit = if front { hits[0]? } else { hits[1]? };
     let g = geometry(hit, edges[hit.primitive]);
     let decision = admission.test(402, g.direction, true);
-    if !decision.allowed { return None; }
+    if !decision.allowed {
+        return None;
+    }
     if (decision.kind == EntryKind::DropIn || velocity[1] < 0.0 && category != 400)
-        && board[3][1] <= hit.position[1] {
+        && board[3][1] <= hit.position[1]
+    {
         return None;
     }
     let delta = sub(board[3], hit.position);

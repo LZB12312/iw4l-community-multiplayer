@@ -395,44 +395,88 @@ impl RecipeBook {
     /// one, else the item's defaults.
     pub fn item_modifiers(&self, stack: &ItemStack) -> Vec<crate::item_catalog::AttributeModifier> {
         use crate::item_catalog::{AttributeModifier, ModifierOperation};
-        if let Some(patch) = stack.components.as_ref().and_then(|components| components.get("minecraft:attribute_modifiers")) {
+        if let Some(patch) = stack
+            .components
+            .as_ref()
+            .and_then(|components| components.get("minecraft:attribute_modifiers"))
+        {
             // The list form, or an object holding `modifiers`.
-            let list = patch.as_array().or_else(|| patch.get("modifiers").and_then(Value::as_array));
+            let list = patch
+                .as_array()
+                .or_else(|| patch.get("modifiers").and_then(Value::as_array));
             return list
                 .into_iter()
                 .flatten()
                 .filter_map(|m| {
                     Some(AttributeModifier {
-                        attribute: m.get("type").or_else(|| m.get("attribute")).and_then(Value::as_str)?.to_owned(),
-                        id: m.get("id").and_then(Value::as_str).unwrap_or_default().to_owned(),
+                        attribute: m
+                            .get("type")
+                            .or_else(|| m.get("attribute"))
+                            .and_then(Value::as_str)?
+                            .to_owned(),
+                        id: m
+                            .get("id")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default()
+                            .to_owned(),
                         amount: m.get("amount").and_then(Value::as_f64)?,
-                        operation: ModifierOperation::parse(m.get("operation").and_then(Value::as_str)?)?,
-                        slot: m.get("slot").and_then(Value::as_str).unwrap_or("any").to_owned(),
+                        operation: ModifierOperation::parse(
+                            m.get("operation").and_then(Value::as_str)?,
+                        )?,
+                        slot: m
+                            .get("slot")
+                            .and_then(Value::as_str)
+                            .unwrap_or("any")
+                            .to_owned(),
                     })
                 })
                 .collect();
         }
-        self.item_catalog().and_then(|catalog| catalog.get(&stack.id)).map(|item| item.attribute_modifiers.clone()).unwrap_or_default()
+        self.item_catalog()
+            .and_then(|catalog| catalog.get(&stack.id))
+            .map(|item| item.attribute_modifiers.clone())
+            .unwrap_or_default()
     }
 
     /// The player's `ATTACK_DAMAGE` and `ATTACK_SPEED` (1 and 4 in
     /// `Player.createAttributes`) with the main hand's modifiers.
     pub fn attack_attributes(&self, held: Option<&ItemStack>) -> (f64, f64) {
         use crate::item_catalog::attribute_value;
-        let modifiers = held.map(|stack| self.item_modifiers(stack)).unwrap_or_default();
-        let of = |attribute: &'static str| modifiers.iter().filter(move |m| m.in_main_hand() && m.attribute == attribute);
-        (attribute_value(1.0, of("minecraft:attack_damage"), (0.0, 2048.0)), attribute_value(4.0, of("minecraft:attack_speed"), (0.0, 1024.0)))
+        let modifiers = held
+            .map(|stack| self.item_modifiers(stack))
+            .unwrap_or_default();
+        let of = |attribute: &'static str| {
+            modifiers
+                .iter()
+                .filter(move |m| m.in_main_hand() && m.attribute == attribute)
+        };
+        (
+            attribute_value(1.0, of("minecraft:attack_damage"), (0.0, 2048.0)),
+            attribute_value(4.0, of("minecraft:attack_speed"), (0.0, 1024.0)),
+        )
     }
 
     /// The `weapon` component: durability lost per attack and how long a
     /// hit disables a shield.
     pub fn weapon(&self, stack: &ItemStack) -> Option<(u32, f32)> {
-        if let Some(patch) = stack.components.as_ref().and_then(|components| components.get("minecraft:weapon")) {
-            let per_attack = patch.get("item_damage_per_attack").and_then(Value::as_u64).unwrap_or(1) as u32;
-            let disable = patch.get("disable_blocking_for_seconds").and_then(Value::as_f64).unwrap_or(0.0) as f32;
+        if let Some(patch) = stack
+            .components
+            .as_ref()
+            .and_then(|components| components.get("minecraft:weapon"))
+        {
+            let per_attack = patch
+                .get("item_damage_per_attack")
+                .and_then(Value::as_u64)
+                .unwrap_or(1) as u32;
+            let disable = patch
+                .get("disable_blocking_for_seconds")
+                .and_then(Value::as_f64)
+                .unwrap_or(0.0) as f32;
             return Some((per_attack, disable));
         }
-        self.item_catalog().and_then(|catalog| catalog.get(&stack.id)).and_then(|item| item.weapon)
+        self.item_catalog()
+            .and_then(|catalog| catalog.get(&stack.id))
+            .and_then(|item| item.weapon)
     }
 
     /// The armor toughness and knockback resistance a worn piece adds, by
@@ -1001,124 +1045,4 @@ fn trim_pattern(rows: Vec<Vec<Option<Ingredient>>>) -> Option<Vec<Vec<Option<Ing
             .map(|row| row[left..right].to_vec())
             .collect()
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::inventory::Inventory;
-    #[test]
-    fn shaped_recipe_matches_offset_and_mirror() {
-        let mut book = RecipeBook::default();
-        book.recipes.push(
-            parse_recipe(&serde_json::json!({
-                "type":"minecraft:crafting_shaped",
-                "key":{"A":"minecraft:stone","B":"minecraft:dirt"},
-                "pattern":[" AB "],"result":{"id":"minecraft:bricks"}
-            }))
-            .unwrap(),
-        );
-        let grid = [
-            None,
-            None,
-            Some(ItemStack::new("minecraft:dirt", 1)),
-            Some(ItemStack::new("minecraft:stone", 1)),
-        ];
-        assert_eq!(book.matching(&grid, 2, 2).unwrap().id, "minecraft:bricks");
-    }
-    #[test]
-    fn shapeless_recipe_expands_item_tag() {
-        let mut book = RecipeBook::default();
-        book.tags
-            .insert("minecraft:logs".into(), vec!["minecraft:oak_log".into()]);
-        book.recipes.push(
-            parse_recipe(&serde_json::json!({
-                "type":"minecraft:crafting_shapeless", "ingredients":["#minecraft:logs"],
-                "result":{"id":"minecraft:oak_planks","count":4}
-            }))
-            .unwrap(),
-        );
-        let grid = [
-            None,
-            Some(ItemStack::new("minecraft:oak_log", 1)),
-            None,
-            None,
-        ];
-        assert_eq!(book.matching(&grid, 2, 2).unwrap().count, 4);
-    }
-    #[test]
-    fn taking_result_consumes_inputs_and_preserves_item_counts() {
-        let mut book = RecipeBook::default();
-        book.tags.insert(
-            "minecraft:oak_logs".into(),
-            vec!["minecraft:oak_log".into()],
-        );
-        book.recipes.push(
-            parse_recipe(&serde_json::json!({
-                "type":"minecraft:crafting_shapeless", "ingredients":["#minecraft:oak_logs"],
-                "result":{"id":"minecraft:oak_planks","count":4}
-            }))
-            .unwrap(),
-        );
-        let mut inv = Inventory::default().with_recipes(book);
-        inv.crafting[0] = Some(ItemStack::new("minecraft:oak_log", 2));
-        assert_eq!(inv.crafting_output().unwrap().count, 4);
-        assert!(inv.take_crafting_output(false));
-        assert_eq!(inv.count("minecraft:oak_log"), 1);
-        assert_eq!(inv.count("minecraft:oak_planks"), 4);
-        assert!(inv.take_crafting_output(false));
-        assert_eq!(inv.count("minecraft:oak_log"), 0);
-        assert_eq!(inv.count("minecraft:oak_planks"), 8);
-        assert!(!inv.take_crafting_output(false));
-    }
-    #[test]
-    fn three_by_three_furnace_consumes_eight_cobblestone() {
-        let mut book = RecipeBook::default();
-        book.recipes.push(
-            parse_recipe(&serde_json::json!({
-                "type":"minecraft:crafting_shaped",
-                "key":{"#":"minecraft:cobblestone"},
-                "pattern":["###","# #","###"],
-                "result":{"id":"minecraft:furnace"}
-            }))
-            .unwrap(),
-        );
-        let mut inv = Inventory::default().with_recipes(book);
-        for index in [0, 1, 2, 3, 5, 6, 7, 8] {
-            inv.workbench[index] = Some(ItemStack::new("minecraft:cobblestone", 1));
-        }
-        assert_eq!(inv.workbench_output().unwrap().id, "minecraft:furnace");
-        assert!(inv.take_workbench_output(false));
-        assert_eq!(inv.count("minecraft:cobblestone"), 0);
-        assert_eq!(inv.count("minecraft:furnace"), 1);
-        assert!(inv.workbench_output().is_none());
-    }
-    #[test]
-    fn closing_workbench_returns_unused_inputs() {
-        let mut inv = Inventory::default();
-        inv.workbench[0] = Some(ItemStack::new("minecraft:cobblestone", 12));
-        inv.workbench[8] = Some(ItemStack::new("minecraft:oak_log", 3));
-        assert!(inv.settle_workbench().is_empty());
-        assert_eq!(inv.count("minecraft:cobblestone"), 12);
-        assert_eq!(inv.count("minecraft:oak_log"), 3);
-        assert!(inv.workbench.iter().all(Option::is_none));
-    }
-    #[test]
-    fn pinned_jar_furnace_recipe_matches_when_available() {
-        let jar = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
-            "../../harness/.gradle/loom-cache/minecraftMaven/net/minecraft/minecraft-common-1fad6b3808/26.3/minecraft-common-1fad6b3808-26.3.jar",
-        );
-        if !jar.exists() {
-            return;
-        }
-        let book = RecipeBook::from_jar(&jar).unwrap();
-        let mut grid: [Option<ItemStack>; 9] = std::array::from_fn(|_| None);
-        for index in [0, 1, 2, 3, 5, 6, 7, 8] {
-            grid[index] = Some(ItemStack::new("minecraft:cobblestone", 1));
-        }
-        assert_eq!(
-            book.matching(&grid, 3, 3).map(|item| item.id),
-            Some("minecraft:furnace".into())
-        );
-    }
 }

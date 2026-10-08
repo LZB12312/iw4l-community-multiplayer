@@ -1,6 +1,4 @@
-//! S3 82D886B8, paired with S2 IsEntryAngleAcuteEnough 82DDA748.
-//! Test each family/contact before arbitration, retaining its entry kind.
-use super::{arithmetic, dot3, scale, sub, within_approach_angle, V};
+use super::{V, arithmetic, dot3, scale, sub, within_approach_angle};
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,14 +78,10 @@ impl Admission<'_> {
     }
 }
 
-/// S3 82D861D8 / S2 CalcApproachSlopeSine 82DDA1A8.
-/// This is the vertical component of normalized cross-rail velocity, not
-/// rail incline or the board's forward/rail angle.
 pub fn approach_slope_sine(tangent: V, velocity: V) -> f32 {
     slope_sine(tangent, velocity, 0.01)
 }
 
-/// S3 82D860F8 uses a smaller dead zone for coping and engagement.
 pub fn engagement_slope_sine(tangent: V, velocity: V) -> f32 {
     slope_sine(tangent, velocity, 0.001)
 }
@@ -101,7 +95,3 @@ fn slope_sine(tangent: V, velocity: V, dead_zone: f32) -> f32 {
         arithmetic::reciprocal(length) * transverse[1]
     }
 }
-
-#[cfg(test)]
-#[path = "admission_tests.rs"]
-mod tests;

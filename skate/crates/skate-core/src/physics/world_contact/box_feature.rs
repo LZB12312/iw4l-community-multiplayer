@@ -2,12 +2,9 @@ use super::{MaximumFeature, initialize_feature_segment};
 use crate::physics::reciprocal_sqrt::estimate;
 
 type V = [f32; 4];
-const OTHER: [[usize; 2]; 3] = [[1, 2], [0, 2], [0, 1]]; // 83044248
-const SIGNS: [[f32; 2]; 4] = [[1.0, 1.0], [1.0, -1.0], [-1.0, -1.0], [-1.0, 1.0]]; //83044260
+const OTHER: [[usize; 2]; 3] = [[1, 2], [0, 2], [0, 1]];
+const SIGNS: [[f32; 2]; 4] = [[1.0, 1.0], [1.0, -1.0], [-1.0, -1.0], [-1.0, 1.0]];
 
-/// Complete native box maximum-feature callback82AD7A98. Face winding uses the
-/// full integer mode. `incoming_edge_plane` is VMX v60 at entry, copied only in
-/// the edge branch without initialization by the native function.
 pub fn box_maximum_feature(
     gp: &[u32; 48],
     mode: u32,

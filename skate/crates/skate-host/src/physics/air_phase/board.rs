@@ -1,4 +1,3 @@
-//!82D34AB0 consumes the completed Air reckoning's collision normal1216.
 use super::*;
 use skate_core::{
     air::state::PhysicsAirFrame, math::Vector3, physics::force_queue::QueuedPointForce,

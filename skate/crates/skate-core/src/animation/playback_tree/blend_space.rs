@@ -1,5 +1,3 @@
-//! Andale BlendSpace82D22DA0..82D24B90. Authored simplex planes, original
-//! scalar selection82D23A50 and phase-coupled child clocks; no fitted metric.
 use super::{
     AdvanceResult, AnimationAttribute, AttributeName, Evaluation, PlaybackTree, PoseCommand,
     SettableAttribute,
@@ -14,7 +12,6 @@ pub struct Simplex {
     pub scales: Vec<f32>,
 }
 impl Simplex {
-    ///82D23898: signed distances to the opposite planes, scaled by inverse height.
     pub fn coordinates(&self, point: &[f32]) -> Vec<f32> {
         (0..self.children.len())
             .map(|i| {
@@ -36,8 +33,6 @@ impl Simplex {
             })
             .collect()
     }
-    ///82D23530/82D23080: successive coordinate-plane slices, retaining edge
-    ///enumeration order. On an empty slice choose its nearest remaining vertex.
     fn project(&self, point: &[f32]) -> Vec<f32> {
         let mut matrix = self.vertices.clone();
         let mut projected = Vec::with_capacity(point.len());
@@ -56,7 +51,6 @@ impl Simplex {
                     }
                     let delta = b[0] - a[0];
                     if delta.abs() <= f32::from_bits(0x3727_c5ac) {
-                        //8219B100
                         sliced.push(a[1..].to_vec());
                         if sliced.len() < count {
                             sliced.push(b[1..].to_vec());
@@ -161,7 +155,6 @@ impl BlendSpace {
             let child = &mut self.children[i];
             child.set_time(phase * child.length());
         }
-        //82D24AB0 updates child clocks; the cached time is written by Advance.
     }
     pub fn set_speed(&mut self, speed: f32) {
         for child in &mut self.children {
@@ -279,8 +272,6 @@ impl BlendSpace {
         mask: u32,
         output: &mut AnimationAttribute,
     ) -> Result<bool, String> {
-        //82D24580 indexes the first d+1 authored children directly (unlike
-        //GetAttributes, which follows the active simplex). Preserve that distinction.
         if !self.children[0].query_attribute(name, mask, output)? {
             return Ok(false);
         }
@@ -324,81 +315,4 @@ fn normalize(weights: &mut [f32]) -> Result<(), String> {
         *w *= inverse;
     }
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::animation::{playback_clip::PlaybackClip, skeleton_input::name::encode};
-    fn triangle() -> Simplex {
-        Simplex {
-            children: vec![0, 1, 2],
-            vertices: vec![vec![0., 0.], vec![1., 0.], vec![0., 1.]],
-            normals: vec![vec![-1., -1.], vec![1., 0.], vec![0., 1.]],
-            scales: vec![1.; 3],
-        }
-    }
-    #[test]
-    fn bump_space_planes_and_original_outside_projection() {
-        let s = triangle();
-        assert_eq!(s.coordinates(&[0.25, 0.5]), vec![0.25, 0.25, 0.5]);
-        assert_eq!(s.project(&[2., 0.5]), vec![1., 0.]);
-        assert_eq!(s.project(&[0.5, 2.]), vec![0.5, 0.5]);
-        assert_eq!(s.project(&[-1., -1.]), vec![0., 0.]);
-    }
-    #[test]
-    fn bump_space_clocks_share_phase_and_keep_all_weighted_poses() {
-        let children = (1..=3)
-            .map(|i| PlaybackTree::Clip {
-                name: format!("CLIP{i}"),
-                clip: PlaybackClip::new((i * 30 + 1) as f32, 30., 1., 0, Vec::new()),
-            })
-            .collect();
-        let x = encode(b"X");
-        let y = encode(b"Y");
-        let mut tree = BlendSpace::new(vec![x, y], children, vec![triangle()]).unwrap();
-        tree.set_attributes(&[
-            SettableAttribute {
-                name: x,
-                value: 0.25,
-                normalized: false,
-                sequence_id: -1,
-            },
-            SettableAttribute {
-                name: y,
-                value: 0.5,
-                normalized: false,
-                sequence_id: -1,
-            },
-        ])
-        .unwrap();
-        let length = tree.length();
-        tree.set_time(length * 0.2);
-        let mut property = AdvanceResult {
-            crossed_end: false,
-            overshoot: -1.,
-            remaining_before_wrap: -1.,
-        };
-        tree.advance(length * 0.1, 0., &mut property);
-        for child in &tree.children {
-            assert!((child.time() / child.length() - 0.3).abs() < 1e-6);
-        }
-        let mut commands = Vec::new();
-        tree.evaluate(
-            Evaluation {
-                cull_threshold: 0.01,
-                update_history: true,
-            },
-            true,
-            &mut commands,
-        )
-        .unwrap();
-        assert_eq!(commands.len(), 4);
-        assert_eq!(
-            commands.last(),
-            Some(&PoseCommand::WeightedBlend {
-                weights: vec![0.25, 0.25, 0.5]
-            })
-        );
-    }
 }

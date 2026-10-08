@@ -18,8 +18,6 @@ impl State {
     pub(crate) fn load(data: &Collections) -> Result<Self, String> {
         Ok(Self {
             pending: None,
-            //82C209E4 and Skate2 GetGeometryCollisionOffset82CFABD8:
-            //physics_grinds layout636, full keyCBFEFFEA12F4CC27.
             collision_offset: data.float("physics_grinds", "default", "DeckCenterToTruck")?,
         })
     }
@@ -47,12 +45,9 @@ impl State {
         if let Some(packet) = query::select_edge(search, &candidates)
             .and_then(|edge| query::prepare_packet(frame, context, edge, self.collision_offset))
         {
-            //82C20BF0 starts the real batch during Sync. Host execution may be
-            //synchronous, but interpretation/publication waits for PreUpdate.
             let hits = SceneService { world }.query_lines(&packet)?;
             self.pending = Some((packet, hits));
         }
-        //82D321CC: no selected edge means no submit, not a fabricated query.
         Ok(())
     }
 }

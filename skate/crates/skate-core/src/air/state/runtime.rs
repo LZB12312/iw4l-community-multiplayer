@@ -5,8 +5,6 @@ use super::{
     jump_velocity::PhysicsAirMath,
 };
 
-/// Mutations of the 272-byte trajectory launch record recovered at
-/// `0x82D33448`, `0x82BE33D0`, and `0x82D34570`.
 pub trait PhysicsAirLaunchInfo {
     fn set_start_velocity(&mut self, velocity: Vector4);
     fn centre_of_mass_animation_position(&self) -> Vector4;
@@ -43,11 +41,7 @@ pub trait PhysicsAirRuntime: PhysicsAirMath {
     fn selector_landing_normal(&self) -> Option<Vector4>;
     fn selector_centre_of_mass_trajectory_ready(&self) -> bool;
 
-    /// `AngleBetweenVectors` (`0x8296EBB0`), including its unresolved VMX
-    /// normalization behavior. The caller performs the recovered angle wrap.
     fn angle_between_vectors(&mut self, left: Vector4, right: Vector4) -> f32;
-    ///Return the completed canonical fields: UpdateSkateboard reads the newly
-    ///filtered collision normal1216, after82D8DBD8, not the entry snapshot.
     fn update_reckoning_air_states(
         &mut self,
         landing_normal: Vector4,
@@ -59,9 +53,6 @@ pub trait PhysicsAirRuntime: PhysicsAirMath {
     fn update_animated_skateboard_skeleton(&mut self, argument: bool);
 
     fn update_board_steering_tilt(&mut self, tilt: f32);
-    /// `Toolkit_CalcCollisionForce` (`0x82D944E8`). The adapter supplies its
-    /// bound settings and complete live ProcessedPhysIn; PhysicsAir only passes
-    /// the reference normal and receives the point-force record.
     fn calculate_air_collision_force(
         &mut self,
         reference_normal: Vector4,

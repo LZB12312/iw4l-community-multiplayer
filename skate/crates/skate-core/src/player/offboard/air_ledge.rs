@@ -1,4 +1,3 @@
-//! Retail trajectory/edge qualification (82C1F310, 82E09DF0, 82D6D4D0).
 use super::{
     air_launch::{V, cross, dot, length, madd, scale, sub, unit},
     ground_query::Edge,
@@ -8,8 +7,6 @@ const UP: V = [0., 1., 0., 0.];
 fn vector(v: crate::math::Vector3) -> V {
     [v.x, v.y, v.z, 0.]
 }
-///82C1F310 removes overlapping parallel edges according to height and distance
-///from the trajectory origin, preserving enumeration order and the forty cap.
 pub fn visible_edges(edges: &[Edge], origin: V) -> Vec<Edge> {
     let directions: Vec<_> = edges
         .iter()
@@ -65,7 +62,6 @@ pub struct Candidate {
     pub frame: i32,
     pub normal: V,
 }
-///82E09DF0 solves the plane through the edge and returns the descending root.
 pub fn candidate(
     arc: Trajectory,
     edge: Edge,

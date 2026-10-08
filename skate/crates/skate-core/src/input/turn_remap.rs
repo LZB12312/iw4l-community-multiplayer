@@ -1,5 +1,3 @@
-//! Complete TU3 SetTurning vector remap, 82BB4248.
-//! Curves and offsets are supplied from the native animation_turning layout.
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Copy, Debug)]
@@ -34,7 +32,6 @@ fn angle(x: f32, y: f32, magnitude: f32) -> f32 {
     }
 }
 
-// Scalar lane of standalone cosine 82473930; its power tree differs from SinCos.
 fn cosine(angle: f32) -> f32 {
     let turns = (angle * f32::from_bits(0x3e22_f983)).round_ties_even();
     let x = (-f32::from_bits(0x40c9_0fdb)).mul_add(turns, angle);

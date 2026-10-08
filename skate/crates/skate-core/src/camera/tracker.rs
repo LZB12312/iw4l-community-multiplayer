@@ -1,7 +1,3 @@
-//! Complete scalar tracker update at TU3 0x82E08640 (0x190 bytes).
-//! Callers supply native state, parameters and timestep; no camera tuning or
-//! initialization policy is inferred here. See docs/agents/camera/CAM-01.md.
-
 /// The six scalar words written/read at tracker offsets +0 through +20.
 /// Acceleration clamp retains its prior value when acceleration opposes error.
 #[derive(Clone, Copy, Debug, PartialEq)]

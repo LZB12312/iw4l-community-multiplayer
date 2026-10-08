@@ -29,9 +29,6 @@ fn append(output: &mut FeaturePrism, a: V, b: V) {
     output[132] += 1;
 }
 
-/// General convex-face branch at 82ACE3D8, after specialized paths decline.
-/// Retains native candidate order: B vertices, edge crossings, then A vertices.
-/// Plane-touching vertices/crossings are included without deduplication here.
 pub(super) fn intersect(
     output: &mut FeaturePrism,
     a: &mut MaximumFeature,

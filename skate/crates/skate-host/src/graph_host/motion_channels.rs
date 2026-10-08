@@ -25,8 +25,6 @@ impl MotionChannels {
         mut prepare: impl FnMut(&mut PlaybackTree) -> Result<(), String>,
     ) -> Result<(), String> {
         for channel in &mut self.channels {
-            // Channel::SetAttributes82B96B20 reaches the child even before
-            // fade-in becomes visible. Prepare its selection subtree likewise.
             prepare(&mut channel.tree)?;
         }
         Ok(())
@@ -36,7 +34,6 @@ impl MotionChannels {
             .iter()
             .any(|c| intent_key(&c.name) == intent_key(name))
     }
-    ///82D1D5F8: missing channel returns zero; clamp remaining child time.
     pub fn remaining(&self, name: &str) -> f32 {
         self.channels
             .iter()
@@ -46,9 +43,9 @@ impl MotionChannels {
                 if value >= 0.0 { value } else { 0.0 }
             })
     }
-    ///82D1D4B8: clamp the actual child time to [0, child length].
     pub fn elapsed(&self, name: &str) -> f32 {
-        self.channels.iter()
+        self.channels
+            .iter()
             .find(|c| intent_key(&c.name) == intent_key(name))
             .map_or(0.0, |c| {
                 let time = c.tree.time();
@@ -57,7 +54,6 @@ impl MotionChannels {
                 if length - lower >= 0.0 { lower } else { length }
             })
     }
-    ///82B96FF0 reads Channel136, set/cleared by Start/CompleteTransition.
     pub fn in_transition(&self, name: &str) -> bool {
         self.channels
             .iter()
@@ -65,8 +61,6 @@ impl MotionChannels {
             .is_some_and(|c| matches!(c.tree, PlaybackTree::Transition(_)))
     }
     pub fn insert(&mut self, name: String, tree: PlaybackTree, settings: ChannelSettings) {
-        //82D1CF70..D018: greater priority lies above lesser; a new equal
-        //priority lies above older channels. Store in evaluation order.
         let position = self
             .channels
             .partition_point(|c| c.playback.settings.priority <= settings.priority);
@@ -116,8 +110,6 @@ impl MotionChannels {
             .position(|c| intent_key(&c.name) == intent_key(name))
         {
             let mut c = self.channels.remove(index);
-            //CompleteTransition82D1DBC0 unconditionally keeps the prior target
-            //when another channel transition is requested during a transition.
             let old = match c.tree {
                 PlaybackTree::Transition(t) => *t.to,
                 other => other,
@@ -137,8 +129,6 @@ impl MotionChannels {
             .find(|c| intent_key(&c.name) == intent_key(name))
     }
     pub fn retire(&mut self) {
-        //82B96F88: complete channel transitions, remove expired channels,
-        //then advance the composed tree.
         for c in &mut self.channels {
             if let PlaybackTree::Transition(t) = &c.tree {
                 if t.complete() {
@@ -163,8 +153,6 @@ impl MotionChannels {
     }
     pub fn set_attributes(&mut self, attributes: &[SettableAttribute]) -> Result<(), String> {
         for c in &mut self.channels {
-            //82B96B50..64 forwards parameters unconditionally. Weight gates
-            // pose evaluation (82B965D8), not parameter publication.
             c.tree.set_attributes(attributes)?;
         }
         Ok(())
@@ -187,7 +175,6 @@ impl MotionChannels {
         mask: u32,
         output: &mut AnimationAttribute,
     ) -> Result<bool, String> {
-        //82B96AB0 queries channel first regardless of use_attributes or weight.
         for c in self.channels.iter().rev() {
             if c.tree.query_attribute(name, mask, output)? {
                 return Ok(true);
@@ -213,7 +200,6 @@ impl MotionChannels {
     }
 }
 
-///FakieHeadChannel82BAC778, instance82BACA30; both instance fields seed0.
 #[derive(Default)]
 pub struct FakieHead {
     value: f32,
@@ -250,8 +236,6 @@ impl FakieHead {
                 hold_during_blend_out: false,
                 use_attributes: false,
             };
-            //Actual vtable8231E128+16 is TransitionTo82D1D090.
-            //The source permits both resurrection and creation when missing.
             let transition = TransitionSettings {
                 kind: 2,
                 seconds: f32::from_bits(0x3dcccccd),

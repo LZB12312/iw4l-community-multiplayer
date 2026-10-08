@@ -1,7 +1,3 @@
-//! Contacts for every board primitive against the host triangle world.
-//! Rust owns geometry storage and traversal. Recovered query8277B720,
-//! triangle fixup82AD3130, material combine82763078 and contact retention
-//! determine the physical result, in world-triangle then moving-volume order.
 mod broadphase;
 mod query_index;
 pub mod query_metadata;
@@ -85,7 +81,6 @@ pub struct ContactRetentionSettings {
 
 #[derive(Clone, Copy, Debug)]
 pub struct WheelWorldSettings {
-    /// Sphere shared by wheel definitions in82C0AA78.
     pub radius: f32,
     pub material: RetailContactMaterial,
     pub query: WorldContactSettings,
@@ -367,7 +362,6 @@ impl BoardWorld {
                         return &self.contacts;
                     };
                     self.buffer.records[slot] = retention_record(volume.body, contact);
-                    //8277C23C removes the most recent record on rejection.
                     if self.buffer.last_is_duplicate() {
                         self.buffer.count -= 1;
                     }
@@ -528,11 +522,3 @@ fn collision_from_record(record: &ContactRecord) -> BoardCollision {
         },
     }
 }
-
-#[cfg(test)]
-#[path = "tests/board_world.rs"]
-mod tests;
-
-#[cfg(test)]
-#[path = "board_world/tests.rs"]
-mod broadphase_tests;

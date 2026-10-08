@@ -4,7 +4,6 @@ pub(super) fn dot3(a: [f32; 4], b: [f32; 4]) -> f32 {
     crate::physics::native_arithmetic::dot3(a, b)
 }
 
-/// Inline NormalizeSafe sequence in TU3 82C04F68 / 82D92CF8.
 pub(super) fn normalize(v: [f32; 4], threshold: [f32; 4]) -> [f32; 4] {
     let squared = dot3(v, v);
     let mut inverse = estimate(squared);

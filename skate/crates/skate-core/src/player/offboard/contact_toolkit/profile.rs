@@ -1,4 +1,3 @@
-//! Profile cleanup82D830A8 and segment construction82D83438.
 use super::analyzer_math::{normalize, reciprocal};
 use super::{ContactSample, Input, Vector, cross, dot, length, scale, sub};
 #[derive(Clone, Copy, Debug)]

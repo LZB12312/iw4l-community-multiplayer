@@ -1,5 +1,3 @@
-//! Ordinary (non-animated, non-collision-response) `82D38800` path.
-
 use crate::{
     math::Vector3,
     physics::{force_queue::QueuedPointForce, manual::controller},
@@ -48,8 +46,6 @@ pub(super) fn update<S: GroundBoardServices>(
         &input.speed_model,
     );
     input.slide_friction.heading_time = state.elapsed_2648;
-    // Both helpers read wheel hardness from ProcessedPhysIn+2764
-    // (82D92AAC / 82D92B80), supplied by the animation profile.
     let slide_force = slide_friction::calculate(settings.slide_friction, &input.slide_friction);
     let pump_force = pumping::calculate(&input.pump_force);
     input.straighten.heading_time = state.elapsed_2648;

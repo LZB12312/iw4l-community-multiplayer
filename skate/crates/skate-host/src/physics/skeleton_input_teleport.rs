@@ -1,5 +1,3 @@
-//! Actual teleport skeleton stages82BE3508 and82BDF7C0. The player owns the
-//! intervening ResetSystems and ProcessData calls; this is the same skeleton.
 use super::{CollisionInput, SkeletonInputRuntime, SkeletonOwners};
 use skate_core::{
     animation::{foot_ik::state::FootIkState, output::NativeMatrix},
@@ -15,8 +13,6 @@ use skate_core::{
 };
 
 impl SkeletonInputRuntime {
-    ///82BE3508, after board reset and before player ResetSystems82DB92D0.
-    ///Does not replace owners with startup instances or reset unrelated rates.
     pub fn reset_for_teleport(
         &mut self,
         owners: &mut SkeletonOwners<'_>,
@@ -45,8 +41,6 @@ impl SkeletonInputRuntime {
         owners.animated.board_frames.lift_height = 0.0;
     }
 
-    ///82DB8998 brackets82BDF7C0 with Skeleton16508=true/false after the real
-    ///ProcessData call. Reckoning816 is its freshly reset original frame.
     pub fn update_teleport(
         &mut self,
         board: &BoardRuntime,

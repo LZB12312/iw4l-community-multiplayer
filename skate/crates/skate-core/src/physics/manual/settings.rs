@@ -1,4 +1,3 @@
-//! physics_manual stock layout at global830CFDA4+200, wrapper+4.
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Copy, Debug)]

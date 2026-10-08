@@ -86,6 +86,8 @@ pub(crate) fn spawn(
             return;
         }
         meta.life_sequence = meta.life_sequence.next();
+        meta.skate = None;
+        meta.skate_damage = Default::default();
         meta.dead_since_tick = None;
         meta.item_use_spawn_ms = crate::corpse::level_time_ms(tick);
         meta.item_use_entity = None;
@@ -97,6 +99,7 @@ pub(crate) fn spawn(
         meta.rechamber_pending_secondary = false;
         meta.life_sequence
     };
+    world.corpses_mut().clear_skater(id);
     let class_id = world
         .client_meta(id)
         .and_then(|m| m.loadout.as_ref().map(|l| l.class_id))
@@ -265,6 +268,7 @@ pub(crate) fn finish_damage(
     id: ClientId,
     amount: i32,
     dir: Option<[f32; 3]>,
+    hit: &str,
 ) -> Finish {
     if !world
         .client_meta(id)
@@ -279,18 +283,105 @@ pub(crate) fn finish_damage(
     ps.health = (ps.health - amount.max(0)).max(0);
     ps.damage_count = ps.damage_count.saturating_add(1);
     ps.damage_event = ps.damage_event.wrapping_add(1);
-    if ps.health > 0 {
-        return Finish::Hurt;
-    }
     use playerstate_iw4::pm_flags::LAST_STAND;
-    if ps.perks[0] & playerstate_iw4::PERK_PISTOLDEATH != 0 && ps.pm_flags & LAST_STAND == 0 {
+    let finish = if ps.health > 0 {
+        Finish::Hurt
+    } else if ps.perks[0] & playerstate_iw4::PERK_PISTOLDEATH != 0 && ps.pm_flags & LAST_STAND == 0
+    {
         ps.health = 1;
         ps.pm_type = playerstate_iw4::PM_TYPE_LAST_STAND;
         ps.view_height_target = movement_iw4::view_height::LAST_STAND;
         ps.pm_flags |= LAST_STAND;
-        return Finish::LastStand;
+        Finish::LastStand
+    } else {
+        Finish::Killed
+    };
+    record_skate_damage(world, id, amount, dir, finish == Finish::Killed, hit);
+    finish
+}
+
+pub(crate) fn record_skate_damage(
+    world: &mut FrameWorld,
+    id: ClientId,
+    amount: i32,
+    dir: Option<[f32; 3]>,
+    lethal: bool,
+    hit: &str,
+) {
+    if amount <= 0 || !world.client_meta(id).is_some_and(|m| m.skate.is_some()) {
+        return;
     }
-    Finish::Killed
+    let (tolerance, window, scale) = {
+        let runtime = world.ecs().resource::<crate::script::Runtime>();
+        let number = |name: &str, default: f32, low: f32, high: f32| {
+            runtime
+                .dvars
+                .get(name)
+                .and_then(|v| v.parse::<f32>().ok())
+                .filter(|v| v.is_finite())
+                .unwrap_or(default)
+                .clamp(low, high)
+        };
+        (
+            number("skate_damage_tolerance", 35., 0., 1000.) as u32,
+            number("skate_damage_window_ms", 750., 50., 5000.) as u32,
+            number("skate_damage_impulse", 1., 0., 4.),
+        )
+    };
+    let tick = world
+        .ecs()
+        .resource::<crate::script::Runtime>()
+        .last_tick
+        .unwrap_or(Tick(0))
+        .0;
+    let state = &mut world.client_meta_mut(id).skate_damage;
+    if tolerance == 0 {
+        state.accumulated = 0;
+        state.accumulated_injuries = 0;
+        state.last_tick = tick;
+        return;
+    }
+    if tick
+        .wrapping_sub(state.last_tick)
+        .saturating_mul(crate::MATCH_TICK_MS)
+        > window
+    {
+        state.accumulated = 0;
+        state.accumulated_injuries = 0;
+    }
+    state.last_tick = tick;
+    state.accumulated = state.accumulated.saturating_add(amount as u32);
+    state.accumulated_injuries |= crate::presentation::meat_hit_region(hit);
+    if !lethal && state.accumulated < tolerance {
+        return;
+    }
+    let direction = dir
+        .filter(|v| v.iter().all(|x| x.is_finite()))
+        .unwrap_or([0., 0., 1.]);
+    let length = direction.iter().map(|v| v * v).sum::<f32>().sqrt();
+    let speed = (2. + state.accumulated as f32 * 0.06).min(12.) * scale;
+    let mut impulse = direction.map(|v| {
+        if length > 0.001 {
+            v / length * speed
+        } else {
+            0.
+        }
+    });
+    impulse[2] += speed * 0.25;
+    state.impact = crate::presentation::SkateImpact {
+        sequence: state.impact.sequence.wrapping_add(1).max(1),
+        tick,
+        damage: state.accumulated,
+        impulse,
+        lethal,
+    };
+    state.score = state
+        .score
+        .saturating_add(state.accumulated.saturating_mul(10));
+    state.bails = state.bails.saturating_add(1);
+    state.injuries |= state.accumulated_injuries;
+    state.accumulated_injuries = 0;
+    state.accumulated = 0;
 }
 
 pub(crate) fn revive(world: &mut FrameWorld, id: ClientId) {

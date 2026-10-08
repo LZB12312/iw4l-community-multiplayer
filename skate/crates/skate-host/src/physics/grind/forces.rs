@@ -6,7 +6,6 @@ use skate_core::{
 };
 type V = [f32; 4];
 
-///82D3FD88. The family owns its three strengths and position/velocity snapshot.
 pub(crate) fn friction(
     board: &mut BoardRuntime,
     manager: &ManagerObservation,

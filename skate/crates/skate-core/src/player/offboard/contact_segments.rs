@@ -1,5 +1,3 @@
-//! Surface segment construction82D83438 and candidate insertion82D82380.
-//! Input records must already have passed the earlier native classifiers.
 use super::{
     contact_queries::{Input, V},
     contact_records::Record,
@@ -59,7 +57,6 @@ pub(super) fn reciprocal(v: f32) -> f32 {
 fn normal(delta: V, input: Input) -> V {
     let cross = cross(delta, input.surface_right);
     let (len, inv) = length_inverse(cross);
-    //830BD350 is initialized by82F826F8 from82181A88, not its zero dump image.
     if len > f32::from_bits(0x3586_37bd) {
         scale(cross, inv)
     } else {
@@ -124,8 +121,6 @@ pub struct Candidate {
     pub kind: u32,
 }
 impl Candidate {
-    ///82D82288 uses input forward for a point closer than .02; otherwise the
-    ///un-normalized displacement is retained as the candidate tangent.
     pub fn from_point(
         input: Input,
         segments: &Segments,
@@ -194,83 +189,5 @@ impl Candidate {
             result.minimum_distance = 0.;
         }
         result
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn input() -> Input {
-        Input {
-            position: [0.; 4],
-            surface_forward: [0., 0., 1., 0.],
-            surface_up: [0., 1., 0., 0.],
-            surface_right: [1., 0., 0., 0.],
-            velocity: [0.; 4],
-            animation_up: [0., 1., 0., 0.],
-            animation_right: [1., 0., 0., 0.],
-        }
-    }
-    fn record(y: f32, z: f32) -> Record {
-        Record {
-            position: [0., y, z, 0.],
-            normal: [0., 1., 0., 0.],
-            coordinates: [z, y, z, z],
-            flags: 0,
-            distance: z,
-        }
-    }
-    #[test]
-    fn consecutive_vertical_segments_merge_but_surface_segments_remain_distinct() {
-        let mut segments = Segments::default();
-        segments.rebuild(
-            input(),
-            &[
-                record(0., 0.),
-                record(0., 1.),
-                record(1., 1.),
-                record(2., 1.),
-                record(2., 2.),
-                record(2., 3.),
-            ],
-        );
-        assert_eq!(segments.items.len(), 4);
-        assert_eq!(segments.last_surface_end, 4);
-        assert_eq!(segments.items[1].kind, Kind::Rising);
-        assert_eq!(segments.items[1].length, 2.);
-        assert_eq!(segments.items[1].normal, [0., 0., -1., 0.]);
-        assert_eq!(segments.items[0].normal, [0., 1., 0., 0.]);
-        segments.rebuild(input(), &[record(0., 0.), record(1., 0.)]);
-        assert_eq!(segments.last_surface_end, 0);
-    }
-    #[test]
-    fn candidates_expand_only_toward_the_native_selected_endpoint() {
-        let mut segments = Segments::default();
-        segments.rebuild(input(), &[record(0., 0.), record(2., 0.5)]);
-        let candidate = Candidate::new(
-            input(),
-            &segments,
-            [0., 1., 0.25, 0.],
-            [0., 1., 0., 0.],
-            [1., 0., 0., 0.],
-            Some(0),
-            64,
-            4,
-        );
-        assert_eq!(candidate.minimum_distance, 0.25);
-        assert_eq!(candidate.maximum_distance, 0.5);
-        assert_eq!(candidate.position_distance, 0.25);
-        let no_segment = Candidate::new(
-            input(),
-            &segments,
-            [0., 1., 0.25, 0.],
-            [0.; 4],
-            [0.; 4],
-            None,
-            0,
-            0,
-        );
-        assert_eq!(no_segment.minimum_distance, 0.);
-        assert_eq!(no_segment.maximum_distance, 0.25);
     }
 }

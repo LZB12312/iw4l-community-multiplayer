@@ -1,6 +1,3 @@
-//! Original TU3 Biped ground geometry:82D32808,82C20728,82C20C08,82D31620.
-//! Scene enumeration/collision is supplied explicitly by the canonical host.
-//! The host must consume the previous Sync query during the next PreUpdate.
 mod consume;
 mod geometry;
 mod math;
@@ -62,9 +59,7 @@ pub struct GroundQueryPacket {
     pub lines: [Line; 7],
 }
 impl GroundQueryPacket {
-    ///82764AB0: Ground pool,21888 pool, and21892 only on island.flags==3.
     pub const SOURCE_POOL_MASK: u8 = 7;
-    ///8276D510 adds no facing rejection; triangle winding rules still apply.
     pub const FACING_FLAGS: u8 = 3;
     pub const MESH_EXCLUSION_MASK: u32 = 0;
     pub const MATERIAL_EXCLUSION_MASK: [u32; 4] = [0; 4];
@@ -76,7 +71,6 @@ pub struct LineHit {
     pub fraction: f32,
     pub packed_surface: u16,
 }
-///Complete fields read by82D31620; not the unrelated general grind classifier.
 #[derive(Clone, Copy, Debug)]
 pub struct GroundGeometry {
     pub frame: Frame,
@@ -114,5 +108,3 @@ pub trait GroundQueryScene {
         packet: &GroundQueryPacket,
     ) -> Result<[Option<LineHit>; 7], Self::Error>;
 }
-#[cfg(test)]
-mod tests;

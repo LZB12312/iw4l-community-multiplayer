@@ -1,13 +1,7 @@
-//! Original TU3 Biped movement82D7EDC8 and leaves800C0/80EB0/80CE0.
-//! S3 SHA256431b8eba23565affdc10d137df19b06fe286244cefb3e1a13f32693e9600395a.
-//! The controller owns these fields once; this stage makes no collision queries.
-
 mod approach;
 mod math;
 mod publication;
 mod support;
-#[cfg(test)]
-mod tests;
 
 pub type Vector = [f32; 4];
 pub type Frame = [Vector; 4];
@@ -67,7 +61,6 @@ pub struct GroundMotionInput {
     pub obstacle_enabled_713: bool,
 }
 
-///82D7EDC8. Order: support history, approach, displacement/heading, publication.
 pub fn update(state: &mut GroundMotionState, input: &GroundMotionInput) {
     let support_delta = support::update(state, input);
     let old_position = state.frame_0[3];

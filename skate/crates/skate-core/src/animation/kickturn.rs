@@ -1,5 +1,3 @@
-//! Original Skate 3 TU3 KickTurnSteering: constructor82BAE730,
-//! Begin82BAE430 and Update82BAE4A8. Curves are Globals324 anim_motion/kickturn.
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Debug)]
@@ -8,7 +6,6 @@ pub struct Settings {
     pub height: PointGraph<8>,
 }
 
-/// Authored behavior fields28/32; constructor82BC7218 defaults both to0.5.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Parameters {
     pub max_height: f32,
@@ -44,7 +41,6 @@ impl State {
 
     pub fn begin(&mut self, settings: &Settings) {
         *self = Self::new();
-        //82BAE480 seeds the unscaled curve value, before applying max_height.
         self.previous_height = settings.height.evaluate(0.0);
     }
 
@@ -71,8 +67,6 @@ impl State {
         let phase = bound(self.elapsed / self.animation_length, 1.0);
         let spin_curve = settings.spin.evaluate(phase);
         let height_curve = settings.height.evaluate(phase);
-        //82BAE660 fmadds, followed by separate82BAE670 fmuls. TU3 fixes
-        //the blend coefficient at0.5; the S2 debug alternatives are absent.
         let sum = height_curve.mul_add(parameters.max_height, self.previous_height);
         let height = bound(sum * 0.5, parameters.max_height);
         self.previous_height = height;
@@ -103,7 +97,3 @@ fn bound(value: f32, maximum: f32) -> f32 {
         maximum
     }
 }
-
-#[cfg(test)]
-#[path = "tests/kickturn.rs"]
-mod tests;

@@ -15,10 +15,6 @@ use skate_core::{
 use skate_data::skate_map::SkateMap;
 use std::collections::HashMap;
 
-#[cfg(test)]
-#[path = "retail_shadow_geometry.rs"]
-pub(crate) mod shadow_geometry;
-
 pub(crate) fn validate_runtime(map: &SkateMap) -> Result<(), String> {
     let _span = info_span!("validate_map").entered();
     let archive = retail_archive(map)?;
@@ -99,9 +95,6 @@ pub(crate) fn validate_runtime(map: &SkateMap) -> Result<(), String> {
     Ok(())
 }
 
-/// TU3 ClusteredMesh::GetUnitVolumes (82AC8A68): fdivs then fsubs,
-/// using the pi-squared word at 822F88D0. This is not acos/angle decoding.
-/// Bit 7 denotes an unmatched compiler edge and is not a triangle flag.
 fn decode_native_edges(edges: [u8; 3]) -> Result<(u32, [f32; 3]), String> {
     let mut flags = 1 | TriangleFeature::ONE_SIDED | TriangleFeature::USE_EDGE_COSINES;
     let mut cosines = [0.; 3];
@@ -156,8 +149,6 @@ fn retail_collision_world(
                         }
                         (flags, cosines)
                     }
-                    // TriangleVolume ctor82AC7770 retains these defaults when
-                    // the unit has no edge data; the mesh sidedness is not read.
                     None => (0x1e1, [-1.; 3]),
                 };
                 triangles.push(

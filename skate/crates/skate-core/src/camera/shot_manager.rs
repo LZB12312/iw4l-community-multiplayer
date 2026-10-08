@@ -1,6 +1,3 @@
-//! Normal camera ShotManager82E06370/82E064B0/82E068B8/82E06E38.
-//! The host owns immutable stock definitions and tree allocation. The authored
-//! child order, filter history and transition calculations retain TU3 behavior.
 use super::{Shot, blend_interval, filter_blend_value, position_from_angles};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -38,8 +35,6 @@ pub trait ShotDatabase {
     fn load(&self, name: &str) -> Result<ShotDefinition, String>;
 }
 
-/// Runtime values are produced by CameraMan82E07708 and the subject compass.
-/// The 6->5 compass override is applied here only when its subject flag is set.
 pub trait ShotEnvironment {
     fn heading_mirror(&self) -> f32;
     fn compass_north(&self, entry: u32) -> f32;
@@ -142,7 +137,6 @@ impl ShotNode {
         ) else {
             return;
         };
-        // 82E06E98 and82E06EC4 are separate multiply/subtract/add operations.
         let fraction = crate::trigonometry::sin(
             fraction * f32::from_bits(0x40490fdb) - f32::from_bits(0x3fc90fdb),
         ) * 0.5
@@ -187,8 +181,6 @@ impl ShotManager {
         &self.current.definition
     }
 
-    /// CameraChooseShot::Begin82DF5C60, after SetShot. The previous behavior's
-    /// outgoing override is used only when this one has no incoming override.
     pub fn apply_graph_transition(&mut self, incoming: f32, outgoing: f32) {
         if incoming >= 0.0 {
             self.current.definition.transition_time = incoming;
@@ -200,8 +192,10 @@ impl ShotManager {
 
     /// CameraMan reset follows child0 pointers to the authored leaf.
     pub fn first_leaf(&self) -> Shot {
-        let mut node=&self.current;
-        while let Some(child)=node.children.first() {node=child;}
+        let mut node = &self.current;
+        while let Some(child) = node.children.first() {
+            node = child;
+        }
         node.definition.shot
     }
 
@@ -213,7 +207,6 @@ impl ShotManager {
         env: &mut impl ShotEnvironment,
         placement: ShotPlacement,
     ) -> Result<bool, String> {
-        // 82AE8B40 lowercases ASCII A..Z before the native comparison.
         if !force && self.current.definition.name.eq_ignore_ascii_case(name) {
             return Ok(false);
         }
@@ -273,20 +266,20 @@ impl ShotManager {
         self.elapsed = self.duration(false);
     }
 
-    /// CameraMan82DFF174 clamps a distance-transition speed <=0 to0.0001;
-    /// ShotManager82E06418 and MakeInstant82E07450 do not apply that clamp.
     pub fn is_transitioning(&self) -> bool {
         self.elapsed < self.duration(true)
     }
 
-    /// CameraMan82DFF964..82DFFA08 uses a separate sine-eased framing blend.
     pub fn framing_fraction(&self) -> f32 {
         let duration = self.duration(true);
-        if duration <= 0.0 { return 1.0; }
+        if duration <= 0.0 {
+            return 1.0;
+        }
         let fraction = super::manager_state::clamp(self.elapsed / duration, 0.0, 1.0);
-        crate::trigonometry::sin(fraction.mul_add(
-            f32::from_bits(0x40490fdb), -f32::from_bits(0x3fc90fdb)))
-            .mul_add(0.5, 0.5)
+        crate::trigonometry::sin(
+            fraction.mul_add(f32::from_bits(0x40490fdb), -f32::from_bits(0x3fc90fdb)),
+        )
+        .mul_add(0.5, 0.5)
     }
 
     fn duration(&self, camera_man: bool) -> f32 {

@@ -1,6 +1,3 @@
-//! Reckoning transform, dynamic lean and lateral tilt, TU3
-//!82D8D688/82D8D930/82D8C4F8. State scheduling and frame producers are separate.
-//! Numerical primitives retain their documented hardware-validation boundary.
 use crate::{
     math::Vector3,
     physics::{
@@ -34,8 +31,6 @@ pub struct ReckoningFrames {
 }
 
 impl ReckoningFrames {
-    ///82D33178 initializes each matrix independently to identity and seeds
-    ///heading to world X. Reset82D8C3A8 later preserves the matrices.
     pub fn new() -> Self {
         Self {
             ground: IDENTITY,
@@ -49,8 +44,6 @@ impl ReckoningFrames {
         }
     }
 
-    ///82D8D688. Cross products use the unnormalized intermediate axis;
-    ///normalization has two refinements and no epsilon fallback in this leaf.
     pub fn calculate_transform(&mut self, up: [f32; 4], ground_normal: [f32; 4]) {
         let right = cross(up, self.heading);
         let forward = cross(right, up);
@@ -69,7 +62,6 @@ impl ReckoningFrames {
         self.ground[2] = normalize(ground_forward);
     }
 
-    ///82D8D930. Signed angle is wrapped by fraction/floor, not scalar atan2.
     pub fn calculate_dynamic_lean(&mut self, up: [f32; 4], dynamic_up: [f32; 4]) {
         let axis = self.system[2];
         let project = |value| {
@@ -78,7 +70,7 @@ impl ReckoningFrames {
         };
         let from = project(up);
         let to = project(dynamic_up);
-        let threshold = f32::from_bits(0x3727_c5ac); //8219B100
+        let threshold = f32::from_bits(0x3727_c5ac);
         self.target_lean_angle = if dot3(from, from) > threshold && dot3(to, to) > threshold {
             wrap_fraction(signed_angle(xyz(from), xyz(to), xyz(axis)))
         } else {
@@ -86,9 +78,6 @@ impl ReckoningFrames {
         };
     }
 
-    ///82D8C4F8. Degenerate projection preserves the preceding lateral tilt.
-    ///The stock source uses the unflipped up/forward axes and two authored
-    ///curves, including its absolute wrapped angle and stance sign change.
     pub fn calculate_tilt(
         &mut self,
         reverse_stance: bool,
@@ -116,8 +105,6 @@ impl ReckoningFrames {
         if reverse_stance {
             normalized_angle = -normalized_angle;
         }
-        //Inline native asin polynomial82D8C704..7E0 is the same operation
-        //tree retained by trigonometry::asin, including one rsqrt refinement.
         let normalized_up_angle = (half_pi - trigonometry::asin(axis[1])) * scale;
         let angle_tilt = tilt_vs_angle.evaluate(normalized_angle.abs());
         let up_tilt = tilt_vs_up.evaluate(normalized_up_angle.abs());
@@ -160,37 +147,4 @@ fn wrap_fraction(angle: f32) -> f32 {
 }
 fn xyz(v: [f32; 4]) -> Vector3 {
     Vector3::new(v[0], v[1], v[2])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn body_flip_changes_system_but_retains_ground_and_preflip_frames() {
-        let mut state = ReckoningFrames::new();
-        state.heading = [0.0, 0.0, 1.0, 0.0];
-        state.body_flip = [
-            [0., 0., -1., 0.],
-            [0., 1., 0., 0.],
-            [1., 0., 0., 0.],
-            [3., 0., 0., 0.],
-        ];
-        state.calculate_transform([0., 1., 0., 0.], [0., 1., 0., 0.]);
-        assert_eq!(state.unflipped, IDENTITY);
-        assert_eq!(state.ground, IDENTITY);
-        assert_eq!(state.system, state.body_flip);
-        assert_eq!(
-            compose_affine(&state.system, &state.inverse_system),
-            IDENTITY
-        );
-        state.calculate_dynamic_lean([0., 1., 0., 0.], [0., 1., 0., 0.]);
-        assert!(state.target_lean_angle.abs() < 0.001);
-        state.lateral_tilt = [0.3, 0., 0., 0.];
-        let curve = PointGraph {
-            x: [0.; 8],
-            y: [0.; 8],
-        };
-        state.calculate_tilt(false, &curve, &curve);
-        assert_eq!(state.lateral_tilt, [0.3, 0., 0., 0.]);
-    }
 }

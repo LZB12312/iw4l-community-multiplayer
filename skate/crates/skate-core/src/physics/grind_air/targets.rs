@@ -22,7 +22,6 @@ pub struct DeckDimensions {
     pub truck_y: f32,
 }
 impl DeckDimensions {
-    ///82D72B40 uses sine for tip height but adds the unprojected tip length to Z.
     pub fn contact_points(self, tip_fraction: f32) -> [V; 5] {
         let half = self.middle_length * 0.5;
         let tip = self.front_end_size * tip_fraction;

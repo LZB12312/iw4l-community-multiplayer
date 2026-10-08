@@ -1,7 +1,6 @@
 use super::*;
 
 impl GrindInputState {
-    ///82D8A828/82D8ABD8; preserved current permission/counter arithmetic.
     pub(super) fn permission(&mut self, p: &ProcessedPhysicsInput, air_counter: i32) {
         let state = p.state_2508;
         if state != self.previous_state {
@@ -34,8 +33,6 @@ impl GrindInputState {
         };
     }
 
-    ///82D875A8; accepted families RETAIN previous proximity. Only fallback
-    ///writes the history byte, which is not the valid-candidate flag.
     pub(super) fn advance_history(&mut self, p: &ProcessedPhysicsInput) {
         self.low_wheel_frames = if self.previous_proximity
             && p.state_2508 == 100
@@ -64,7 +61,6 @@ impl GrindInputState {
         };
     }
 
-    ///82D89DC0: use the PRECEDING KnownAir target on ground, then update it.
     pub(super) fn material_mode(
         &mut self,
         p: &ProcessedPhysicsInput,

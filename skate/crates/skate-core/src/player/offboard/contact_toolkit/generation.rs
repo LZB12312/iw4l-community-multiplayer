@@ -1,4 +1,3 @@
-//! TU3 82D837C8: ordered rising/falling profile candidate production.
 use super::candidate::{Builder, Candidate, between_slope, down_slope, up_slope};
 use super::profile::Profile;
 use super::{ContactPrefix, Input, cross, dot, length, scale, sub};
@@ -160,7 +159,6 @@ pub(super) fn generate(
         };
         if builder.candidates.is_empty() || !saw_drop {
             let kind = if builder.candidates.is_empty() { 7 } else { 8 };
-            // 82D83F94 loads stock 8208824C=0x3F4CCCCD, not `gap`.
             builder.approach_down(-1, flags, -down_slope(input, 0.8), kind);
         }
     } else if builder.candidates.is_empty() {

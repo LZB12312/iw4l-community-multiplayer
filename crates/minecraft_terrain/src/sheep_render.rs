@@ -10,7 +10,7 @@ use crate::{
 use glam::Quat;
 use minecraftoss_entities::world::SheepEntity;
 
-const DYE_DIFFUSE: [u32; 16] = [
+const DYE_DIFFUSE_RGB_BITS: [u32; 16] = [
     16383998, 16351261, 13061821, 3847130, 16701501, 8439583, 15961002, 4673362, 10329495, 1481884,
     8991416, 3949738, 8606770, 6192150, 11546150, 1908001,
 ];
@@ -18,9 +18,13 @@ const DYE_DIFFUSE: [u32; 16] = [
 fn wool_tint(id: usize) -> [f32; 3] {
     // ColorLerper.Type.SHEEP uses a special white and floors 0.75 times
     // DyeColor.getTextureDiffuseColor's channels for every other dye.
-    let rgb = if id == 0 { 0xe6e6e6 } else { DYE_DIFFUSE[id] };
+    let rgb_bits = if id == 0 {
+        0xe6e6e6
+    } else {
+        DYE_DIFFUSE_RGB_BITS[id]
+    };
     let channel = |shift| {
-        let value = ((rgb >> shift) & 255_u32) as f32;
+        let value = ((rgb_bits >> shift) & 255_u32) as f32;
         if id == 0 {
             value / 255.0
         } else {
@@ -167,29 +171,66 @@ const BABY_BODY: [BoxPart; 6] = [
     ),
 ];
 
-pub fn append_sheep<'a>(mesh: &mut ChunkMesh, sheep: impl IntoIterator<Item = &'a SheepEntity>, poses: &ClientMobs, atlas: &Atlas, light: &SkyLight, partial: f32) {
+pub fn append_sheep<'a>(
+    mesh: &mut ChunkMesh,
+    sheep: impl IntoIterator<Item = &'a SheepEntity>,
+    poses: &ClientMobs,
+    atlas: &Atlas,
+    light: &SkyLight,
+    partial: f32,
+) {
     // Each mob's first vertex and overlay (`getOverlayCoords`).
     let mut marks = Vec::new();
     for entity in sheep {
         let baby = entity.sheep.age.baby();
-        let Some(mob) = poses.pose(entity.id, partial) else { continue };
+        let Some(mob) = poses.pose(entity.id, partial) else {
+            continue;
+        };
         marks.push((mesh.vertices.len(), mob.overlay(0.0)));
         let feet = mob.feet;
         let rotation = mob.body_rotation(90.0);
         // SheepModel.setupAnim: QuadrupedModel's head and legs, then the
         // grazing head drop and pitch (the look pitch when not grazing).
         let t = partial.clamp(0.0, 1.0);
-        let head_pitch = if entity.eat_animation_ticks > 0 { entity.eat_head_angle_scale(t) } else { mob.head_pitch.to_radians() };
+        let head_pitch = if entity.eat_animation_ticks > 0 {
+            entity.eat_head_angle_scale(t)
+        } else {
+            mob.head_pitch.to_radians()
+        };
         let head_drop = entity.eat_head_position_scale(t) * 9.0 * if baby { 0.5 } else { 1.0 };
-        let [right_hind, left_hind, right_front, left_front] = crate::client_mobs::quadruped_legs(mob.walk_position, mob.walk_speed);
-        let head = Quat::from_euler(glam::EulerRot::ZYX, 0.0, mob.head_yaw.to_radians(), head_pitch);
+        let [right_hind, left_hind, right_front, left_front] =
+            crate::client_mobs::quadruped_legs(mob.walk_position, mob.walk_speed);
+        let head = Quat::from_euler(
+            glam::EulerRot::ZYX,
+            0.0,
+            mob.head_yaw.to_radians(),
+            head_pitch,
+        );
         let leg = Quat::from_rotation_x;
-        let body = if baby { Quat::IDENTITY } else { Quat::from_rotation_x(std::f32::consts::FRAC_PI_2) };
+        let body = if baby {
+            Quat::IDENTITY
+        } else {
+            Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)
+        };
         let pose = Pose {
             parts: if baby {
-                [body, head, leg(right_hind), leg(left_hind), leg(right_front), leg(left_front)]
+                [
+                    body,
+                    head,
+                    leg(right_hind),
+                    leg(left_hind),
+                    leg(right_front),
+                    leg(left_front),
+                ]
             } else {
-                [head, body, leg(right_hind), leg(left_hind), leg(right_front), leg(left_front)]
+                [
+                    head,
+                    body,
+                    leg(right_hind),
+                    leg(left_hind),
+                    leg(right_front),
+                    leg(left_front),
+                ]
             },
             head: if baby { 1 } else { 0 },
             head_drop,

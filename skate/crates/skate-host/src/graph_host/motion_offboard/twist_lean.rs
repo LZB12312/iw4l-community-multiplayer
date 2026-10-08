@@ -13,14 +13,12 @@ pub struct Operation {
     pub always: bool,
 }
 impl Operation {
-    ///82BCC490 compares exact bytes through strcmp82AE89B0.
     pub fn parse(attributes: &Attributes<'_>) -> Self {
-        Self { always: attributes.text("update") == Some("always") }
+        Self {
+            always: attributes.text("update") == Some("always"),
+        }
     }
 
-    ///Supply Some only for available original physical/animation components.
-    ///A missing implementation of a physical field must be an upstream error,
-    ///not an absent-component value. End is the original82B61BB8 no-op.
     pub fn execute(
         self,
         state: &mut State,

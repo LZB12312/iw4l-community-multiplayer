@@ -1,4 +1,3 @@
-//! Original82BBFF88/82BC01C0; graph ownership is ours, filter order is stock.
 use super::super::motion_wipeout::{Operation, Settings};
 use super::*;
 
@@ -22,7 +21,6 @@ impl MotionHost {
         phase: u8,
     ) -> Result<(), String> {
         if operation == Operation::EnableGestures {
-            //82BC07A8/07F8, Update82B61BB8 is empty.
             if phase != 1 {
                 self.wipeout_controls.gestures_enabled = phase == 0;
             }
@@ -30,7 +28,7 @@ impl MotionHost {
         }
         if phase > 1 {
             return Ok(());
-        } //Original End82B61BB8.
+        }
         let Instance::Wipeout(state) = self
             .instances
             .get_mut(behavior)
@@ -141,7 +139,7 @@ impl MotionHost {
                 self.animation
                     .emit_packet(encode(b"ControlledWipeout"), 1.0);
             }
-            self.wipeout_controls.gesture = state.gesture; //MGv2528258FB50.
+            self.wipeout_controls.gesture = state.gesture;
         }
         set(&mut self.animation, b"WipeoutGestureX", state.gesture[0]);
         set(&mut self.animation, b"WipeoutGestureY", state.gesture[1]);

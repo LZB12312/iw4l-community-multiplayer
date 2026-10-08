@@ -1,7 +1,5 @@
 use crate::physics::world_contact::{FeaturePrism, MaximumFeature, prism_math::*};
 
-/// TU3 82ACCEF0. The quad owns the outer edge-intersection loop even when it is
-/// the second feature in the caller's pair. This order reaches contact reduction.
 pub(super) fn quad_triangle(
     output: &mut FeaturePrism,
     quad: &MaximumFeature,
@@ -12,8 +10,6 @@ pub(super) fn quad_triangle(
     intersect(output, quad, triangle, normal, quad_is_a)
 }
 
-/// TU3 82ACD7D8. Its calculations match 82ACCEF0 with four inner edges and four
-/// vertices in both containment passes; the source transposes these into lanes.
 pub(super) fn quad_quad(
     output: &mut FeaturePrism,
     a: &MaximumFeature,

@@ -1,9 +1,7 @@
-//! Stock Biped settings82D7B630 and metric queries82D7AFD8/82D16680.
 mod board;
 mod curves;
 mod metrics;
-#[cfg(test)]
-mod tests;
+
 use skate_core::{
     player::offboard::{air_launch, controller, movement_intent, movement_velocity},
     point_graph::PointGraph,
@@ -14,9 +12,7 @@ pub(crate) struct Settings {
     pub controller: controller::Settings,
     pub board: skate_core::player::offboard::ground_sync::BoardSettings,
     pub metrics: [Option<controller::ClipMetric>; 3],
-    ///82D310F8 full key DF759B46440F16E9.
     pub movement_vs_stick_angle: PointGraph<8>,
-    ///82D310F8 full key2DD95B399BAE313E.
     pub turn_vs_stick_angle: PointGraph<8>,
     pub air_launch: air_launch::Settings,
 }

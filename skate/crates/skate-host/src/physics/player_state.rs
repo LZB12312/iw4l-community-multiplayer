@@ -47,7 +47,6 @@ impl PlayerState {
         };
         Ok(Self {
             registry: registry::StateRegistry::new(),
-            //82DB3008 selects the owned Sleeping object before SetPhysicsState100.
             lifecycle: PhysicalPlayerStateLifecycle::new(PhysicalStateId::Sleeping),
             selector: StateSelector::default(),
             requested_state: PhysicalStateId::Sleeping,
@@ -58,10 +57,8 @@ impl PlayerState {
             state_flags: [false; 36],
             state_count: 0,
             update_count: 0,
-            //82D8BD50 reads Globals260; its layout392/396/400 is physics_airstates.
             normal_off_ground: thresholds("physics_airstates")?,
             skitching_off_ground: thresholds("physics_state_skitching")?,
-            //Skeleton+24 physics_animation, original82BDC6C8 layout800.
             animated_board_threshold: data.float(
                 "physics_animation",
                 "default",
@@ -73,14 +70,10 @@ impl PlayerState {
     pub fn current(&self) -> PhysicalStateId {
         self.lifecycle.active().state
     }
-    ///ResetSystems82DB92D0 resets the selector and physical-output filter;
-    ///the coordinator owns board/skeleton resets and the following Ground entry.
     pub fn reset_for_teleport(&mut self) {
         self.filtered.reset();
         self.filtered_output = None;
         self.ground_output = None;
-        //ResetSystems82DB92D0 clears20..44, sets48=10 and52=0.
-        //Current pointer16 and flags56/57 survive until Calculate writes them.
         self.selector.nonspecific_collision_free_frames = 0;
         self.selector.nonspecific_collision_frames = 0;
         self.selector.something_colliding_frames = 0;
@@ -90,7 +83,6 @@ impl PlayerState {
         self.selector.air_frames = 0;
         self.selector.teleport_countdown = 10;
         self.selector.skitch_exit_countdown = 0;
-        //TrajectorySelector::Reset82D67228 clears9658, preserving9657.
         self.post.trajectory_available = false;
     }
 }
@@ -136,11 +128,12 @@ pub(crate) fn enter_after_teleport(
 ) -> Result<(), String> {
     let target = if skater.teleport_state.take_manual_on_board() == Some(false) {
         PhysicalStateId::BipedGround
-    } else { PhysicalStateId::PhysicsGround };
+    } else {
+        PhysicalStateId::PhysicsGround
+    };
     transition::set(physics, skater, target)
 }
 
-///Original82DB6050 prefix; coordinator calls the selected state pre-update next.
 pub(crate) fn pre_state(
     physics: &mut GamePhysics,
     skater: &mut SkaterRuntime,
@@ -149,7 +142,10 @@ pub(crate) fn pre_state(
 }
 
 /// Custom traversal bypasses native queries; discard old work before re-entry.
-pub(crate) fn resume_after_climb(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
+pub(crate) fn resume_after_climb(
+    physics: &mut GamePhysics,
+    skater: &mut SkaterRuntime,
+) -> Result<(), String> {
     super::biped_ground::exit(skater);
     skater.offboard_air_selector.reset();
     skater.collision_extra_errors = [[0.; 4]; 2];
@@ -165,8 +161,13 @@ pub(crate) fn resume_after_climb(physics: &mut GamePhysics, skater: &mut SkaterR
     let frame = skater.biped_ground.ground.frame_80;
     skater.offboard_contact.submit(
         skate_core::player::offboard::contact_toolkit::Input {
-            position: frame[3], right: frame[0], up: frame[1], forward: frame[2],
-            animation_right: frame[0], animation_up: frame[1], velocity: [0.; 4],
+            position: frame[3],
+            right: frame[0],
+            up: frame[1],
+            forward: frame[2],
+            animation_right: frame[0],
+            animation_up: frame[1],
+            velocity: [0.; 4],
         },
         skater.player_input.processed.actor_query_2952 as i32,
         &super::offboard::contact_toolkit::StaticScene::new(&physics.world)?,
@@ -176,21 +177,51 @@ pub(crate) fn resume_after_climb(physics: &mut GamePhysics, skater: &mut SkaterR
 }
 
 /// Vehicle ownership has ended; reset first, then enter the native ragdoll and seed momentum.
-pub(crate) fn apply_vehicle_ejection(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<bool, String> {
-    let Some((velocity, angular)) = skater.teleport_state.take_vehicle_ejection() else { return Ok(false); };
+pub(crate) fn apply_vehicle_ejection(
+    physics: &mut GamePhysics,
+    skater: &mut SkaterRuntime,
+) -> Result<bool, String> {
+    let Some((velocity, angular)) = skater.teleport_state.take_vehicle_ejection() else {
+        return Ok(false);
+    };
     transition::set(physics, skater, PhysicalStateId::WipeoutGround)?;
-    let velocity=skate_core::math::Vector3::new(velocity[0],velocity[1],velocity[2]);
-    let angular=skate_core::math::Vector3::new(angular[0],angular[1],angular[2]);
+    let velocity = skate_core::math::Vector3::new(velocity[0], velocity[1], velocity[2]);
+    let angular = skate_core::math::Vector3::new(angular[0], angular[1], angular[2]);
     for body in skater.skeleton.bodies_mut() {
-        body.rates.linear_velocity=velocity;
-        body.rates.angular_velocity=angular;
+        body.rates.linear_velocity = velocity;
+        body.rates.angular_velocity = angular;
     }
     for body in physics.board.bodies_mut() {
-        body.rates.linear_velocity=velocity;
-        body.rates.angular_velocity=angular;
+        body.rates.linear_velocity = velocity;
+        body.rates.angular_velocity = angular;
     }
-    skater.animated_skeleton.motion.velocity_world=[velocity.x,velocity.y,velocity.z,0.];
-    skater.player_input.processed.vectors_544_560_592_608[3]=[velocity.x,velocity.y,velocity.z,0.].map(f32::to_bits);
-    skater.wipeout_state.state.velocity=[velocity.x,velocity.y,velocity.z,0.];
+    skater.animated_skeleton.motion.velocity_world = [velocity.x, velocity.y, velocity.z, 0.];
+    skater.player_input.processed.vectors_544_560_592_608[3] =
+        [velocity.x, velocity.y, velocity.z, 0.].map(f32::to_bits);
+    skater.wipeout_state.state.velocity = [velocity.x, velocity.y, velocity.z, 0.];
     Ok(true)
+}
+
+pub(crate) fn apply_combat_impact(
+    physics: &mut GamePhysics,
+    skater: &mut SkaterRuntime,
+    impulse: [f32; 3],
+) -> Result<(), String> {
+    if skater.player_state.current() != PhysicalStateId::WipeoutGround {
+        transition::set(physics, skater, PhysicalStateId::WipeoutGround)?;
+    }
+    let impulse = skate_core::math::Vector3::new(impulse[0], impulse[1], impulse[2]);
+    for body in skater.skeleton.bodies_mut() {
+        let v = &mut body.rates.linear_velocity;
+        v.x += impulse.x;
+        v.y += impulse.y;
+        v.z += impulse.z;
+    }
+    for body in physics.board.bodies_mut() {
+        let v = &mut body.rates.linear_velocity;
+        v.x += impulse.x;
+        v.y += impulse.y;
+        v.z += impulse.z;
+    }
+    Ok(())
 }

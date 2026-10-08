@@ -1,9 +1,3 @@
-//! TU3 ContactBatchBuild `82AE10C8`: contact geometry, mass response and targets.
-//!
-//! Arithmetic is reconstructed for finite inputs and finite intermediates. The
-//! reciprocal response uses the isolated accepted Xenon `vrefp` approximation;
-//! callers can still inject captured hardware results through
-//! [`ContactMassResponse`] without changing the recovered builder order.
 mod geometry;
 mod input;
 mod publication;
@@ -58,9 +52,6 @@ impl ContactMassResponse for UnavailableContactMassResponse {
     }
 }
 
-/// Default host implementation of the three `vrefp` lanes at `0x82AE158C`.
-/// The approximation is isolated in `native_arithmetic` so hardware traces can
-/// replace it without changing contact geometry or publication.
 pub struct NativeContactMassResponse;
 
 impl ContactMassResponse for NativeContactMassResponse {

@@ -1,6 +1,3 @@
-//! Physical Ground entry82D37604..82D378A8 and future-deck82D38630 math.
-//! These operate on actual board rates/force records. Skeleton publication is
-//! separate because prediction moves its animation target, not the board.
 use crate::{
     math::Vector3,
     physics::{

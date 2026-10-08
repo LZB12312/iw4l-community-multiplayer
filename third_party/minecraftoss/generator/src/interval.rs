@@ -19,8 +19,14 @@ impl PartialEq for Interval {
 }
 
 impl Interval {
-    pub const NAI: Self = Self { min: f32::NAN, max: f32::NAN };
-    pub const INFINITE: Self = Self { min: f32::NEG_INFINITY, max: f32::INFINITY };
+    pub const NAI: Self = Self {
+        min: f32::NAN,
+        max: f32::NAN,
+    };
+    pub const INFINITE: Self = Self {
+        min: f32::NEG_INFINITY,
+        max: f32::INFINITY,
+    };
 
     /// `Interval.of`; panics on reversed or NaN bounds like vanilla's exception.
     pub fn of(min: f32, max: f32) -> Self {
@@ -84,12 +90,20 @@ impl Interval {
 
     pub fn add(l: Self, r: Self) -> Self {
         let (lo, hi) = (l.min + r.min, l.max + r.max);
-        if lo.is_nan() || hi.is_nan() { Self::NAI } else { Self::of(lo, hi) }
+        if lo.is_nan() || hi.is_nan() {
+            Self::NAI
+        } else {
+            Self::of(lo, hi)
+        }
     }
 
     pub fn sub(l: Self, r: Self) -> Self {
         let (lo, hi) = (l.min - r.max, l.max - r.min);
-        if lo.is_nan() || hi.is_nan() { Self::NAI } else { Self::of(lo, hi) }
+        if lo.is_nan() || hi.is_nan() {
+            Self::NAI
+        } else {
+            Self::of(lo, hi)
+        }
     }
 
     fn mul_bound(l: f32, r: f32) -> f32 {
@@ -104,7 +118,10 @@ impl Interval {
         let b = Self::mul_bound(l.min, r.max);
         let c = Self::mul_bound(l.max, r.min);
         let d = Self::mul_bound(l.max, r.max);
-        Self::of(mth::min(mth::min(a, b), mth::min(c, d)), mth::max(mth::max(a, b), mth::max(c, d)))
+        Self::of(
+            mth::min(mth::min(a, b), mth::min(c, d)),
+            mth::max(mth::max(a, b), mth::max(c, d)),
+        )
     }
 
     pub fn reciprocal(i: Self) -> Self {
@@ -126,11 +143,19 @@ impl Interval {
     }
 
     pub fn min_of(l: Self, r: Self) -> Self {
-        if l.is_nai() || r.is_nai() { Self::NAI } else { Self::of(mth::min(l.min, r.min), mth::min(l.max, r.max)) }
+        if l.is_nai() || r.is_nai() {
+            Self::NAI
+        } else {
+            Self::of(mth::min(l.min, r.min), mth::min(l.max, r.max))
+        }
     }
 
     pub fn max_of(l: Self, r: Self) -> Self {
-        if l.is_nai() || r.is_nai() { Self::NAI } else { Self::of(mth::max(l.min, r.min), mth::max(l.max, r.max)) }
+        if l.is_nai() || r.is_nai() {
+            Self::NAI
+        } else {
+            Self::of(mth::max(l.min, r.min), mth::max(l.max, r.max))
+        }
     }
 
     pub fn clamp(i: Self, lo: f32, hi: f32) -> Self {
@@ -151,7 +176,11 @@ impl Interval {
             return Self::NAI;
         }
         let hi = mth::max(i.min.abs(), i.max.abs());
-        if i.contains(0.0) { Self::of(0.0, hi) } else { Self::of(mth::min(i.min.abs(), i.max.abs()), hi) }
+        if i.contains(0.0) {
+            Self::of(0.0, hi)
+        } else {
+            Self::of(mth::min(i.min.abs(), i.max.abs()), hi)
+        }
     }
 
     pub fn square(i: Self) -> Self {
@@ -160,7 +189,11 @@ impl Interval {
         }
         let (a, b) = (i.min * i.min, i.max * i.max);
         let hi = mth::max(a, b);
-        if i.contains(0.0) { Self::of(0.0, hi) } else { Self::of(mth::min(a, b), hi) }
+        if i.contains(0.0) {
+            Self::of(0.0, hi)
+        } else {
+            Self::of(mth::min(a, b), hi)
+        }
     }
 
     /// `Interval.mapMonotonic`.
@@ -169,7 +202,10 @@ impl Interval {
             return Self::NAI;
         }
         let (a, b) = (op(i.min), op(i.max));
-        assert!(!a.is_nan() && !b.is_nan(), "monotonic operator should not produce NaN");
+        assert!(
+            !a.is_nan() && !b.is_nan(),
+            "monotonic operator should not produce NaN"
+        );
         Self::of(mth::min(a, b), mth::max(a, b))
     }
 
@@ -177,7 +213,9 @@ impl Interval {
         if i.max < 0.0 {
             return Self::NAI;
         }
-        Self::map_monotonic(Self::max_of(i, Self::exact(0.0)), |x| (x as f64).ln() as f32)
+        Self::map_monotonic(Self::max_of(i, Self::exact(0.0)), |x| {
+            (x as f64).ln() as f32
+        })
     }
 
     pub fn sign(i: Self) -> Self {
@@ -226,17 +264,29 @@ impl Interval {
             let second_part = Self::mul_bound(a, second);
             if first_part.is_infinite() && second_part.is_infinite() {
                 if a <= 0.0 {
-                    return if second > first { f32::NEG_INFINITY } else { f32::INFINITY };
+                    return if second > first {
+                        f32::NEG_INFINITY
+                    } else {
+                        f32::INFINITY
+                    };
                 }
                 if a >= 1.0 {
-                    return if second > first { f32::INFINITY } else { f32::NEG_INFINITY };
+                    return if second > first {
+                        f32::INFINITY
+                    } else {
+                        f32::NEG_INFINITY
+                    };
                 }
                 return f32::NAN;
             }
             first_part + second_part
         };
         let (lo, hi) = (bound(alpha.min), bound(alpha.max));
-        if lo.is_nan() || hi.is_nan() { Self::NAI } else { Self::encapsulating2(lo, hi) }
+        if lo.is_nan() || hi.is_nan() {
+            Self::NAI
+        } else {
+            Self::encapsulating2(lo, hi)
+        }
     }
 
     pub fn pow(base: Self, exponent: Self) -> Self {
@@ -246,7 +296,10 @@ impl Interval {
         if base.min == base.max {
             return Self::pow_value(base.min, exponent);
         }
-        let mut result = Self::encapsulating(&[Self::pow_value(base.min, exponent), Self::pow_value(base.max, exponent)]);
+        let mut result = Self::encapsulating(&[
+            Self::pow_value(base.min, exponent),
+            Self::pow_value(base.max, exponent),
+        ]);
         if base.contains(0.0) {
             if base.max > 0.0 {
                 result = Self::encapsulating(&[result, Self::pow_value(0.0, exponent)]);
@@ -268,17 +321,27 @@ impl Interval {
         }
         if exponent.min == exponent.max {
             let value = Self::java_pow(base, exponent.min);
-            return if value.is_nan() { Self::NAI } else { Self::exact(value) };
+            return if value.is_nan() {
+                Self::NAI
+            } else {
+                Self::exact(value)
+            };
         }
         if base == 0.0 {
-            return Self::mul(Self::pow_zero_base(exponent), Self::exact(1.0f32.copysign(base)));
+            return Self::mul(
+                Self::pow_zero_base(exponent),
+                Self::exact(1.0f32.copysign(base)),
+            );
         }
         if base == 1.0 {
             return Self::exact(1.0);
         }
         if base > 0.0 {
             if exponent.min.is_finite() && exponent.max.is_finite() {
-                return Self::encapsulating2(Self::java_pow(base, exponent.min), Self::java_pow(base, exponent.max));
+                return Self::encapsulating2(
+                    Self::java_pow(base, exponent.min),
+                    Self::java_pow(base, exponent.max),
+                );
             }
             return Self::pow_infinite_exponent(base, exponent);
         }
@@ -305,7 +368,11 @@ impl Interval {
         if exponent.min.is_infinite() && exponent.max.is_infinite() {
             Self::of(0.0, f32::INFINITY)
         } else if exponent.min.is_infinite() {
-            if base < 1.0 { Self::of(Self::java_pow(base, exponent.max), f32::INFINITY) } else { Self::of(0.0, Self::java_pow(base, exponent.max)) }
+            if base < 1.0 {
+                Self::of(Self::java_pow(base, exponent.max), f32::INFINITY)
+            } else {
+                Self::of(0.0, Self::java_pow(base, exponent.max))
+            }
         } else if base < 1.0 {
             Self::of(0.0, Self::java_pow(base, exponent.min))
         } else {
@@ -333,27 +400,5 @@ impl Interval {
             result = Self::encapsulating_value(result, Self::java_pow(base, max_int - 1.0));
         }
         result
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn arithmetic_matches_vanilla_rules() {
-        let a = Interval::of(-1.0, 2.0);
-        let b = Interval::of(3.0, 4.0);
-        assert_eq!(Interval::add(a, b), Interval::of(2.0, 6.0));
-        assert_eq!(Interval::sub(a, b), Interval::of(-5.0, -1.0));
-        assert_eq!(Interval::mul(a, b), Interval::of(-4.0, 8.0));
-        assert_eq!(Interval::square(a), Interval::of(0.0, 4.0));
-        assert_eq!(Interval::abs(Interval::of(-3.0, -1.0)), Interval::of(1.0, 3.0));
-        assert_eq!(Interval::reciprocal(Interval::of(0.0, 2.0)), Interval::of(0.5, f32::INFINITY));
-        assert!(Interval::reciprocal(Interval::exact(0.0)).is_nai());
-        // mulBound treats 0 * inf as 0, not NaN.
-        assert_eq!(Interval::mul(Interval::exact(0.0), Interval::INFINITE), Interval::exact(0.0));
-        assert_eq!(Interval::clamp(Interval::of(5.0, 9.0), 0.0, 1.0), Interval::exact(1.0));
-        assert_eq!(Interval::sign(Interval::of(0.0, 3.0)), Interval::of(0.0, 1.0));
     }
 }

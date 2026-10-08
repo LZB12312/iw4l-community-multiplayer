@@ -19,8 +19,6 @@ pub struct ContactBuffer {
 }
 
 impl ContactBuffer {
-    /// Complete 82779D60. A full physical buffer with flushing disabled sets
-    /// the full flag but does not increment dropped until a subsequent call.
     pub fn allocate(&mut self, sink: &mut impl FnMut(&[ContactRecord])) -> Option<usize> {
         assert!(self.count <= 50);
         if self.count.wrapping_add(self.flushed) >= self.capacity {
@@ -49,8 +47,6 @@ impl ContactBuffer {
         Some(index)
     }
 
-    /// Complete 82779C18. Tests the most recently allocated record against all
-    /// previous records. The native caller, not this function, decrements count.
     pub fn last_is_duplicate(&mut self) -> bool {
         if self.distance_squared_threshold < 0.0 || self.deferred_reduction != 0 {
             return false;
@@ -79,8 +75,6 @@ impl ContactBuffer {
         reduce(&mut self.records, &mut self.count);
     }
 
-    /// Complete 82779E40; sink is the caller's 8277B428 publication operation.
-    /// Flushed counts advance by the reduced count, irrespective of sink result.
     pub fn flush(&mut self, sink: &mut impl FnMut(&[ContactRecord])) {
         if self.count == 0 {
             return;

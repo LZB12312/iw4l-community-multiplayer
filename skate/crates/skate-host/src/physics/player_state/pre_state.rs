@@ -1,20 +1,17 @@
-//! Update3_State82DB6050 prefix through grab-spline query synchronization.
-//! Ground/Air/KnownAir vtable24 ->82D34DA8 ->82D2D860 predicts from the actual deck part
-//! transform and its physical body's linear velocity, with a single VMADD.
 use super::*;
 use skate_core::physics::board::BodyId;
 pub(super) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     let player = &mut skater.player_input.player;
     player.state_count_1312 = player.state_count_1312.wrapping_add(1);
-    //KnownAir ctor82D35130 installs82327210; vslot24 at82327228 is
-    //the same82D34DA8. Its target-following trajectory is not this deck sample.
-    //Six grind vtables call82D2D860 directly;701 calls the82D34DA8 wrapper.
     if !skater.player_state.current().is_grind()
         && !matches!(
             skater.player_state.current(),
             PhysicalStateId::PhysicsGround
                 | PhysicalStateId::PhysicsAir
-                | PhysicalStateId::FootPlant | PhysicalStateId::Boneless | PhysicalStateId::HandPlant | PhysicalStateId::RevertGround
+                | PhysicalStateId::FootPlant
+                | PhysicalStateId::Boneless
+                | PhysicalStateId::HandPlant
+                | PhysicalStateId::RevertGround
                 | PhysicalStateId::KnownAir
                 | PhysicalStateId::BipedAir
                 | PhysicalStateId::BipedGround
@@ -43,10 +40,7 @@ pub(super) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
     let roots = &mut skater.animated_skeleton.roots;
     roots.predicted_board_position = prediction;
     roots.supplied_prediction = Some(prediction);
-    //82DB60DC clears sticky3184, not this-update3185.
     skater.foot_ik.state.contacts.support_failed = false;
-    //82DB60EC calls82D74270 AFTER sticky reset and before state PreUpdate.
-    //Consume the canonical owner's preceding validation/query results.
     let p = &skater.player_input.processed;
     let context = skate_core::player::offboard::ground_query::QueryContext {
         selection_flags_2948: p.actor_query_2948,

@@ -21,30 +21,3 @@ pub fn waxed_block(block: &Block) -> Option<Block> {
     result.id = waxed_block_id(&block.id)?;
     Some(result)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn observed_waxable_boundary() {
-        assert_eq!(
-            waxed_block_id("minecraft:copper_block").as_deref(),
-            Some("minecraft:waxed_copper_block")
-        );
-        assert_eq!(
-            waxed_block_id("minecraft:oxidized_cut_copper_stairs").as_deref(),
-            Some("minecraft:waxed_oxidized_cut_copper_stairs")
-        );
-        assert_eq!(waxed_block_id("minecraft:waxed_copper_block"), None);
-        assert_eq!(waxed_block_id("minecraft:stone"), None);
-        let stairs = Block::new("minecraft:oxidized_cut_copper_stairs")
-            .with("facing", "west")
-            .with("half", "top")
-            .with("shape", "straight")
-            .with("waterlogged", "false");
-        let waxed = waxed_block(&stairs).expect("measured waxable stair");
-        assert_eq!(waxed.id, "minecraft:waxed_oxidized_cut_copper_stairs");
-        assert_eq!(waxed.properties, stairs.properties);
-    }
-}

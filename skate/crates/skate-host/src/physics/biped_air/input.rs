@@ -18,7 +18,6 @@ pub(super) fn context(skater: &SkaterRuntime) -> Context {
     }
 }
 pub(super) fn effective_frame(skater: &SkaterRuntime) -> Frame {
-    //82BE3650: actual animation root, with effective stance axes0/2.
     let mut frame = skater.animated_skeleton.roots.animation_to_world;
     if skater.player_input.processed.flags_2476 & 4 != 0 {
         for axis in [0, 2] {
@@ -44,7 +43,6 @@ pub(super) fn height(skater: &SkaterRuntime) -> HeightInput {
     HeightInput {
         bone15: compose_affine(&root, &skater.animated_skeleton.record.pose[15])[3],
         bone19: compose_affine(&root, &skater.animated_skeleton.record.pose[19])[3],
-        //82BE3170 reads mapped physical target12624; NOT record6480.
         bone1: compose_affine(&root, &skater.skeleton_input.drive_frames[1])[3],
         up_544: p.vectors_544_560_592_608[0].map(f32::from_bits),
         velocity_608: p.vectors_544_560_592_608[3].map(f32::from_bits),

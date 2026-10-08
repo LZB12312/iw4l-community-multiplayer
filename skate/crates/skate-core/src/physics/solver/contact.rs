@@ -1,8 +1,3 @@
-//! Contact iteration, TU3 82AE2914..82AE2B8C.
-//!
-//! The compiled row boundary is decoded once. Calculations preserve the source
-//! operation order for finite inputs; console exceptional-float behavior has
-//! not been established by hardware captures.
 #[path = "contact_data.rs"]
 mod data;
 use data::{ContactRows, Reaction};
@@ -19,8 +14,6 @@ pub(super) fn solve(record: &mut [u32], a: &mut [u32], b: &mut [u32]) {
     let total_error: [f32; 4] =
         core::array::from_fn(|i| (velocity_b[i] - velocity_a[i]) + position_error[i]);
 
-    // 82AE2A94..2ABC: the first three impulses respond to combined position
-    // and velocity correction. The fourth responds only to position error.
     let candidate: [f32; 4] = core::array::from_fn(|lane| {
         let error = if lane == 3 {
             position_error
@@ -35,9 +28,6 @@ pub(super) fn solve(record: &mut [u32], a: &mut [u32], b: &mut [u32]) {
         impulse
     });
 
-    // 82AE2AC4..2B08: friction uses the preceding normal impulse. Crossing
-    // the static limit selects the dynamic limit. The two normal lanes use
-    // [0, f32::MAX]. Ordered comparisons also preserve the native selectors.
     let next: [f32; 4] = core::array::from_fn(|lane| {
         let normal = if lane == 1 || lane == 2 {
             rows.accumulated[0]

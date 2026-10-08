@@ -1,9 +1,3 @@
-//! Embedded RWCM v1 / RWCMSET1 archives. Cluster coordinates are already in
-//! world space. Never weld them or replace their feature bytes with adjacency.
-//! Layout reference: SK8R15 tools/vanilla_map_extraction/tools/retail_collision_mesh.py.
-//! Its signed-16 interpretation is incorrect: native GetVertex82AC79D0
-//! zero-extends the offsets before signed saturating addition to the base.
-
 #[derive(Clone, Copy, Debug)]
 pub struct RetailTriangle {
     pub points: [[f32; 3]; 3],

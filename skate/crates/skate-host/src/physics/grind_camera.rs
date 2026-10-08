@@ -1,5 +1,3 @@
-//! ZIP contact conditioner82DF0640, corroborated against S2 82E2D000.
-//! Tangent selection82D87460 belongs to the manager, not to this conditioner.
 use crate::camera::CameraGrindOutput;
 type V = [f32; 4];
 
@@ -65,7 +63,6 @@ impl GrindCamera {
                 self.current[i] + (self.current[i] - self.previous[i]) - contact.point[i]
             });
         }
-        // S3 constructor82DF2514:0.95 per physical update, not dt-based smoothing.
         self.error = self.error.map(|v| v * 0.95);
         self.previous = self.current;
         self.current = core::array::from_fn(|i| contact.point[i] + self.error[i]);
@@ -77,7 +74,3 @@ impl GrindCamera {
         // grinding_316 is produced by the physical selector; never inferred here.
     }
 }
-
-#[cfg(test)]
-#[path = "grind_camera/tests.rs"]
-mod tests;

@@ -33,12 +33,10 @@ pub struct AngularRigTracking {
 }
 
 impl AngularRigTracking {
-    /// Complete82E030C0. This VMX wrap differs from scalar8258DB98.
     pub fn current_heading(&self) -> f32 {
         wrap_vmx(self.heading.0.position + self.heading_offset)
     }
 
-    /// Complete82E054D8, including the preserve-velocity reset branch.
     pub fn reset_heading(&mut self, clear_motion: bool) {
         self.heading.0.target = normalize_angle(self.heading_target);
         self.heading.0.position = normalize_angle(self.heading_target);
@@ -48,7 +46,6 @@ impl AngularRigTracking {
         }
     }
 
-    /// Complete82E05558.
     pub fn reset_elevation(&mut self, clear_motion: bool) {
         self.elevation.0.target = normalize_angle(self.elevation_target);
         self.elevation.0.position = normalize_angle(self.elevation_target);
@@ -58,7 +55,6 @@ impl AngularRigTracking {
         }
     }
 
-    /// Complete82E03C18 with parameter-block fields516..532.
     pub fn update_heading(&mut self, dt: f32, settings: AngleTrackingSettings) {
         if self.flags_517 & 0x20 == 0 && self.heading_acceleration_state == 0.0 {
             return;
@@ -91,7 +87,6 @@ impl AngularRigTracking {
         );
     }
 
-    /// Complete82E03E28 with parameter-block fields560..576.
     pub fn update_elevation(&mut self, dt: f32, settings: AngleTrackingSettings) {
         if self.reset_time > 0.0 {
             self.reset_elevation(true);
@@ -137,8 +132,6 @@ pub(super) fn wrap_vmx(angle: f32) -> f32 {
     }
 }
 
-/// Native subject getter slots used by82E04360/82E04478/82E041B8.
-/// Slot numbers remain explicit until the coordinator binds the subject producers.
 pub trait AnchorTrackingSubject {
     fn flag_584(&mut self) -> u8;
     fn flag_588(&mut self) -> u8;
@@ -174,7 +167,6 @@ pub struct AnchorRigTracking {
 }
 
 impl AnchorRigTracking {
-    /// Complete82E04360, including the conditional second subject getter.
     pub fn latch_smoothing(
         &mut self,
         dt: f32,
@@ -193,7 +185,6 @@ impl AnchorRigTracking {
         clamp_fraction(s.latch_curve.evaluate((-self.latch_time).mul_add(2.0, 1.0))) * s.latch_scale
     }
 
-    /// Complete82E04478.
     pub fn input_smoothing(
         &mut self,
         dt: f32,
@@ -207,7 +198,6 @@ impl AnchorRigTracking {
         clamp_fraction(s.input_curve.evaluate((-self.input_time).mul_add(2.0, 1.0))) * s.input_scale
     }
 
-    /// Complete82E041B8. Both smoothing histories update before the disable gate.
     pub fn update(
         &mut self,
         dt: f32,
@@ -241,7 +231,6 @@ fn clamp_fraction(value: f32) -> f32 {
     if 1.0 - v >= 0.0 { v } else { 1.0 }
 }
 
-/// Subject getter slots consumed by the complete reference-height stage82E03F20.
 pub trait ReferenceHeightSubject {
     fn flag_656(&mut self) -> u8;
     fn flag_608(&mut self) -> u8;
@@ -264,8 +253,6 @@ pub struct ReferenceHeightTracking {
 }
 
 impl ReferenceHeightTracking {
-    /// Complete82E03F20, including zero/initial height, transitions and the
-    /// conditional subject-query order. No mode is invented or selected here.
     pub fn update(&mut self, dt: f32, subject: &mut impl ReferenceHeightSubject) {
         let immediate = self.flags_516 & 0x40 != 0;
         if immediate {

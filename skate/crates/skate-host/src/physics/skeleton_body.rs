@@ -74,7 +74,6 @@ pub(crate) fn load_drives(
     }
     let initial_bones = std::array::from_fn(|i| initial_hierarchy[bone_indices[i]]);
     let mut collision_strength = [[0.0; 2]; 24];
-    //82BE7B98..BAC builds057EDDFA341F9492=CollisionDriveScalar.
     let scalar = data.float("physics_skeleton_drives", "default", "CollisionDriveScalar")?;
     for part in 1..24 {
         let name = format!("PART_{}", skeleton.bones[part].name);
@@ -105,8 +104,6 @@ pub(crate) fn load_drives(
     .map_err(str::to_string)
 }
 
-/// SkeletonData::Init82BD6C40 / closest physical ancestor82BD3720.
-/// Both the rig pose and hierarchy are the actor's evaluated initial RIG_TPOSE.
 pub(crate) fn load_joints(
     asset_root: &Path,
     data: &Collections,

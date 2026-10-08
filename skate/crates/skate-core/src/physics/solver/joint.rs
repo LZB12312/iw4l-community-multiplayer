@@ -1,7 +1,3 @@
-//! TU3 joint pass 82AE2BC8..82AE2E44, reconstructed from direct disassembly.
-//! Finite compiled coefficients are required; exceptional SIMD arithmetic is
-//! not claimed to match hardware. The packed public boundary remains unchanged.
-
 #[path = "joint_data.rs"]
 pub(super) mod data;
 use data::{
@@ -23,8 +19,6 @@ pub(super) fn solve(record: &mut [u32], a: &mut [u32], b: &mut [u32]) {
 
     let linear_low = read_column(record, 160);
     let linear_high = read_column(record, 176);
-    // 82AE2C90..2CAC gathers angular bounds from packed fourth lanes. The
-    // fourth output duplicates the Z bound; joint accumulators store all lanes.
     let angular_low = [
         read_column(record, 96)[3],
         read_column(record, 112)[3],
@@ -63,9 +57,6 @@ pub(super) fn solve(record: &mut [u32], a: &mut [u32], b: &mut [u32]) {
     publish_reactions(&body_a, &body_b, a, b);
 }
 
-/// Native two-sided limit projection at 82AE2CCC..82AE2D00. These offsets are
-/// preconditioned limit errors from the builder, not impulse min/max bounds.
-/// An error inside the permitted interval produces zero correction.
 fn joint_limit_correction(candidate: f32, low: f32, high: f32) -> f32 {
     let high_error = high + candidate;
     let low_error = low + candidate;

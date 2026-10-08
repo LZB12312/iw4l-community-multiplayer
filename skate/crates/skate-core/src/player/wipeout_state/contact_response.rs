@@ -1,5 +1,3 @@
-//! Wipeout82D3EC08's two persistent material responses, 82D91708..82D92440.
-//! Each correction writes the actual 23 skater bodies' linear velocities.
 mod material10;
 mod material11;
 use super::math::{V, dot, normalize_or, scale, sub};
@@ -37,7 +35,6 @@ impl ContactResponse {
             material11: material11::Response::new(),
         }
     }
-    /// Wipeout Reset82D3B3A8 invokes both resets; byte73 survives the second.
     pub fn reset(&mut self) {
         self.material10.reset();
         self.material11.reset();
@@ -47,7 +44,6 @@ impl ContactResponse {
         body: &mut SkeletonBody,
         input: ContactResponseInput,
     ) -> ContactResponseOutput {
-        //82D3EC58..5C: state selection precedes the first response's update.
         self.material10
             .update(body, input.com_velocity_608, input.material10_normal);
         self.material11.update(body, input);
@@ -59,13 +55,10 @@ impl ContactResponse {
     }
 }
 
-/// 82E0A4E8: reject the component along the safely normalized direction.
 fn reject(value: V, direction: V) -> V {
     let normal = normalize_or(direction, [0.0; 4]);
     sub(value, scale(normal, dot(value, normal)))
 }
-/// 82C1E170 differs: positive component test uses the normalized direction,
-/// but its subtraction multiplies the ORIGINAL direction, even if nonunit.
 fn reject_positive(value: V, direction: V) -> V {
     let projection = dot(value, normalize_or(direction, [0.0; 4]));
     if projection > 0.0 {

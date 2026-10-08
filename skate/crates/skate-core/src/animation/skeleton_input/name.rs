@@ -1,6 +1,6 @@
-//! Native five-word text encoding823C3C78 and six-character chunk82382B50.
-//! This is an encoded string, not a vault/hash-table key or pointer identity.
 use crate::animation::output::attributes::AttributeName;
+
+pub const RADIX_POWERS: [u32; 6] = [79_235_168, 2_085_136, 54_872, 1_444, 38, 1];
 
 /// Encode up to30 bytes, stopping at NUL. Native accepts signed bytes and does
 /// not validate its alphabet. Preserve its case folding, punctuation behavior,
@@ -9,7 +9,7 @@ pub const fn encode(text: &[u8]) -> AttributeName {
     let mut words = [0u32; 5];
     let mut position = 0;
     while position < 30 && position < text.len() && text[position] != 0 {
-        let mut weight = 79_235_168u32; // 38^5, exactly the native first weight.
+        let mut weight = RADIX_POWERS[0]; // 38^5, exactly the native first weight.
         let word = position / 6;
         let mut count = 0;
         while count < 6 && position < text.len() && text[position] != 0 {

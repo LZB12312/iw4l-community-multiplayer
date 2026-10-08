@@ -1,4 +1,3 @@
-//! Stock physics_wipeout fields read by82D8FEE8/82D90000 only.
 use skate_core::player::offboard::biped_air::recovered::post::{Settings, checks::Thresholds};
 use skate_data::collections::Collections;
 pub(super) fn load(data: &Collections) -> Result<Settings, String> {

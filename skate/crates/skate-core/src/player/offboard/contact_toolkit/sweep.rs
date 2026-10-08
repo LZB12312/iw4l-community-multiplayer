@@ -1,6 +1,3 @@
-//! The toolkit's zero-acceleration, duration-one subset of82770910/8276C558.
-//! The query remains a swept sphere. A returned point is a surface contact,
-//! not the sphere centre or an unadjusted ray intersection.
 use super::{LineHit, LineProbe, UP, Vector, ZERO, cross, dot, length, scale, sub};
 use crate::air::trajectory::QueryResult;
 
@@ -10,7 +7,6 @@ pub fn query_sweep<E>(
     mut nearby: impl FnMut(Vector, f32) -> Result<Vec<[Vector; 3]>, E>,
 ) -> Result<QueryResult, E> {
     let velocity = sub(probe.end, probe.start);
-    //82770910 minimum squared distance is zero for both error scalars zero.
     if !(dot(velocity, velocity) > 0.)
         || !velocity[..3]
             .iter()
@@ -29,8 +25,6 @@ pub fn query_sweep<E>(
     } else {
         0.
     };
-    //8276C794 vrfim is floor, followed by vcfpsxws. This zero-acceleration
-    //branch differs from the ceiling helper used in the accelerated branch.
     let contact_frame = frames.floor() as i32;
     let triangles = nearby(hit.position, probe.radius)?;
     Ok(QueryResult {
@@ -58,8 +52,6 @@ fn inverse_length(square: f32) -> f32 {
     }
     r
 }
-///82771018 chooses the most upward eligible face, then averages faces whose
-///dot with that face is strictly greater than0.5, retaining traversal order.
 fn landing_normal(triangles: &[[Vector; 3]], velocity: Vector) -> Vector {
     let mut normals = Vec::with_capacity(64);
     let mut best = ZERO;
@@ -89,7 +81,6 @@ fn landing_normal(triangles: &[[Vector; 3]], velocity: Vector) -> Vector {
     let square = dot(total, total);
     let inverse = inverse_length(square);
     let magnitude = if square == 0. { 0. } else { square * inverse };
-    //830BD350 is initialized by82F826F8 from82181A88=358637bd.
     if magnitude > f32::from_bits(0x358637bd) {
         scale(total, inverse)
     } else {

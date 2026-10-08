@@ -1,5 +1,3 @@
-//! Original normal body setup82BE7280 and driven selector82D913C0 modes1/5/6.
-//! Collision volume groups and part metadata are distinct from body state bits.
 use super::{ANIMATION_PART_COUNT, PART_COUNT, SkeletonBody, SkeletonCollisionFeedback};
 use crate::physics::{contact::RetailContactMaterial, rigid_body::world_inverse_inertia};
 
@@ -7,7 +5,6 @@ use crate::physics::{contact::RetailContactMaterial, rigid_body::world_inverse_i
 pub struct SkeletonCollisionSettings {
     pub enabled: bool,
     pub normal_material: RetailContactMaterial,
-    /// Original collision classification settings copied by82BE745C/7468.
     pub compliant: [bool; ANIMATION_PART_COUNT],
     pub priority: [f32; ANIMATION_PART_COUNT],
     pub effect_time: f32,
@@ -33,15 +30,11 @@ pub struct SkeletonCollisionMode {
     pub partial_ragdoll: bool,
     pub is_ragdoll: bool,
     pub settings: SkeletonCollisionSettings,
-    ///82BE82C0 table: true suppresses this pair before geometric collision.
     pub self_culling: [[bool; PART_COUNT]; PART_COUNT],
     normal_self_culling: [[bool; PART_COUNT]; PART_COUNT],
 }
 
 impl SkeletonCollisionMode {
-    ///82D91298: Body volume pointers start at3092, counters at8128.
-    /// The stores at3120/3104/3124/3108/3096 therefore select parts7/3/8/4/1:
-    /// both hands, both forearms and the head, not the next bone in each chain.
     pub fn disable_handplant_contacts(&mut self, frames: u32) {
         self.pending_reenable = true;
         for part in [7, 3, 8, 4, 1] {
@@ -50,8 +43,6 @@ impl SkeletonCollisionMode {
         }
     }
 
-    ///82BE7078, used by the real teleport path82BE3508. Collision volume
-    ///enabled flags and materials survive this reset.
     pub fn reset_body_state(&mut self, feedback: &mut SkeletonCollisionFeedback) {
         self.is_ragdoll = false;
         feedback.reset();
@@ -59,10 +50,7 @@ impl SkeletonCollisionMode {
         self.pending_reenable = false;
     }
 
-    /// Full normal constructor state after82BE4290 and SetUpNormal. The final
-    /// argument is the actual constructor byte8227, not a guessed AI identity.
     pub fn new_normal(settings: SkeletonCollisionSettings, cull_all_self_pairs: bool) -> Self {
-        //82BE5130..5164 assigns this zero material to parts0,24,25.
         let zero = RetailContactMaterial {
             static_friction: 0.0,
             dynamic_friction: 0.0,
@@ -80,7 +68,7 @@ impl SkeletonCollisionMode {
                 },
             }),
             disable_count: [0; ANIMATION_PART_COUNT],
-            pending_reenable: false, //82BE4660, following the24 counter clears.
+            pending_reenable: false,
             assembly_group: 5,
             partial_ragdoll: false,
             is_ragdoll: false,
@@ -103,8 +91,6 @@ impl SkeletonCollisionMode {
         result
     }
 
-    ///Normal riding and ascending-Air collision. Mode6 calls82BE3700, whose
-    ///root/extra disabling, group5 and eligible-bone writes match mode5's result.
     pub fn select_driven(&mut self, mode: u32) -> Result<(), &'static str> {
         match mode {
             3 => {
@@ -113,7 +99,6 @@ impl SkeletonCollisionMode {
             }
             5 | 6 => self.normal_collision(),
             1 => {
-                //82BE3808 enables eligible bones before switching the group.
                 self.enable_eligible_bones();
                 self.set_group(3);
             }
@@ -126,15 +111,12 @@ impl SkeletonCollisionMode {
         Ok(())
     }
 
-    ///82BE70D8. Does not consult BoneHasCollision, clear positive disable
-    ///counts, alter materials or disable the two extra volumes.
     pub fn normal_collision(&mut self) {
         self.set_group(5);
         self.disable_root();
         self.enable_eligible_bones();
     }
 
-    ///82BE6FF8. Bone volume group values survive this operation.
     pub fn disable_all(&mut self, clear_counts: bool) {
         self.disable_root();
         self.parts[24].enabled = false;
@@ -147,7 +129,6 @@ impl SkeletonCollisionMode {
         }
     }
 
-    ///82BE7190. This operation tests the counter but does not decrement it.
     pub fn enable_bone(&mut self, part: usize) {
         if self.disable_count[part] == 0 {
             self.parts[part].enabled = true;
@@ -156,8 +137,6 @@ impl SkeletonCollisionMode {
         self.parts[part].part_group = 5;
     }
 
-    ///82BD8364..83BC runs after collision observations and before82BD9FB0.
-    /// It only changes the enabled bit, preserving each volume's group.
     pub fn finish_contact_frame(&mut self) {
         if !self.pending_reenable {
             return;
@@ -174,7 +153,6 @@ impl SkeletonCollisionMode {
         self.pending_reenable = remaining;
     }
 
-    ///82BE71F0, unlike the whole-body normal path, uses BoneHasCollision.
     pub fn normal_bone(&mut self, part: usize, has_collision: bool) {
         if has_collision {
             if self.disable_count[part] == 0 {
@@ -188,9 +166,6 @@ impl SkeletonCollisionMode {
         }
     }
 
-    /// Physical-property portion of82BE7280. The coordinator separately resets
-    /// the real SkeletonCollision observations and reinstalls normal joint
-    /// limits in that method's original order. This method does not fake either.
     pub fn restore_normal_properties(&mut self, skeleton: &mut SkeletonBody) {
         self.self_culling = self.normal_self_culling;
         self.set_group(5);
@@ -223,7 +198,6 @@ impl SkeletonCollisionMode {
         self.is_ragdoll = false;
     }
 
-    ///Physical properties of82BE6D60; joint limits are set first by its caller.
     pub fn apply_ragdoll_properties(
         &mut self,
         skeleton: &mut SkeletonBody,
@@ -232,8 +206,7 @@ impl SkeletonCollisionMode {
         drag: [f32; 2],
         materials: [RetailContactMaterial; 2],
     ) {
-        //Exact raw82BE8900..A664 stores, not the asymmetric decompiler output.
-        const CULLED: [u32; PART_COUNT] = [
+        const SELF_CULL_MASK: [u32; PART_COUNT] = [
             0x03FFFFFF, 0x03FFF447, 0x03FFFC47, 0x039B8479, 0x03BB8479, 0x039F8479, 0x03FFFFFF,
             0x03B987C1, 0x03BB87C1, 0x03F987C1, 0x03FFFFFF, 0x03FFFC45, 0x03FFFC47, 0x03FFFC47,
             0x03FFFC47, 0x03FFFFFF, 0x038FFFFF, 0x038FFD7F, 0x03CFFC67, 0x03FFFFFF, 0x03F8FFFF,
@@ -249,7 +222,7 @@ impl SkeletonCollisionMode {
             self.self_culling = [[true; PART_COUNT]; PART_COUNT];
         } else {
             self.self_culling =
-                std::array::from_fn(|a| std::array::from_fn(|b| CULLED[a] & (1 << b) != 0));
+                std::array::from_fn(|a| std::array::from_fn(|b| SELF_CULL_MASK[a] & (1 << b) != 0));
         }
         self.set_group(6);
         for body in skeleton.bodies_mut() {
@@ -288,14 +261,12 @@ impl SkeletonCollisionMode {
     pub fn finish_ragdoll_request(&mut self, mode: u32) {
         match mode {
             7 | 10 => {
-                //Skeleton82BE3350 clears partial mode, root and extra volumes.
                 self.partial_ragdoll = false;
                 self.disable_root();
                 self.parts[24].enabled = false;
                 self.parts[25].enabled = false;
             }
             8 => {
-                //82D915A0..C4 uses constructor material3076 for all bones.
                 for part in 1..24 {
                     self.parts[part].material = RetailContactMaterial {
                         static_friction: 0.5,
@@ -315,8 +286,6 @@ impl SkeletonCollisionMode {
             part.part_group = group;
         }
     }
-    ///Request4 branch82D914B0 and Body82BE5248. Existing physical masses,
-    ///joint limits, material and self-pair table survive this policy change.
     fn select_biped(&mut self) {
         self.set_group(6);
         self.disable_all(false);

@@ -4,7 +4,6 @@ use glam::DVec3;
 use inventory::Inventory;
 use std::collections::{BTreeMap, BTreeSet};
 
-pub mod path_type;
 pub mod advancement;
 pub mod chest;
 pub mod collision;
@@ -17,11 +16,12 @@ pub mod hopper;
 pub mod inventory;
 pub mod item_catalog;
 pub mod items;
+pub mod jmath;
 pub mod lightning;
 pub mod loot;
 pub mod mining;
-pub mod jmath;
 pub mod mth;
+pub mod path_type;
 pub mod rail;
 pub mod redstone;
 pub mod rng;
@@ -108,7 +108,14 @@ pub trait World {
     fn take_item(&mut self, _id: i32, _count: i32) {}
     /// `addFreshEntity` for an item entity made at `position` with `velocity`
     /// and a pickup delay (its age 0); worlds without item entities drop it.
-    fn spawn_item(&mut self, _position: DVec3, _stack: &inventory::ItemStack, _velocity: DVec3, _pickup_delay: i32) {}
+    fn spawn_item(
+        &mut self,
+        _position: DVec3,
+        _stack: &inventory::ItemStack,
+        _velocity: DVec3,
+        _pickup_delay: i32,
+    ) {
+    }
     /// `Block.popResource`'s item entity (`new ItemEntity(level, x, y, z,
     /// stack)`, its own random turning and throwing it) with the default
     /// pickup delay.
@@ -140,7 +147,8 @@ pub trait World {
     /// and treats other blocks as full cubes; worlds backed by the block
     /// catalog answer exactly.
     fn collision_boxes(&self, pos: Pos) -> Vec<[f64; 6]> {
-        self.block(pos).map_or_else(Vec::new, |block| authored_collision_boxes(&block))
+        self.block(pos)
+            .map_or_else(Vec::new, |block| authored_collision_boxes(&block))
     }
     /// `WalkNodeEvaluator.getPathTypeFromState` at `pos`.
     fn path_type_from_state(&self, pos: Pos) -> path_type::PathType {
@@ -151,17 +159,25 @@ pub trait World {
     /// cactus and campfires, which refuse it.
     fn pathfindable(&self, pos: Pos) -> bool {
         self.block(pos).is_none_or(|b| {
-            !matches!(b.id.as_str(), "minecraft:lava" | "minecraft:cactus" | "minecraft:campfire" | "minecraft:soul_campfire") && authored_collision_boxes(&b) != [[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]]
+            !matches!(
+                b.id.as_str(),
+                "minecraft:lava"
+                    | "minecraft:cactus"
+                    | "minecraft:campfire"
+                    | "minecraft:soul_campfire"
+            ) && authored_collision_boxes(&b) != [[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]]
         })
     }
     /// Whether the fluid at `pos` is in `#minecraft:entity_floatable`
     /// (water).
     fn floatable_fluid(&self, pos: Pos) -> bool {
-        self.block(pos).is_some_and(|b| b.id == "minecraft:water" || b.property("waterlogged") == Some("true"))
+        self.block(pos)
+            .is_some_and(|b| b.id == "minecraft:water" || b.property("waterlogged") == Some("true"))
     }
     /// `BlockState.isSolid`. By default, blocks with a full collision cube.
     fn solid(&self, pos: Pos) -> bool {
-        self.block(pos).is_some_and(|b| authored_collision_boxes(&b) == [[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]])
+        self.block(pos)
+            .is_some_and(|b| authored_collision_boxes(&b) == [[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]])
     }
     /// `BlockState.isSolidRender`. By default, as `solid`.
     fn solid_render(&self, pos: Pos) -> bool {
@@ -193,7 +209,8 @@ pub trait World {
     /// ([`authored_block_in_tag`]); worlds backed by the registries answer
     /// from the data.
     fn block_in_tag(&self, pos: Pos, tag: &str) -> bool {
-        self.block(pos).is_some_and(|block| authored_block_in_tag(&block, tag, &self.collision_boxes(pos)))
+        self.block(pos)
+            .is_some_and(|block| authored_block_in_tag(&block, tag, &self.collision_boxes(pos)))
     }
     /// The block's `SoundType` step sound at `pos`: its event, volume and
     /// pitch (`playStepSound` plays it at 0.15 of the volume). Authored
@@ -206,12 +223,21 @@ pub trait World {
     /// flowers and mangrove roots; and dirt paths, farmland, mud and soul
     /// sand, whose tops are lower.
     fn suffocating(&self, pos: Pos) -> bool {
-        let Some(block) = self.block(pos) else { return false };
+        let Some(block) = self.block(pos) else {
+            return false;
+        };
         let id = block.id.as_str();
-        if matches!(id, "minecraft:dirt_path" | "minecraft:farmland" | "minecraft:mud" | "minecraft:soul_sand") {
+        if matches!(
+            id,
+            "minecraft:dirt_path" | "minecraft:farmland" | "minecraft:mud" | "minecraft:soul_sand"
+        ) {
             return true;
         }
-        let exempt = id.ends_with("glass") || id.ends_with("leaves") || id.ends_with("copper_grate") || id == "minecraft:chorus_flower" || id == "minecraft:mangrove_roots";
+        let exempt = id.ends_with("glass")
+            || id.ends_with("leaves")
+            || id.ends_with("copper_grate")
+            || id == "minecraft:chorus_flower"
+            || id == "minecraft:mangrove_roots";
         !exempt && self.collision_boxes(pos) == [[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]]
     }
     /// `BlockState.isFaceSturdy(DOWN, FULL)` for the block at `pos`: its
@@ -238,10 +264,16 @@ pub trait World {
 /// The collision boxes the authored shape list gives a block by name (other
 /// blocks are full cubes), in block-local units.
 pub fn authored_collision_boxes(block: &Block) -> Vec<[f64; 6]> {
-    if block.id == "minecraft:redstone_wire" || block.id == "minecraft:lever" || block.id.ends_with("_button") {
+    if block.id == "minecraft:redstone_wire"
+        || block.id == "minecraft:lever"
+        || block.id.ends_with("_button")
+    {
         return Vec::new();
     }
-    local_shapes(block).into_iter().map(|b| [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]).collect()
+    local_shapes(block)
+        .into_iter()
+        .map(|b| [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z])
+        .collect()
 }
 
 /// The connected half of a chest, according to ChestBlock's facing/type rule.
@@ -627,14 +659,28 @@ fn local_shapes(block: &Block) -> Vec<Box3> {
     let id = block.id.rsplit(':').next().unwrap_or(&block.id);
     if matches!(
         id,
-        "air" | "cave_air" | "void_air" | "water" | "lava" | "short_grass" | "tall_grass" | "torch" | "fire" | "soul_fire" | "sweet_berry_bush" | "cobweb"
+        "air"
+            | "cave_air"
+            | "void_air"
+            | "water"
+            | "lava"
+            | "short_grass"
+            | "tall_grass"
+            | "torch"
+            | "fire"
+            | "soul_fire"
+            | "sweet_berry_bush"
+            | "cobweb"
     ) {
         return vec![];
     }
     let unit = Box3::new(DVec3::ZERO, DVec3::ONE);
     // `CactusBlock`: a column 14 wide and 15 tall; campfires 7 tall.
     if id == "cactus" {
-        return vec![Box3::new(DVec3::new(1.0 / 16.0, 0.0, 1.0 / 16.0), DVec3::new(15.0 / 16.0, 15.0 / 16.0, 15.0 / 16.0))];
+        return vec![Box3::new(
+            DVec3::new(1.0 / 16.0, 0.0, 1.0 / 16.0),
+            DVec3::new(15.0 / 16.0, 15.0 / 16.0, 15.0 / 16.0),
+        )];
     }
     if matches!(id, "campfire" | "soul_campfire") {
         return vec![Box3::new(DVec3::ZERO, DVec3::new(1.0, 7.0 / 16.0, 1.0))];
@@ -855,7 +901,10 @@ fn shapes_near(world: &impl World, bbox: Box3, pad: f64) -> Vec<Box3> {
             for z in min.z as i32..max.z as i32 {
                 let offset = DVec3::new(x as f64, y as f64, z as f64);
                 out.extend(world.collision_boxes((x, y, z)).into_iter().map(|b| {
-                    Box3::new(DVec3::new(b[0], b[1], b[2]) + offset, DVec3::new(b[3], b[4], b[5]) + offset)
+                    Box3::new(
+                        DVec3::new(b[0], b[1], b[2]) + offset,
+                        DVec3::new(b[3], b[4], b[5]) + offset,
+                    )
                 }));
             }
         }
@@ -889,9 +938,18 @@ pub fn authored_block_in_tag(block: &Block, tag: &str, collision: &[[f64; 6]]) -
         "minecraft:enderman_does_not_teleport_to" => matches!(
             id,
             // `#dangerous_for_teleportation`
-            "minecraft:fire" | "minecraft:soul_fire" | "minecraft:lava_cauldron" | "minecraft:campfire" | "minecraft:soul_campfire"
-                | "minecraft:cactus" | "minecraft:magma_block" | "minecraft:sweet_berry_bush" | "minecraft:wither_rose"
-                | "minecraft:pointed_dripstone" | "minecraft:powder_snow" | "minecraft:bedrock"
+            "minecraft:fire"
+                | "minecraft:soul_fire"
+                | "minecraft:lava_cauldron"
+                | "minecraft:campfire"
+                | "minecraft:soul_campfire"
+                | "minecraft:cactus"
+                | "minecraft:magma_block"
+                | "minecraft:sweet_berry_bush"
+                | "minecraft:wither_rose"
+                | "minecraft:pointed_dripstone"
+                | "minecraft:powder_snow"
+                | "minecraft:bedrock"
         ),
         _ => false,
     }
@@ -902,7 +960,13 @@ pub fn authored_block_in_tag(block: &Block, tag: &str, collision: &[[f64; 6]]) -
 pub fn holds_fluid(block: &Block) -> bool {
     matches!(
         block.id.as_str(),
-        "minecraft:water" | "minecraft:lava" | "minecraft:bubble_column" | "minecraft:kelp" | "minecraft:kelp_plant" | "minecraft:seagrass" | "minecraft:tall_seagrass"
+        "minecraft:water"
+            | "minecraft:lava"
+            | "minecraft:bubble_column"
+            | "minecraft:kelp"
+            | "minecraft:kelp_plant"
+            | "minecraft:seagrass"
+            | "minecraft:tall_seagrass"
     ) || block.property("waterlogged") == Some("true")
 }
 
@@ -913,7 +977,12 @@ pub fn collision_boxes_at(world: &impl World, pos: Pos) -> Vec<(DVec3, DVec3)> {
     world
         .collision_boxes(pos)
         .into_iter()
-        .map(|b| (DVec3::new(b[0], b[1], b[2]) + offset, DVec3::new(b[3], b[4], b[5]) + offset))
+        .map(|b| {
+            (
+                DVec3::new(b[0], b[1], b[2]) + offset,
+                DVec3::new(b[3], b[4], b[5]) + offset,
+            )
+        })
         .collect()
 }
 fn clip_axis(b: Box3, blocks: &[Box3], axis: usize, mut delta: f64) -> f64 {
@@ -1514,7 +1583,13 @@ impl Player {
     /// hit the default knockback (`dealDefaultKnockback`: from the
     /// attacker, or along a projectile's flight) and the hurt animation
     /// (`indicateDamage`). Returns whether the player was hurt.
-    pub fn hurt_by(&mut self, hit: &IncomingHit, difficulty: Difficulty, armor: survival::Armor, knockback_resistance: f64) -> bool {
+    pub fn hurt_by(
+        &mut self,
+        hit: &IncomingHit,
+        difficulty: Difficulty,
+        armor: survival::Armor,
+        knockback_resistance: f64,
+    ) -> bool {
         if self.survival.health <= 0.0 {
             return false;
         }
@@ -1530,7 +1605,9 @@ impl Player {
         if damage == 0.0 {
             return false;
         }
-        let Some(full) = self.survival.hurt(damage, armor, hit.exhaustion) else { return false };
+        let Some(full) = self.survival.hurt(damage, armor, hit.exhaustion) else {
+            return false;
+        };
         let direction = match hit.from {
             HitFrom::Position(p) => Some((p.x - self.pos.x, p.z - self.pos.z)),
             HitFrom::Projectile(velocity) => Some((-velocity.x, -velocity.z)),
@@ -1550,7 +1627,11 @@ impl Player {
                 let length = (xd * xd + zd * zd).sqrt();
                 (xd, zd) = (xd / length * power, zd / length * power);
                 let v = self.velocity;
-                let y = if self.on_ground { (v.y / 2.0 + power).min(0.4) } else { v.y };
+                let y = if self.on_ground {
+                    (v.y / 2.0 + power).min(0.4)
+                } else {
+                    v.y
+                };
                 self.velocity = DVec3::new(v.x / 2.0 - xd, y, v.z / 2.0 - zd);
             }
             let (xd, zd) = direction.unwrap();
@@ -1713,9 +1794,12 @@ impl Player {
                     let pos = (x, y, z);
                     // Block shapes stay within half a block of their cell:
                     // skip cells the ray cannot reach before the best hit.
-                    let cell = Box3::new(DVec3::splat(-0.5), DVec3::splat(1.5)).offset(DVec3::new(x as f64, y as f64, z as f64));
+                    let cell = Box3::new(DVec3::splat(-0.5), DVec3::splat(1.5))
+                        .offset(DVec3::new(x as f64, y as f64, z as f64));
                     let enter = ray_box(origin, dir, cell).map(|(d, _)| d);
-                    if enter.is_none_or(|d| d > reach || best.as_ref().is_some_and(|b| d > b.distance)) {
+                    if enter
+                        .is_none_or(|d| d > reach || best.as_ref().is_some_and(|b| d > b.distance))
+                    {
                         continue;
                     }
                     if let Some(block) = world.block(pos) {
@@ -2051,1051 +2135,5 @@ fn ray_box(origin: DVec3, dir: DVec3, b: Box3) -> Option<(f64, Face)> {
         None
     } else {
         Some((near.max(0.0), face))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn straight_stair_collision_union_matches_26_3_shape_gate() {
-        // scenarios/stair-collision-shapes.json, two exact vanilla runs.
-        for half in ["bottom", "top"] {
-            for facing in ["north", "east", "south", "west"] {
-                let block = Block::new("minecraft:oak_stairs")
-                    .with("facing", facing)
-                    .with("half", half)
-                    .with("shape", "straight");
-                let shapes = local_shapes(&block);
-                for x in 0..2 {
-                    for z in 0..2 {
-                        for y in 0..2 {
-                            let point = DVec3::new(
-                                x as f64 * 0.5 + 0.25,
-                                y as f64 * 0.5 + 0.25,
-                                z as f64 * 0.5 + 0.25,
-                            );
-                            let inside = shapes.iter().any(|shape| {
-                                point.cmpge(shape.min).all() && point.cmplt(shape.max).all()
-                            });
-                            let upper = y == 1;
-                            let high_half = match facing {
-                                "north" => z == 0,
-                                "east" => x == 1,
-                                "south" => z == 1,
-                                "west" => x == 0,
-                                _ => unreachable!(),
-                            };
-                            assert_eq!(
-                                inside,
-                                (upper == (half == "top")) || high_half,
-                                "{half} {facing} cell {x},{y},{z}"
-                            );
-                        }
-                    }
-                }
-            }
-        }
-    }
-    #[test]
-    fn corner_stair_collision_union_matches_26_3_shape_gate() {
-        // scenarios/stair-corner-collision-shapes.json; masks are the sampled
-        // occupied upper/lower step quarters from both exact server runs.
-        for (facing, masks) in [
-            ("north", ["1110", "1101", "1000", "0100"]),
-            ("east", ["1101", "0111", "0100", "0001"]),
-            ("south", ["0111", "1011", "0001", "0010"]),
-            ("west", ["1011", "1110", "0010", "1000"]),
-        ] {
-            for (shape, mask) in ["inner_left", "inner_right", "outer_left", "outer_right"]
-                .into_iter()
-                .zip(masks)
-            {
-                for half in ["bottom", "top"] {
-                    let block = Block::new("minecraft:oak_stairs")
-                        .with("facing", facing)
-                        .with("half", half)
-                        .with("shape", shape);
-                    let boxes = local_shapes(&block);
-                    for x in 0..2 {
-                        for z in 0..2 {
-                            for y in 0..2 {
-                                let point = DVec3::new(
-                                    x as f64 * 0.5 + 0.25,
-                                    y as f64 * 0.5 + 0.25,
-                                    z as f64 * 0.5 + 0.25,
-                                );
-                                let inside = boxes.iter().any(|bbox| {
-                                    point.cmpge(bbox.min).all() && point.cmplt(bbox.max).all()
-                                });
-                                let step = mask.as_bytes()[z * 2 + x] == b'1';
-                                let base = (y == 1) == (half == "top");
-                                assert_eq!(
-                                    inside,
-                                    base || step,
-                                    "{half} {facing} {shape} at {x},{y},{z}"
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    #[derive(Default)]
-    struct TestWorld(BTreeMap<Pos, Block>);
-    impl World for TestWorld {
-        fn block(&self, p: Pos) -> Option<Block> {
-            self.0.get(&p).cloned()
-        }
-        fn set_block(&mut self, p: Pos, b: Option<Block>) {
-            if let Some(b) = b {
-                self.0.insert(p, b);
-            } else {
-                self.0.remove(&p);
-            }
-        }
-    }
-    fn floor() -> TestWorld {
-        let mut w = TestWorld::default();
-        for x in -5..=5 {
-            for z in -5..=5 {
-                w.set_block((x, 0, z), Some(Block::new("minecraft:stone")));
-            }
-        }
-        w
-    }
-    #[test]
-    fn powered_rail_placement_uses_yaw_axis_and_source_water() {
-        let mut world = floor();
-        let pos = (0, 1, 0);
-        let north =
-            powered_rail_placement_state(&world, pos, Block::new("minecraft:powered_rail"), 0.0);
-        assert_eq!(north.property("shape"), Some("north_south"));
-        assert_eq!(north.property("powered"), Some("false"));
-        assert_eq!(north.property("waterlogged"), Some("false"));
-        world.set_block(pos, Some(Block::new("minecraft:water").with("level", "0")));
-        let east =
-            powered_rail_placement_state(&world, pos, Block::new("minecraft:powered_rail"), 90.0);
-        assert_eq!(east.property("shape"), Some("east_west"));
-        assert_eq!(east.property("waterlogged"), Some("true"));
-    }
-    #[test]
-    fn trapdoor_collision_boxes_match_26_3_reference() {
-        // scenarios/trapdoor-collision-shapes.json, two identical vanilla runs.
-        let cases = [
-            (
-                "false",
-                "bottom",
-                "north",
-                [0.0, 0.0, 0.0, 1.0, 0.1875, 1.0],
-            ),
-            ("false", "top", "north", [0.0, 0.8125, 0.0, 1.0, 1.0, 1.0]),
-            ("true", "bottom", "north", [0.0, 0.0, 0.8125, 1.0, 1.0, 1.0]),
-            ("true", "bottom", "south", [0.0, 0.0, 0.0, 1.0, 1.0, 0.1875]),
-            ("true", "bottom", "east", [0.0, 0.0, 0.0, 0.1875, 1.0, 1.0]),
-            ("true", "bottom", "west", [0.8125, 0.0, 0.0, 1.0, 1.0, 1.0]),
-        ];
-        for (open, half, facing, expected) in cases {
-            let block = Block::new("minecraft:oak_trapdoor")
-                .with("open", open)
-                .with("half", half)
-                .with("facing", facing);
-            let boxes = local_shapes(&block);
-            assert_eq!(boxes.len(), 1);
-            let bounds = boxes[0];
-            assert_eq!(
-                [
-                    bounds.min.x,
-                    bounds.min.y,
-                    bounds.min.z,
-                    bounds.max.x,
-                    bounds.max.y,
-                    bounds.max.z
-                ],
-                expected,
-                "state open={open} half={half} facing={facing}"
-            );
-        }
-    }
-
-    #[test]
-    fn fence_gate_collision_boxes_match_26_3_reference() {
-        // scenarios/fence-gate-collision-shapes.json, two identical runs.
-        let cases = [
-            ("north", false, Some([0.0, 0.0, 0.375, 1.0, 1.5, 0.625])),
-            ("east", false, Some([0.375, 0.0, 0.0, 0.625, 1.5, 1.0])),
-            ("north", true, None),
-            ("east", true, None),
-        ];
-        for (facing, open, expected) in cases {
-            let block = Block::new("minecraft:oak_fence_gate")
-                .with("facing", facing)
-                .with("open", if open { "true" } else { "false" });
-            let shapes = local_shapes(&block);
-            match expected {
-                Some(values) => {
-                    assert_eq!(shapes.len(), 1);
-                    assert_eq!(shapes[0].min.to_array(), values[0..3]);
-                    assert_eq!(shapes[0].max.to_array(), values[3..6]);
-                }
-                None => assert!(shapes.is_empty()),
-            }
-        }
-    }
-    #[test]
-    fn oak_door_collision_boxes_match_26_3_reference() {
-        // scenarios/door-collision-shapes.json, two identical vanilla runs.
-        let cases = [
-            ("north", "left", false, [0.0, 0.0, 0.8125, 1.0, 1.0, 1.0]),
-            ("east", "left", false, [0.0, 0.0, 0.0, 0.1875, 1.0, 1.0]),
-            ("north", "left", true, [0.0, 0.0, 0.0, 0.1875, 1.0, 1.0]),
-            ("north", "right", true, [0.8125, 0.0, 0.0, 1.0, 1.0, 1.0]),
-            ("east", "left", true, [0.0, 0.0, 0.0, 1.0, 1.0, 0.1875]),
-            ("east", "right", true, [0.0, 0.0, 0.8125, 1.0, 1.0, 1.0]),
-            ("south", "left", true, [0.8125, 0.0, 0.0, 1.0, 1.0, 1.0]),
-            ("south", "right", true, [0.0, 0.0, 0.0, 0.1875, 1.0, 1.0]),
-            ("west", "left", true, [0.0, 0.0, 0.8125, 1.0, 1.0, 1.0]),
-            ("west", "right", true, [0.0, 0.0, 0.0, 1.0, 1.0, 0.1875]),
-        ];
-        for (facing, hinge, open, expected) in cases {
-            let block = Block::new("minecraft:oak_door")
-                .with("facing", facing)
-                .with("hinge", hinge)
-                .with("open", if open { "true" } else { "false" });
-            let shapes = local_shapes(&block);
-            assert_eq!(shapes.len(), 1);
-            assert_eq!(shapes[0].min.to_array(), expected[0..3]);
-            assert_eq!(shapes[0].max.to_array(), expected[3..6]);
-        }
-    }
-    #[test]
-    fn respawn_uses_first_dry_supported_height_in_authored_column() {
-        let mut world = floor();
-        let spawn = DVec3::new(0.5, 1.0, 4.5);
-        assert_eq!(safe_respawn_position(&world, spawn), spawn);
-        for y in 1..=3 {
-            world.set_block((0, y, 4), Some(Block::new("minecraft:water")));
-        }
-        world.set_block((0, 4, 4), Some(Block::new("minecraft:stone")));
-        assert_eq!(
-            safe_respawn_position(&world, spawn),
-            DVec3::new(0.5, 5.0, 4.5)
-        );
-    }
-    fn water_pool(layers: &[i32]) -> TestWorld {
-        let mut world = floor();
-        for x in -3..=3 {
-            for z in -3..=3 {
-                for &y in layers {
-                    world.set_block((x, y, z), Some(Block::new("minecraft:water")));
-                }
-            }
-        }
-        world
-    }
-    #[test]
-    fn chorus_target_descends_to_support_and_rejects_liquid() {
-        let world = floor();
-        let mut player = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        player.fall_distance = 4.0;
-        assert!(player.try_random_teleport_target(&world, DVec3::new(1.5, 8.25, 1.5)));
-        assert_eq!(player.pos, DVec3::new(1.5, 1.25, 1.5));
-        assert_eq!(player.fall_distance, 0.0);
-        assert!(!player.try_random_teleport_target(&world, DVec3::new(10.5, 8.0, 0.5)));
-        let mut wet = floor();
-        wet.set_block((2, 1, 2), Some(Block::new("minecraft:water")));
-        assert!(!player.try_random_teleport_target(&wet, DVec3::new(2.5, 8.0, 2.5)));
-    }
-    #[test]
-    fn swim_sprint_starts_underwater_but_not_in_one_block_deep_water() {
-        let sprint = Input {
-            forward: 1.0,
-            sprint: true,
-            ..Default::default()
-        };
-        let mut shallow = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        shallow.on_ground = true;
-        let shallow_pool = water_pool(&[1]);
-        for _ in 0..5 {
-            shallow.tick(&shallow_pool, sprint);
-            assert!(shallow.in_water);
-            assert!(!shallow.swimming);
-            assert!(!shallow.sprinting);
-            assert_eq!(shallow.eye_height(), 1.62);
-        }
-
-        let mut deep = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        deep.on_ground = true;
-        let deep_pool = water_pool(&[1, 2]);
-        deep.tick(&deep_pool, sprint);
-        assert!(deep.sprinting);
-        assert!(!deep.swimming);
-        deep.tick(&deep_pool, sprint);
-        assert!(deep.swimming);
-        assert_eq!(deep.eye_height(), 0.4);
-    }
-    #[test]
-    fn an_existing_swim_continues_into_shallow_water() {
-        let mut player = Player::new(DVec3::new(0.5, 1.8, 0.5));
-        player.swimming = true;
-        player.sprinting = true;
-        player.tick(
-            &water_pool(&[1]),
-            Input {
-                forward: 1.0,
-                sprint: true,
-                ..Default::default()
-            },
-        );
-        assert!(player.in_water);
-        assert!(player.swimming);
-        assert!(player.sprinting);
-    }
-    #[test]
-    fn chest_partner_requires_matching_halves_and_facing() {
-        let mut world = TestWorld::default();
-        let right = (0, 1, 0);
-        let left = (1, 1, 0);
-        world.set_block(
-            right,
-            Some(
-                Block::new("minecraft:chest")
-                    .with("facing", "south")
-                    .with("type", "right"),
-            ),
-        );
-        world.set_block(
-            left,
-            Some(
-                Block::new("minecraft:chest")
-                    .with("facing", "south")
-                    .with("type", "left"),
-            ),
-        );
-        assert_eq!(chest_partner(&world, right), Some(left));
-        assert_eq!(chest_partner(&world, left), Some(right));
-        world.set_block(
-            left,
-            Some(
-                Block::new("minecraft:chest")
-                    .with("facing", "north")
-                    .with("type", "left"),
-            ),
-        );
-        assert_eq!(chest_partner(&world, right), None);
-    }
-    #[test]
-    fn placing_adjacent_chests_links_halves_without_replacing_their_blocks() {
-        let mut world = floor();
-        for x in 0..=1 {
-            world.set_block((x, 2, 4), Some(Block::new("minecraft:stone")));
-            let mut player = Player::new(DVec3::new(x as f64 + 0.5, 1.0, 1.5));
-            player.yaw = 0.0;
-            assert_eq!(
-                player.place_target_with(&mut world, Block::new("minecraft:chest")),
-                Some((x, 2, 3))
-            );
-        }
-        assert_eq!(
-            world.block((0, 2, 3)).unwrap().property("type"),
-            Some("left")
-        );
-        assert_eq!(
-            world.block((1, 2, 3)).unwrap().property("type"),
-            Some("right")
-        );
-        assert_eq!(chest_partner(&world, (0, 2, 3)), Some((1, 2, 3)));
-        assert_eq!(chest_partner(&world, (1, 2, 3)), Some((0, 2, 3)));
-        world.set_block((2, 2, 4), Some(Block::new("minecraft:stone")));
-        let mut third = Player::new(DVec3::new(2.5, 1.0, 1.5));
-        third.yaw = 0.0;
-        assert_eq!(
-            third.place_target_with(&mut world, Block::new("minecraft:chest")),
-            Some((2, 2, 3))
-        );
-        assert_eq!(
-            world.block((2, 2, 3)).unwrap().property("type"),
-            Some("single")
-        );
-        assert_eq!(
-            world.block((1, 2, 3)).unwrap().property("type"),
-            Some("right")
-        );
-    }
-    #[test]
-    fn sprint_jump_charges_survival_food_exhaustion() {
-        let w = floor();
-        let mut p = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        p.on_ground = true;
-        p.tick_survival(
-            &w,
-            Input {
-                forward: 1.0,
-                sprint: true,
-                jump: true,
-                ..Default::default()
-            },
-        );
-        assert!(p.pos.y > 1.0);
-        assert_eq!(p.survival.food.exhaustion, 0.2);
-        assert_eq!(p.survival.food.level, 20);
-    }
-    #[test]
-    fn creative_flight_requires_two_new_jump_presses_within_seven_ticks() {
-        let world = floor();
-        let mut player = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        player.on_ground = true;
-        player.tick(
-            &world,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        assert!(!player.flying);
-        player.tick(&world, Input::default());
-        player.tick(
-            &world,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        assert!(player.flying);
-        player.tick(&world, Input::default());
-        player.tick(
-            &world,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        assert!(player.flying);
-        player.tick(&world, Input::default());
-        player.tick(
-            &world,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        assert!(!player.flying);
-
-        let mut late = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        late.on_ground = true;
-        late.tick(
-            &world,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        for _ in 0..8 {
-            late.tick(&world, Input::default());
-        }
-        late.tick(
-            &world,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        assert!(!late.flying);
-    }
-    #[test]
-    fn creative_flight_uses_additive_vertical_impulse_and_momentum() {
-        let world = floor();
-        let mut player = Player::new(DVec3::new(0.5, 5.0, 0.5));
-        player.flying = true;
-        player.tick(
-            &world,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        let initial = (0.05_f32 * 3.0_f32) as f64;
-        assert_eq!(player.pos.y, 5.0 + initial);
-        assert_eq!(player.velocity.y, initial * 0.6);
-        let before = player.pos.y;
-        player.tick(&world, Input::default());
-        assert_eq!(player.pos.y, before + initial * 0.6);
-        let before = player.pos.y;
-        player.tick(
-            &world,
-            Input {
-                crouch: true,
-                ..Default::default()
-            },
-        );
-        assert!(player.pos.y < before);
-    }
-    #[test]
-    fn landing_ends_creative_flight_and_survival_cannot_start_it() {
-        let world = floor();
-        let mut landing = Player::new(DVec3::new(0.5, 1.1, 0.5));
-        landing.velocity.y = -0.3;
-        landing.flying = true;
-        landing.tick(&world, Input::default());
-        assert!(landing.on_ground);
-        assert!(!landing.flying);
-        assert_eq!(landing.velocity.y, -0.3 * 0.6);
-
-        let mut survival = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        survival.on_ground = true;
-        survival.tick_survival(
-            &world,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        survival.tick_survival(&world, Input::default());
-        survival.tick_survival(
-            &world,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        assert!(!survival.mayfly && !survival.flying);
-    }
-    #[test]
-    fn survival_landing_charges_fall_damage_once() {
-        let w = floor();
-        let mut p = Player::new(DVec3::new(0.5, 6.0, 0.5));
-        for _ in 0..60 {
-            p.tick_survival(&w, Input::default());
-            if p.on_ground {
-                break;
-            }
-        }
-        assert!(p.on_ground);
-        assert_eq!(p.pos.y, 1.0);
-        assert_eq!(p.survival.health, 18.0);
-        assert_eq!(p.fall_distance, 0.0);
-        for _ in 0..5 {
-            p.tick_survival(&w, Input::default());
-        }
-        assert_eq!(p.survival.health, 18.0);
-    }
-    #[test]
-    fn eleven_block_fall_matches_pinned_vanilla_health() {
-        let w = floor();
-        let mut p = Player::new(DVec3::new(0.5, 12.0, 0.5));
-        for _ in 0..40 {
-            p.tick_survival(&w, Input::default());
-            if p.on_ground {
-                break;
-            }
-        }
-        assert!(p.on_ground);
-        assert_eq!(p.pos.y, 1.0);
-        assert_eq!(p.survival.health, 12.0);
-        assert_eq!(p.fall_distance, 0.0);
-    }
-    #[test]
-    fn settles_and_jumps() {
-        let w = floor();
-        let mut p = Player::new(DVec3::new(0.5, 3.0, 0.5));
-        for _ in 0..30 {
-            p.tick(&w, Input::default());
-        }
-        assert!(p.on_ground);
-        assert!((p.pos.y - 1.0).abs() < 1e-9);
-        p.tick(
-            &w,
-            Input {
-                jump: true,
-                ..Default::default()
-            },
-        );
-        assert!(p.pos.y > 1.3);
-    }
-    #[test]
-    fn full_block_stops_motion() {
-        let mut w = floor();
-        w.set_block((0, 1, -2), Some(Block::new("minecraft:stone")));
-        let mut p = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        p.on_ground = true;
-        for _ in 0..40 {
-            p.tick(
-                &w,
-                Input {
-                    forward: 1.0,
-                    ..Default::default()
-                },
-            );
-        }
-        assert!(p.pos.z >= -0.7 - 1e-9);
-    }
-    #[test]
-    fn left_impulse_moves_left_when_facing_north() {
-        let w = floor();
-        let mut left = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        let mut right = left.clone();
-        left.on_ground = true;
-        right.on_ground = true;
-        left.tick(
-            &w,
-            Input {
-                strafe: 1.0,
-                ..Default::default()
-            },
-        );
-        right.tick(
-            &w,
-            Input {
-                strafe: -1.0,
-                ..Default::default()
-            },
-        );
-        assert!(left.pos.x < 0.5);
-        assert!(right.pos.x > 0.5);
-    }
-    #[test]
-    fn diagonal_input_reaches_unit_length_after_square_mapping() {
-        let (_, forward) = modified_ground_input(
-            Input {
-                forward: 1.0,
-                ..Default::default()
-            },
-            false,
-        );
-        let (left, diagonal_forward) = modified_ground_input(
-            Input {
-                forward: 1.0,
-                strafe: 1.0,
-                ..Default::default()
-            },
-            false,
-        );
-        assert_eq!(forward, 0.98_f32 as f64);
-        assert!(((left * left + diagonal_forward * diagonal_forward).sqrt() - 1.0).abs() < 1e-6);
-    }
-    #[test]
-    fn flat_ground_speed_ratios_match_source_modifiers() {
-        let w = floor();
-        let initial = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        let mut walk = initial.clone();
-        let mut diagonal = initial.clone();
-        let mut sprint = initial;
-        walk.on_ground = true;
-        diagonal.on_ground = true;
-        sprint.on_ground = true;
-        let mut walk_fifth = 0.0;
-        let mut walk_last = 0.0;
-        let mut sprint_last = 0.0;
-        for tick in 0..12 {
-            let wz = walk.pos.z;
-            let sz = sprint.pos.z;
-            walk.tick(
-                &w,
-                Input {
-                    forward: 1.0,
-                    ..Default::default()
-                },
-            );
-            diagonal.tick(
-                &w,
-                Input {
-                    forward: 1.0,
-                    strafe: 1.0,
-                    ..Default::default()
-                },
-            );
-            sprint.tick(
-                &w,
-                Input {
-                    forward: 1.0,
-                    sprint: true,
-                    ..Default::default()
-                },
-            );
-            if tick == 4 {
-                walk_fifth = (walk.pos.z - wz).abs();
-            }
-            walk_last = (walk.pos.z - wz).abs();
-            sprint_last = (sprint.pos.z - sz).abs();
-        }
-        let walk_distance = (walk.pos - DVec3::new(0.5, 1.0, 0.5)).length();
-        let diagonal_distance = (diagonal.pos - DVec3::new(0.5, 1.0, 0.5)).length();
-        assert!(
-            walk_fifth / walk_last > 0.92,
-            "fifth={walk_fifth} final={walk_last}"
-        );
-        assert!(
-            (diagonal_distance / walk_distance - 1.0 / 0.98).abs() < 1e-6,
-            "walk={walk_distance} diagonal={diagonal_distance}"
-        );
-        assert!(
-            (sprint_last / walk_last - 1.3).abs() < 1e-6,
-            "walk={walk_last} sprint={sprint_last}"
-        );
-        let mut no_jump = sprint.clone();
-        let before = sprint.pos.z;
-        no_jump.tick(
-            &w,
-            Input {
-                forward: 1.0,
-                sprint: true,
-                ..Default::default()
-            },
-        );
-        sprint.tick(
-            &w,
-            Input {
-                forward: 1.0,
-                sprint: true,
-                jump: true,
-                ..Default::default()
-            },
-        );
-        let jump_horizontal = (sprint.pos.z - before).abs();
-        let no_jump_horizontal = (no_jump.pos.z - before).abs();
-        assert!(
-            (jump_horizontal - no_jump_horizontal - 0.2).abs() < 1e-9,
-            "sprint={no_jump_horizontal} jump={jump_horizontal}"
-        );
-        assert!(
-            (sprint.velocity.z.abs() / jump_horizontal - (0.6_f32 * 0.91_f32) as f64).abs() < 1e-9,
-            "jump tick must retain ground friction before becoming airborne"
-        );
-    }
-    #[test]
-    fn slab_is_half_height() {
-        let mut w = floor();
-        w.set_block(
-            (0, 1, -2),
-            Some(Block::new("minecraft:oak_slab").with("type", "bottom")),
-        );
-        let mut p = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        p.on_ground = true;
-        let mut max_y = p.pos.y;
-        for _ in 0..25 {
-            p.tick(
-                &w,
-                Input {
-                    forward: 1.0,
-                    ..Default::default()
-                },
-            );
-            max_y = max_y.max(p.pos.y);
-        }
-        assert!(p.pos.z < -1.0);
-        assert!(max_y >= 1.5 - 1e-9, "max_y={max_y} pos={:?}", p.pos);
-    }
-    #[test]
-    fn clicking_bottom_slab_top_merges_in_live_player_placement() {
-        let mut world = TestWorld::default();
-        world.set_block(
-            (0, 1, 0),
-            Some(
-                Block::new("minecraft:oak_slab")
-                    .with("type", "bottom")
-                    .with("waterlogged", "false"),
-            ),
-        );
-        let mut player = Player::new(DVec3::new(0.5, 1.0, 2.5));
-        player.pitch = (1.12_f64 / 2.0).atan().to_degrees();
-        let hit = player.target(&world, 5.0).unwrap();
-        assert_eq!(hit.pos, (0, 1, 0));
-        assert_eq!(hit.face, Face::Up);
-        assert_eq!(
-            player.place_target_with(&mut world, Block::new("minecraft:oak_slab")),
-            Some((0, 1, 0))
-        );
-        let placed = world.block((0, 1, 0)).unwrap();
-        assert_eq!(placed.property("type"), Some("double"));
-        assert_eq!(placed.property("waterlogged"), Some("false"));
-    }
-    #[test]
-    fn crouching_holds_cardinal_and_diagonal_ledge_support() {
-        let mut w = TestWorld::default();
-        w.set_block((0, 0, 0), Some(Block::new("minecraft:stone")));
-        let mut east = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        east.on_ground = true;
-        let mut corner = east.clone();
-        for _ in 0..80 {
-            east.tick(
-                &w,
-                Input {
-                    strafe: -1.0,
-                    crouch: true,
-                    ..Default::default()
-                },
-            );
-            corner.tick(
-                &w,
-                Input {
-                    forward: 1.0,
-                    strafe: -1.0,
-                    crouch: true,
-                    ..Default::default()
-                },
-            );
-        }
-        assert!(
-            east.on_ground && (east.pos.y - 1.0).abs() < 1e-9,
-            "east={:?}",
-            east.pos
-        );
-        assert!(east.pos.x > 1.0 && east.pos.x < 1.3, "east={:?}", east.pos);
-        assert!(
-            corner.on_ground && (corner.pos.y - 1.0).abs() < 1e-9,
-            "corner={:?}",
-            corner.pos
-        );
-        assert!(
-            corner.pos.x < 1.3 && corner.pos.z > -0.3,
-            "corner={:?}",
-            corner.pos
-        );
-        let mut walking = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        walking.on_ground = true;
-        for _ in 0..40 {
-            walking.tick(
-                &w,
-                Input {
-                    strafe: -1.0,
-                    ..Default::default()
-                },
-            );
-        }
-        assert!(
-            walking.pos.y < 1.0,
-            "walking should fall from the same edge"
-        );
-        let mut slab_world = TestWorld::default();
-        slab_world.set_block(
-            (0, 0, 0),
-            Some(Block::new("minecraft:oak_slab").with("type", "bottom")),
-        );
-        let mut slab = Player::new(DVec3::new(0.5, 0.5, 0.5));
-        slab.on_ground = true;
-        for _ in 0..80 {
-            slab.tick(
-                &slab_world,
-                Input {
-                    strafe: -1.0,
-                    crouch: true,
-                    ..Default::default()
-                },
-            );
-        }
-        assert!(
-            slab.on_ground && (slab.pos.y - 0.5).abs() < 1e-9 && slab.pos.x < 1.3,
-            "slab={:?}",
-            slab.pos
-        );
-    }
-    #[test]
-    fn crouch_jump_can_leave_a_ledge() {
-        let mut w = TestWorld::default();
-        w.set_block((0, 0, 0), Some(Block::new("minecraft:stone")));
-        let mut p = Player::new(DVec3::new(1.2, 1.0, 0.5));
-        p.on_ground = true;
-        p.tick(
-            &w,
-            Input {
-                strafe: -1.0,
-                crouch: true,
-                jump: true,
-                ..Default::default()
-            },
-        );
-        for _ in 0..25 {
-            p.tick(
-                &w,
-                Input {
-                    strafe: -1.0,
-                    crouch: true,
-                    ..Default::default()
-                },
-            );
-        }
-        assert!(
-            p.pos.x > 1.3,
-            "jump should bypass edge backoff: {:?}",
-            p.pos
-        );
-    }
-    #[test]
-    fn ray_break_place() {
-        let mut w = floor();
-        w.set_block((0, 2, -2), Some(Block::new("minecraft:stone")));
-        let p = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        assert_eq!(p.target(&w, 5.0).unwrap().pos, (0, 2, -2));
-        assert_eq!(p.break_target(&mut w), Some((0, 2, -2)));
-        assert!(w.block((0, 2, -2)).is_none());
-    }
-    #[test]
-    fn empty_bucket_ray_hits_only_source_liquid() {
-        let mut world = floor();
-        world.set_block(
-            (0, 2, -2),
-            Some(Block::new("minecraft:water").with("level", "0")),
-        );
-        world.set_block((0, 2, -3), Some(Block::new("minecraft:stone")));
-        let player = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        assert_eq!(player.target(&world, 5.0).unwrap().pos, (0, 2, -3));
-        assert_eq!(
-            player.target_source_fluid(&world, 5.0).unwrap().pos,
-            (0, 2, -2)
-        );
-        world.set_block(
-            (0, 2, -2),
-            Some(Block::new("minecraft:water").with("level", "1")),
-        );
-        assert_eq!(
-            player.target_source_fluid(&world, 5.0).unwrap().pos,
-            (0, 2, -3)
-        );
-        assert_eq!(
-            player.target_any_fluid(&world, 5.0).unwrap().pos,
-            (0, 2, -2),
-            "F3 fluid picking includes a flowing level-one surface"
-        );
-        world.set_block(
-            (0, 2, -2),
-            Some(Block::new("minecraft:water").with("level", "4")),
-        );
-        assert_eq!(
-            player.target_any_fluid(&world, 5.0).unwrap().pos,
-            (0, 2, -3),
-            "a lower fluid surface stays below the horizontal eye ray"
-        );
-    }
-    #[test]
-    fn placement_uses_supplied_inventory_block_not_demo_hotbar() {
-        let mut w = floor();
-        w.set_block((0, 2, -2), Some(Block::new("minecraft:stone")));
-        let p = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        let pos = p
-            .place_target_with(&mut w, Block::new("minecraft:oak_planks"))
-            .unwrap();
-        assert_eq!(w.block(pos).unwrap().id, "minecraft:oak_planks");
-        assert_eq!(p.hotbar[0].id, "minecraft:stone");
-    }
-    #[test]
-    fn adventure_placement_requires_matching_item_predicate() {
-        let mut world = floor();
-        world.set_block((0, 2, -2), Some(Block::new("minecraft:stone")));
-        let player = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        let mut inventory = Inventory::default();
-        inventory.slots[0] = Some(inventory::ItemStack::new("minecraft:oak_planks", 2));
-        assert_eq!(
-            player.place_selected(&mut world, &mut inventory, GameMode::Adventure),
-            None
-        );
-        assert_eq!(inventory.slots[0].as_ref().unwrap().count, 2);
-        inventory.slots[0].as_mut().unwrap().components =
-            Some(serde_json::json!({"minecraft:can_place_on":{"blocks":"minecraft:stone"}}));
-        assert!(player
-            .place_selected(&mut world, &mut inventory, GameMode::Adventure)
-            .is_some());
-        assert_eq!(inventory.slots[0].as_ref().unwrap().count, 1);
-    }
-    #[test]
-    fn spectator_flight_crosses_a_solid_wall_without_collision() {
-        let mut world = floor();
-        world.set_block((1, 1, 0), Some(Block::new("minecraft:stone")));
-        world.set_block((1, 2, 0), Some(Block::new("minecraft:stone")));
-        let mut spectator = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        spectator.set_game_mode(GameMode::Spectator);
-        spectator.velocity.x = 0.4;
-        spectator.tick(&world, Input::default());
-        assert!(spectator.pos.x > 0.8);
-        assert!(spectator.flying);
-        assert!(!spectator.on_ground);
-
-        let mut creative = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        creative.velocity.x = 0.4;
-        creative.tick(&world, Input::default());
-        assert!(creative.pos.x <= 0.700001);
-    }
-    #[test]
-    fn flying_speed_scales_flight_like_abilities() {
-        // Player.getFlyingSpeed and LocalPlayer.aiStep: horizontal
-        // acceleration and vertical input both scale with flyingSpeed.
-        let world = floor();
-        let fly = |speed: f32| {
-            let mut player = Player::new(DVec3::new(0.5, 40.0, 0.5));
-            player.set_game_mode(GameMode::Spectator);
-            player.flying_speed = speed;
-            let input = Input { forward: 1.0, jump: true, ..Input::default() };
-            player.tick(&world, input);
-            player.velocity
-        };
-        let (slow, fast) = (fly(0.05), fly(0.1));
-        assert!((fast.z / slow.z - 2.0).abs() < 1e-6, "{slow:?} {fast:?}");
-        assert!((fast.y / slow.y - 2.0).abs() < 1e-6, "{slow:?} {fast:?}");
-    }
-    #[test]
-    fn survival_placement_consumes_only_on_success() {
-        let mut world = floor();
-        world.set_block((0, 2, -2), Some(Block::new("minecraft:stone")));
-        let player = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        let mut inventory = Inventory::default();
-        inventory.slots[0] = Some(inventory::ItemStack::new("minecraft:oak_planks", 2));
-        let placed = player
-            .place_selected(&mut world, &mut inventory, GameMode::Survival)
-            .unwrap();
-        assert_eq!(world.block(placed).unwrap().id, "minecraft:oak_planks");
-        assert_eq!(inventory.slots[0].as_ref().unwrap().count, 1);
-        assert!(player
-            .place_selected(&mut world, &mut inventory, GameMode::Survival)
-            .is_none());
-        assert_eq!(inventory.slots[0].as_ref().unwrap().count, 1);
-    }
-    #[test]
-    fn fast_furnaces_place_with_facing_and_unlit_state() {
-        for id in ["minecraft:blast_furnace", "minecraft:smoker"] {
-            let mut world = floor();
-            world.set_block((0, 2, -2), Some(Block::new("minecraft:stone")));
-            let player = Player::new(DVec3::new(0.5, 1.0, 0.5));
-            let mut inventory = Inventory::default();
-            inventory.slots[0] = Some(inventory::ItemStack::new(id, 1));
-            let pos = player
-                .place_selected(&mut world, &mut inventory, GameMode::Survival)
-                .unwrap();
-            let placed = world.block(pos).unwrap();
-            assert_eq!(placed.id, id);
-            assert_eq!(placed.property("facing"), Some("south"));
-            assert_eq!(placed.property("lit"), Some("false"));
-            assert!(inventory.slots[0].is_none());
-        }
-    }
-    #[test]
-    fn replay_is_bitwise_repeatable() {
-        let w = floor();
-        let inputs = (0..150)
-            .map(|i| Input {
-                forward: 1.0,
-                strafe: if i % 40 < 20 { 1.0 } else { 0.0 },
-                jump: i % 30 == 0,
-                ..Default::default()
-            })
-            .collect::<Vec<_>>();
-        let mut a = Player::new(DVec3::new(0.5, 1.0, 0.5));
-        let mut b = a.clone();
-        for i in &inputs {
-            a.tick(&w, *i);
-        }
-        for chunk in inputs.chunks(7) {
-            for i in chunk {
-                b.tick(&w, *i);
-            }
-        }
-        assert_eq!(
-            a.pos.to_array().map(f64::to_bits),
-            b.pos.to_array().map(f64::to_bits)
-        );
-        assert_eq!(
-            a.velocity.to_array().map(f64::to_bits),
-            b.velocity.to_array().map(f64::to_bits)
-        );
     }
 }

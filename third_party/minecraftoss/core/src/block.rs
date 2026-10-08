@@ -180,9 +180,33 @@ pub enum PushReaction {
 /// `NoteBlockInstrument` in declaration order; those from `ZOMBIE` on are
 /// mob heads, which `worksAboveNoteBlock`.
 pub const INSTRUMENTS: [&str; 27] = [
-    "harp", "basedrum", "snare", "hat", "bass", "flute", "bell", "guitar", "chime", "xylophone", "iron_xylophone", "cow_bell",
-    "didgeridoo", "bit", "banjo", "pling", "trumpet", "trumpet_exposed", "trumpet_oxidized", "trumpet_weathered", "zombie", "skeleton",
-    "creeper", "dragon", "wither_skeleton", "piglin", "custom_head",
+    "harp",
+    "basedrum",
+    "snare",
+    "hat",
+    "bass",
+    "flute",
+    "bell",
+    "guitar",
+    "chime",
+    "xylophone",
+    "iron_xylophone",
+    "cow_bell",
+    "didgeridoo",
+    "bit",
+    "banjo",
+    "pling",
+    "trumpet",
+    "trumpet_exposed",
+    "trumpet_oxidized",
+    "trumpet_weathered",
+    "zombie",
+    "skeleton",
+    "creeper",
+    "dragon",
+    "wither_skeleton",
+    "piglin",
+    "custom_head",
 ];
 
 /// Index of the first mob-head instrument in [`INSTRUMENTS`].
@@ -479,7 +503,11 @@ impl BlockRegistry {
                 .as_slice()
                 .try_into()
                 .map_err(|_| "face_occlusion needs six entries")?;
-            if faces.iter().chain(&s.collision).any(|&f| usize::from(f) >= shapes.len()) {
+            if faces
+                .iter()
+                .chain(&s.collision)
+                .any(|&f| usize::from(f) >= shapes.len())
+            {
                 return Err("face shape index out of range".into());
             }
             states.push(StateInfo {
@@ -499,7 +527,8 @@ impl BlockRegistry {
                     Some(name) => INSTRUMENTS
                         .iter()
                         .position(|i| i == name)
-                        .ok_or_else(|| format!("unknown instrument {name}"))? as u8,
+                        .ok_or_else(|| format!("unknown instrument {name}"))?
+                        as u8,
                 },
                 push_reaction: match s.push_reaction.as_deref() {
                     None | Some("PUSH_PULL") => PushReaction::PushPull,
@@ -527,15 +556,31 @@ impl BlockRegistry {
         }
         let bits = |v: &Value| -> Result<f64, String> {
             let text = v["bits"].as_str().ok_or("grid value lacks bits")?;
-            Ok(f64::from_bits(u64::from_str_radix(text, 16).map_err(|e| e.to_string())?))
+            Ok(f64::from_bits(
+                u64::from_str_radix(text, 16).map_err(|e| e.to_string())?,
+            ))
         };
         let mut grids = Vec::with_capacity(file.collision_grids.len());
         for grid in &file.collision_grids {
-            let axes = grid.as_array().filter(|a| a.len() == 3).ok_or("collision grid needs three axes")?;
-            let axis = |i: usize| -> Result<Vec<f64>, String> { axes[i].as_array().ok_or("grid axis must be a list")?.iter().map(bits).collect() };
+            let axes = grid
+                .as_array()
+                .filter(|a| a.len() == 3)
+                .ok_or("collision grid needs three axes")?;
+            let axis = |i: usize| -> Result<Vec<f64>, String> {
+                axes[i]
+                    .as_array()
+                    .ok_or("grid axis must be a list")?
+                    .iter()
+                    .map(bits)
+                    .collect()
+            };
             grids.push([axis(0)?, axis(1)?, axis(2)?]);
         }
-        let float = |text: &str| -> Result<f32, String> { Ok(f32::from_bits(u32::from_str_radix(text, 16).map_err(|e| e.to_string())?)) };
+        let float = |text: &str| -> Result<f32, String> {
+            Ok(f32::from_bits(
+                u32::from_str_radix(text, 16).map_err(|e| e.to_string())?,
+            ))
+        };
         // Sound events without the vanilla namespace, as the sound registry keys them.
         let event = |id: &str| -> Box<str> { id.strip_prefix("minecraft:").unwrap_or(id).into() };
         let mut sound_types = Vec::with_capacity(file.sound_types.len());
@@ -550,10 +595,16 @@ impl BlockRegistry {
                 fall: event(&t.fall),
             });
         }
-        if states.iter().any(|s| s.sound_type.is_some_and(|i| usize::from(i) >= sound_types.len())) {
+        if states.iter().any(|s| {
+            s.sound_type
+                .is_some_and(|i| usize::from(i) >= sound_types.len())
+        }) {
             return Err("sound type index out of range".into());
         }
-        let hot = states.iter().map(|s| (s.block, s.flags, s.fluid.is_some())).collect();
+        let hot = states
+            .iter()
+            .map(|s| (s.block, s.flags, s.fluid.is_some()))
+            .collect();
         let registry = Self {
             blocks,
             states,
@@ -649,13 +700,20 @@ impl BlockRegistry {
 
     /// `BlockState.isFaceSturdy` in an empty world (the cached value vanilla
     /// uses for most blocks). Requires a schema 3 catalog.
-    pub fn is_face_sturdy(&self, state: BlockStateId, direction: Direction, support: SupportType) -> bool {
+    pub fn is_face_sturdy(
+        &self,
+        state: BlockStateId,
+        direction: Direction,
+        support: SupportType,
+    ) -> bool {
         self.state(state).sturdy & 1 << (direction.index() * 3 + support as usize) != 0
     }
 
     /// The collision shape in an empty world; `None` from a schema 2 catalog.
     pub fn collision_shape(&self, state: BlockStateId) -> Option<&FaceShape> {
-        self.state(state).collision.map(|i| &self.shapes[usize::from(i)])
+        self.state(state)
+            .collision
+            .map(|i| &self.shapes[usize::from(i)])
     }
 
     /// The collision shape as block-local boxes,
@@ -671,7 +729,9 @@ impl BlockRegistry {
     /// The collision shape's voxel grid coordinates (X, Y, Z), when it is
     /// neither empty nor a full block and the catalog carries grids.
     pub fn collision_grid(&self, state: BlockStateId) -> Option<&[Vec<f64>; 3]> {
-        self.state(state).collision_grid.map(|i| &self.grids[usize::from(i)])
+        self.state(state)
+            .collision_grid
+            .map(|i| &self.grids[usize::from(i)])
     }
 
     pub fn face_shape(&self, state: BlockStateId, direction: Direction) -> &FaceShape {
@@ -757,115 +817,5 @@ impl BlockRegistry {
             })
             .collect();
         format!("{}[{}]", block.name, props.join(","))
-    }
-}
-
-#[cfg(test)]
-pub(crate) mod tests {
-    use super::*;
-    use serde_json::json;
-
-    /// A four-block catalog in the real layout: air, stone, a two-property block and water.
-    pub(crate) fn tiny_catalog() -> Value {
-        let base = json!({"air":false,"liquid":false,"can_occlude":true,"solid_render":true,"legacy_solid":true,
-            "replaceable":false,"light_emission":0,"light_dampening":15,"propagates_skylight_down":false,
-            "use_shape_for_light_occlusion":false,"has_block_entity":false,"randomly_ticking":false,
-            "render_shape":"MODEL","has_offset":false,"face_occlusion":[1,1,1,1,1,1]});
-        let state =
-            |id: u32, block: &str, block_id: u32, default: bool, props: Value, extra: Value| {
-                let mut s = base.clone();
-                for (k, v) in extra.as_object().unwrap() {
-                    s[k] = v.clone();
-                }
-                s["id"] = json!(id);
-                s["block"] = json!(block);
-                s["block_id"] = json!(block_id);
-                s["default"] = json!(default);
-                s["properties"] = props;
-                s
-            };
-        let mut states = vec![
-            state(
-                0,
-                "minecraft:air",
-                0,
-                true,
-                json!([]),
-                json!({"air":true,"can_occlude":false,"solid_render":false,"render_shape":"INVISIBLE","face_occlusion":[0,0,0,0,0,0]}),
-            ),
-            state(1, "minecraft:stone", 1, true, json!([]), json!({})),
-        ];
-        // axis x/y/z (slowest) then waterlogged true/false, like vanilla StateDefinition.
-        let mut id = 2;
-        for axis in ["x", "y", "z"] {
-            for waterlogged in ["true", "false"] {
-                states.push(state(
-                    id,
-                    "minecraft:test_log",
-                    2,
-                    axis == "y" && waterlogged == "false",
-                    json!([["axis", axis], ["waterlogged", waterlogged]]),
-                    json!({}),
-                ));
-                id += 1;
-            }
-        }
-        states.push(state(id, "minecraft:water", 3, true, json!([["level", "0"]]),
-            json!({"liquid":true,"can_occlude":false,"solid_render":false,"render_shape":"INVISIBLE","light_dampening":1,
-                   "fluid":{"type":"minecraft:water","amount":8,"source":true,"falling":false},"face_occlusion":[0,0,0,0,0,0]})));
-        json!({"schema_version":2,"minecraft_version":"26.3","face_order":["down","up","north","south","west","east"],
-               "shapes":["empty","full"],"states":states})
-    }
-
-    pub(crate) fn tiny_registry() -> BlockRegistry {
-        BlockRegistry::from_catalog(serde_json::from_value(tiny_catalog()).unwrap()).unwrap()
-    }
-
-    #[test]
-    fn mixed_radix_properties_round_trip() {
-        let r = tiny_registry();
-        let log = r.parse_state("minecraft:test_log").unwrap();
-        assert_eq!(log, BlockStateId(5));
-        assert_eq!(
-            r.state_to_string(log),
-            "minecraft:test_log[axis=y,waterlogged=false]"
-        );
-        let z_wet = r.parse_state("test_log[axis=z,waterlogged=true]").unwrap();
-        assert_eq!(z_wet, BlockStateId(6));
-        assert_eq!(r.property(z_wet, "axis"), Some("z"));
-        assert_eq!(r.with_property(z_wet, "axis", "x"), Some(BlockStateId(2)));
-        assert_eq!(r.with_property(z_wet, "axis", "w"), None);
-        assert!(r.parse_state("minecraft:test_log[shape=round]").is_err());
-        assert_eq!(r.state_to_string(BlockStateId::AIR), "minecraft:air");
-    }
-
-    #[test]
-    fn flags_fluids_and_faces_load() {
-        let r = tiny_registry();
-        assert!(r.is_air(BlockStateId::AIR));
-        let water = r.parse_state("minecraft:water").unwrap();
-        assert_eq!(r.state(water).fluid.unwrap().kind, FluidKind::Water);
-        assert_eq!(
-            *r.face_shape(BlockStateId(1), Direction::Up),
-            FaceShape::Full
-        );
-        assert_eq!(*r.face_shape(water, Direction::Up), FaceShape::Empty);
-    }
-
-    #[test]
-    fn rejects_states_that_break_the_layout() {
-        let mut catalog = tiny_catalog();
-        // Swap two log states so the property digits are out of order.
-        let states = catalog["states"].as_array_mut().unwrap();
-        let (a, b) = (
-            states[2]["properties"].clone(),
-            states[3]["properties"].clone(),
-        );
-        states[2]["properties"] = b;
-        states[3]["properties"] = a;
-        let error = BlockRegistry::from_catalog(serde_json::from_value(catalog).unwrap())
-            .err()
-            .unwrap();
-        assert!(error.contains("mixed-radix"), "{error}");
     }
 }

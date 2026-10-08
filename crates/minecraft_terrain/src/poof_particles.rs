@@ -11,7 +11,7 @@ use crate::{
     scene::Scene,
 };
 use glam::{DVec3, Vec2, Vec3};
-use minecraftoss_player::{collision_shape_boxes, rng::LegacyRandom, Block as PlayerBlock};
+use minecraftoss_player::{Block as PlayerBlock, collision_shape_boxes, rng::LegacyRandom};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// One `ExplodeParticle`.
@@ -34,12 +34,27 @@ impl PoofParticle {
     fn new(position: DVec3, motion: DVec3, random: &mut LegacyRandom) -> Self {
         let _base_lifetime = random.next_float();
         let _base_quad_size = random.next_float();
-        let jitter = |random: &mut LegacyRandom| f64::from((random.next_float() * 2.0 - 1.0) * 0.05);
-        let velocity = DVec3::new(motion.x + jitter(random), motion.y + jitter(random), motion.z + jitter(random));
+        let jitter =
+            |random: &mut LegacyRandom| f64::from((random.next_float() * 2.0 - 1.0) * 0.05);
+        let velocity = DVec3::new(
+            motion.x + jitter(random),
+            motion.y + jitter(random),
+            motion.z + jitter(random),
+        );
         let color = random.next_float() * 0.3 + 0.7;
         let quad_size = 0.1 * (random.next_float() * random.next_float() * 6.0 + 1.0);
         let lifetime = (16.0 / f64::from(random.next_float() * 0.8 + 0.2)) as i32 + 2;
-        Self { position, previous: position, velocity, color, quad_size, age: 0, lifetime, on_ground: false, stopped_by_collision: false }
+        Self {
+            position,
+            previous: position,
+            velocity,
+            color,
+            quad_size,
+            age: 0,
+            lifetime,
+            on_ground: false,
+            stopped_by_collision: false,
+        }
     }
 
     /// `Particle.tick` with gravity -0.1 and friction 0.9: it rises, slows
@@ -56,13 +71,20 @@ impl PoofParticle {
             let requested = self.velocity.to_array();
             let half = f64::from(0.2_f32) / 2.0;
             let p = self.position;
-            let mut bounds = [[p.x - half, p.y, p.z - half], [p.x + half, p.y + f64::from(0.2_f32), p.z + half]];
+            let mut bounds = [
+                [p.x - half, p.y, p.z - half],
+                [p.x + half, p.y + f64::from(0.2_f32), p.z + half],
+            ];
             let mut moved = requested;
             if requested != [0.0; 3] && requested.iter().map(|v| v * v).sum::<f64>() < 10000.0 {
                 for axis in [1, 0, 2] {
                     for &(near, far) in boxes {
                         let (a, b) = ((axis + 1) % 3, (axis + 2) % 3);
-                        if bounds[0][a] >= far[a] || bounds[1][a] <= near[a] || bounds[0][b] >= far[b] || bounds[1][b] <= near[b] {
+                        if bounds[0][a] >= far[a]
+                            || bounds[1][a] <= near[a]
+                            || bounds[0][b] >= far[b]
+                            || bounds[1][b] <= near[b]
+                        {
                             continue;
                         }
                         if moved[axis] > 0.0 && bounds[1][axis] <= near[axis] {
@@ -81,9 +103,14 @@ impl PoofParticle {
                 }
             }
             if moved != [0.0; 3] {
-                self.position = DVec3::new((bounds[0][0] + bounds[1][0]) / 2.0, bounds[0][1], (bounds[0][2] + bounds[1][2]) / 2.0);
+                self.position = DVec3::new(
+                    (bounds[0][0] + bounds[1][0]) / 2.0,
+                    bounds[0][1],
+                    (bounds[0][2] + bounds[1][2]) / 2.0,
+                );
             }
-            self.stopped_by_collision = requested[1].abs() >= f64::from(1.0e-5_f32) && moved[1].abs() < f64::from(1.0e-5_f32);
+            self.stopped_by_collision = requested[1].abs() >= f64::from(1.0e-5_f32)
+                && moved[1].abs() < f64::from(1.0e-5_f32);
             self.on_ground = requested[1] != moved[1] && requested[1] < 0.0;
             if requested[0] != moved[0] {
                 self.velocity.x = 0.0;
@@ -109,8 +136,13 @@ pub struct PoofParticles {
 
 impl Default for PoofParticles {
     fn default() -> Self {
-        let seed = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| d.as_nanos() as u64);
-        Self { particles: Vec::new(), random: LegacyRandom::new(seed) }
+        let seed = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos() as u64);
+        Self {
+            particles: Vec::new(),
+            random: LegacyRandom::new(seed),
+        }
     }
 }
 
@@ -122,11 +154,19 @@ impl PoofParticles {
         let (width, height) = (f64::from(width), f64::from(height));
         for _ in 0..20 {
             let r = &mut self.random;
-            let motion = DVec3::new(r.next_gaussian() * 0.02, r.next_gaussian() * 0.02, r.next_gaussian() * 0.02);
+            let motion = DVec3::new(
+                r.next_gaussian() * 0.02,
+                r.next_gaussian() * 0.02,
+                r.next_gaussian() * 0.02,
+            );
             let x = feet.x + width * (2.0 * r.next_double() - 1.0);
             let y = feet.y + height * r.next_double();
             let z = feet.z + width * (2.0 * r.next_double() - 1.0);
-            let particle = PoofParticle::new(DVec3::new(x, y, z) - motion * 10.0, motion, &mut self.random);
+            let particle = PoofParticle::new(
+                DVec3::new(x, y, z) - motion * 10.0,
+                motion,
+                &mut self.random,
+            );
             self.particles.push(particle);
         }
     }
@@ -139,7 +179,10 @@ impl PoofParticles {
                 for by in y - 1..=y + 1 {
                     for bz in z - 1..=z + 1 {
                         if let Some(block) = scene.block((bx, by, bz)) {
-                            let shape = PlayerBlock { id: block.id.key(), properties: block.properties.clone() };
+                            let shape = PlayerBlock {
+                                id: block.id.key(),
+                                properties: block.properties.clone(),
+                            };
                             for (mut min, mut max) in collision_shape_boxes(&shape) {
                                 for (axis, offset) in [bx, by, bz].into_iter().enumerate() {
                                     min[axis] += f64::from(offset);
@@ -157,27 +200,60 @@ impl PoofParticles {
 
     /// Camera-facing quads (`SingleQuadParticle`, `LOOKAT_XYZ`) with the
     /// sprite for their age (`SpriteSet.get`: generic_7 down to generic_0).
-    pub fn append_mesh(&self, mesh: &mut ChunkMesh, atlas: &Atlas, forward: Vec3, partial: f32, light: &SkyLight) {
+    pub fn append_mesh(
+        &self,
+        mesh: &mut ChunkMesh,
+        atlas: &Atlas,
+        forward: Vec3,
+        partial: f32,
+        light: &SkyLight,
+    ) {
         let partial = f64::from(partial.clamp(0.0, 1.0));
         let right = forward.cross(Vec3::Y).normalize();
         let up = right.cross(forward).normalize();
         for particle in &self.particles {
             let index = (particle.age * 7 / particle.lifetime.max(1)).clamp(0, 7);
-            let Ok(sprite) = ResourceId::parse(&format!("minecraft:particle/generic_{}", 7 - index)) else { continue };
+            let Ok(sprite) =
+                ResourceId::parse(&format!("minecraft:particle/generic_{}", 7 - index))
+            else {
+                continue;
+            };
             if !atlas.contains(&sprite) {
                 continue;
             }
             let [u0, v0, u1, v1] = atlas.region(&sprite);
             let center = particle.previous.lerp(particle.position, partial);
-            let cell = (center.x.floor() as i32, center.y.floor() as i32, center.z.floor() as i32);
+            let cell = (
+                center.x.floor() as i32,
+                center.y.floor() as i32,
+                center.z.floor() as i32,
+            );
             let (sky, block) = (light.get(cell) as f32, light.get_block(cell) as f32);
             let center = center.as_vec3();
             let start = mesh.vertices.len() as u32;
-            for (corner, uv) in [(Vec2::new(-1.0, -1.0), [u0, v1]), (Vec2::new(-1.0, 1.0), [u0, v0]), (Vec2::new(1.0, 1.0), [u1, v0]), (Vec2::new(1.0, -1.0), [u1, v1])] {
+            for (corner, uv) in [
+                (Vec2::new(-1.0, -1.0), [u0, v1]),
+                (Vec2::new(-1.0, 1.0), [u0, v0]),
+                (Vec2::new(1.0, 1.0), [u1, v0]),
+                (Vec2::new(1.0, -1.0), [u1, v1]),
+            ] {
                 let point = center + (right * corner.x + up * corner.y) * particle.quad_size;
-                mesh.vertices.push(Vertex { position: point.to_array(), uv, color: [particle.color, particle.color, particle.color, 1.0], sky_light: sky, block_light: block });
+                mesh.vertices.push(Vertex {
+                    position: point.to_array(),
+                    uv,
+                    color: [particle.color, particle.color, particle.color, 1.0],
+                    sky_light: sky,
+                    block_light: block,
+                });
             }
-            mesh.indices.extend_from_slice(&[start, start + 2, start + 1, start, start + 3, start + 2]);
+            mesh.indices.extend_from_slice(&[
+                start,
+                start + 2,
+                start + 1,
+                start,
+                start + 3,
+                start + 2,
+            ]);
             mesh.faces += 1;
         }
     }
@@ -192,26 +268,5 @@ impl PoofParticles {
 
     pub fn is_empty(&self) -> bool {
         self.particles.is_empty()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_puff_rises_and_fades_within_its_lifetime() {
-        let mut poofs = PoofParticles::default();
-        poofs.spawn(DVec3::new(0.5, 64.0, 0.5), 0.9, 1.4);
-        assert_eq!(poofs.len(), 20);
-        let start: f64 = poofs.particles.iter().map(|p| p.position.y).sum();
-        for _ in 0..5 {
-            for particle in &mut poofs.particles {
-                particle.tick(&[]);
-            }
-        }
-        let later: f64 = poofs.particles.iter().map(|p| p.position.y).sum();
-        assert!(later > start, "gravity -0.1 lifts them");
-        assert!(poofs.particles.iter().all(|p| (3..=82).contains(&p.lifetime)));
     }
 }

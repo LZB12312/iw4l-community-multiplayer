@@ -1,5 +1,3 @@
-//! TU3 PhysicsAir jump-velocity correction (`0x82D34BC0`).
-
 use super::data::{PhysicsAirFrame, Vector4};
 
 const VERTICAL_ERROR_FLOOR: f32 = f32::from_bits(0xC040_0000); // -3.0
@@ -15,15 +13,11 @@ pub trait PhysicsAirMath {
     /// Native `vmsum3fp128(value, value)`; only lane zero is consumed.
     fn length_squared_vmsum3fp(&mut self, value: Vector4) -> f32;
 
-    /// The native vmsum/vrsqrte/two-refinement sequence at 82D34D10..68.
     fn length_vmsum3fp_vrsqrte(&mut self, value: Vector4) -> f32;
 
-    /// `PhysicsUtility::ClampVectorWithinMaxLength`, `0x82BD3D90`.
     fn clamp_vector_within_max_length(&mut self, value: Vector4, maximum_length: f32) -> Vector4;
 }
 
-/// Reconstructs the full branch contract and arithmetic order of `0x82D34BC0`.
-/// The frame count is signed in the caller and in the target's `extsw/fcfid`.
 pub fn calculate_velocity_from_jump(
     frame: &PhysicsAirFrame,
     frames: i32,

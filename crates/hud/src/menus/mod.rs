@@ -134,6 +134,8 @@ struct Pressed {
 
 #[derive(bevy::ecs::system::SystemParam)]
 pub(crate) struct MenuOutputs<'w> {
+    creator: ResMut<'w, frame::SkateCreatorState>,
+    creator_input: MessageWriter<'w, frame::UiCharacterInput>,
     dvars: ResMut<'w, frame::UiMenuDvars>,
     binding: ResMut<'w, frame::UiBindingCapture>,
     binds: MessageWriter<'w, frame::UiBindRequest>,
@@ -165,6 +167,7 @@ pub(crate) fn update_script_menus(
     mut pass: ResMut<HudTessPass>,
 ) {
     pass.script_menus = TessJob::Hide;
+    out.creator.active = false;
     if torn.read().count() > 0 {
         out.binding.command = None;
         *menus = ScriptMenus::default();
@@ -342,7 +345,27 @@ pub(crate) fn update_script_menus(
         runner.binding.command = None;
         runner.menus.binding_menu = None;
     }
-    handle_input(&mut runner, &input, &surface, &pressed, pointer);
+    if out.creator.available
+        && runner.menus.top_captured().as_deref() == Some(frame::SKATE_CREATOR_MENU)
+    {
+        out.creator.active = true;
+        if pointer {
+            for (down, key) in [
+                (pressed.up, UiMenuKey::Up),
+                (pressed.down, UiMenuKey::Down),
+                (pressed.left, UiMenuKey::Left),
+                (pressed.right, UiMenuKey::Right),
+                (pressed.enter, UiMenuKey::Enter),
+                (pressed.escape, UiMenuKey::Escape),
+            ] {
+                if down {
+                    out.creator_input.write(frame::UiCharacterInput { key });
+                }
+            }
+        }
+    } else {
+        handle_input(&mut runner, &input, &surface, &pressed, pointer);
+    }
 
     flush_outputs(&mut menus, &mut out, local.0);
     if let Some(view) = input.hud_input.as_mut() {

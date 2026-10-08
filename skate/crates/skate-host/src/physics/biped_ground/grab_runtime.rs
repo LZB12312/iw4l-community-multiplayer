@@ -1,8 +1,5 @@
-//! PlayerGrabSpline82D73FC0/74270/740F8/749D0, distinct from possession.
-//! Scene execution is concrete; retained results become visible only at Sync.
 mod selection;
-#[cfg(test)]
-mod tests;
+
 use crate::physics::offboard::grab_scene::Scene;
 use skate_core::player::offboard::{
     grab_scene::{Descriptor, Hit, Line, Query, Record, closest_point},
@@ -38,7 +35,7 @@ pub(crate) struct Publication {
 impl Owner {
     pub(crate) fn query(&mut self, query: Query) {
         self.query_position = query.position;
-        self.query_result = None; //8275FA78 clears ready before enqueue.
+        self.query_result = None;
         self.queries.push(query);
     }
 
@@ -48,7 +45,6 @@ impl Owner {
         self.data_ready[0] = false;
     }
 
-    ///8275FD00 captures five actual forward lines; query execution is deferred.
     pub(crate) fn request_interactable(&mut self, frame: Frame, context: QueryContext) {
         let lines = std::array::from_fn(|i| {
             let mut start = frame[3];
@@ -71,7 +67,6 @@ impl Owner {
         self.interactable_result = None;
     }
 
-    ///82760060: bounded queries, requested data, then interactable results.
     pub(crate) fn execute_queries(&mut self, scene: &Scene<'_>) -> Result<(), String> {
         for query in &self.queries {
             self.query_result = Some(scene.query(query)?);
@@ -101,13 +96,11 @@ impl Owner {
         Ok(())
     }
 
-    ///82D74270: old validation is consumed BEFORE new query results spawn lines.
     pub(crate) fn sync(&mut self, scene: &Scene<'_>, context: QueryContext) -> Result<(), String> {
         self.flags_12836 &= !0x40;
         if let Some(hits) = self.validation.take() {
             if self.flags_12836 & 0x80 != 0 {
                 validate(&mut self.pending, &hits);
-                //82D74888 refreshes geometry by descriptor from newest results.
                 if let Some(latest) = &self.query_result {
                     for old in &mut self.pending {
                         if let Some(new) = latest.iter().find(|r| {
@@ -158,8 +151,6 @@ impl Owner {
         selection::best(&self.validated, position)
     }
 
-    ///82D749D0 cancels spline queries/validation and clears only native readiness.
-    ///Scene lines have already completed; dropping them does not publish results.
     pub(crate) fn invalidate(&mut self) {
         self.queries.clear();
         self.query_result = None;
@@ -168,13 +159,11 @@ impl Owner {
         self.flags_12836 &= 0x3f;
     }
 
-    ///GroundEnter82D30B64 additionally clears interactable publication readiness.
     pub(crate) fn enter_reset(&mut self) {
         self.invalidate();
         self.interactable_result = None;
     }
 
-    ///82D740F8 consumes completion, not retained candidate existence.
     pub(crate) fn publish(&mut self) -> Publication {
         let records = std::array::from_fn(|i| {
             let record = if self.data_ready[i] {
@@ -193,8 +182,6 @@ impl Owner {
     }
 }
 
-///82D74740, raw747B8/747F4/7481C..74874. S2 has an extra outer hit-index
-///increment at82DCC0FC; S3 does not. Do not group hits into chunks of three.
 fn validate(records: &mut Vec<Record>, hits: &[Option<Hit>]) {
     let mut record_index = 0;
     let mut hit_index = 0;

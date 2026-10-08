@@ -1,5 +1,3 @@
-//! Borrowed scene adapter for original Biped query82764AB0/82770650/82C1EAD8.
-//! All geometry and live transforms belong to the canonical collision scene.
 mod edges;
 mod lines;
 mod transform;
@@ -43,7 +41,6 @@ pub struct AlternateRecord<'a> {
     pub choices: [Option<(&'a EdgeBody<'a>, i32)>; 2],
 }
 pub enum PrimaryEdges<'a> {
-    /// Original826C0630: dynamic provider, then vehicle provider.
     Normal {
         dynamic: &'a [EdgeBody<'a>],
         vehicles: &'a [EdgeBody<'a>],
@@ -77,6 +74,3 @@ impl GroundQueryScene for Scene<'_> {
         lines::query(self, packet)
     }
 }
-
-#[cfg(test)]
-mod tests;

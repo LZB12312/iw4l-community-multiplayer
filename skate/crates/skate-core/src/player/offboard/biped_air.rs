@@ -77,8 +77,6 @@ impl Default for State {
 }
 
 impl State {
-    ///82D2E5C0: clear the retained landing/output flags and enter with a
-    ///fresh launch packet.  The caller supplies the actual retained scalar.
     pub fn enter(&mut self, retained_packet_scalar_104: f32, position: Vector) {
         self.packet = Packet::initialized(retained_packet_scalar_104);
         self.position_288 = position;
@@ -91,8 +89,6 @@ impl State {
         self.active = true;
     }
 
-    ///82D2EF20: the native exit clears the trajectory selector and leaves no
-    ///live BipedAir publication behind.
     pub fn exit(&mut self) {
         self.active = false;
         self.landed_404 = false;

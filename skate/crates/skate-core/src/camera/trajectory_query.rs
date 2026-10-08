@@ -1,6 +1,3 @@
-//! Camera-observable part of the TU3 trajectory batch. The variable-step walk
-//! is 82770910, step sizing 8276C940 and collision time 8276C558. World storage
-//! and scheduling are host-owned; the native segment sequence is retained.
 use super::vector_tracker::{dot, length, refined_reciprocal};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -15,10 +12,6 @@ pub struct TrajectoryQuery {
 }
 
 impl TrajectoryQuery {
-    /// Return the first trajectory-segment collision's reconstructed native
-    /// time, or -1. The callback returns the closest swept-line contact point.
-    /// The extra normal/mesh/frame fields of the native batch are not consumed
-    /// by the gameplay camera request's GetCollisionTime accessor82DF9340.
     pub fn collision_time<E>(
         self,
         mut line: impl FnMut([f32; 4], [f32; 4], f32) -> Result<Option<[f32; 4]>, E>,
@@ -29,16 +22,13 @@ impl TrajectoryQuery {
             start_step = self.step_size(self.start_error * self.radius);
             end_step = self.step_size(self.end_error * self.radius);
         }
-        let minimum_square =
-            ((self.start_error * self.radius) * self.start_error) * self.radius;
+        let minimum_square = ((self.start_error * self.radius) * self.start_error) * self.radius;
         let mut time = 0.0;
         let mut start = self.evaluate(time);
         let mut end = self.evaluate(time + start_step);
         while self.duration > time {
             let delta = core::array::from_fn(|i| end[i] - start[i]);
             if dot(delta, delta) > minimum_square {
-                // 82770B40 rejects only segments with every XYZ component at
-                // or below this native threshold, before world enumeration.
                 let visible = delta[..3]
                     .iter()
                     .any(|v| v.abs() > f32::from_bits(0x3780_0000));
@@ -72,8 +62,7 @@ impl TrajectoryQuery {
         let square = refined_reciprocal(self.gravity[1]) * (-8.0 * error_radius);
         let mut inverse = crate::physics::reciprocal_sqrt::estimate(square);
         for _ in 0..2 {
-            inverse = (inverse * 0.5)
-                .mul_add((-square).mul_add(inverse * inverse, 1.0), inverse);
+            inverse = (inverse * 0.5).mul_add((-square).mul_add(inverse * inverse, 1.0), inverse);
         }
         if square == 0.0 { 0.0 } else { square * inverse }
     }
@@ -83,11 +72,13 @@ impl TrajectoryQuery {
         const EPSILON: f32 = f32::from_bits(0x38d1_b717);
         if EPSILON >= (refined_reciprocal(2.0) * self.gravity[1]).abs() {
             let distance = length(core::array::from_fn(|i| position[i] - self.position[i]));
-            if !(distance.abs() > EPSILON) { return 0.0; }
+            if !(distance.abs() > EPSILON) {
+                return 0.0;
+            }
             let speed = length(self.velocity);
-            if !(speed.abs() > EPSILON) { return 0.0; }
-            // Preserve8276C794/7B4, including its frame factor. This branch
-            // does not use the segment's fractional intersection parameter.
+            if !(speed.abs() > EPSILON) {
+                return 0.0;
+            }
             return (refined_reciprocal(speed) * distance) * FRAME;
         }
         let mut closest_square = f32::MAX;

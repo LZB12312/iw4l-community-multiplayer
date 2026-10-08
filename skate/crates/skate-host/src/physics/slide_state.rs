@@ -1,4 +1,3 @@
-//! PhysicsSlideGround101 production lifecycle, original TU3 vtable823285B4.
 mod settings;
 mod update;
 use super::{GamePhysics, SkaterRuntime};
@@ -13,8 +12,6 @@ pub(crate) struct SlideState {
     surfaces: Vec<(SlideSurface, RetailContactMaterial)>,
     manual_scalar: f32,
 }
-/// Enter82D3A700. Body652 points to the deck's real dynamics; its+48 is angular
-/// velocity. Preserve all other body rates, inertia and collision modes.
 pub(crate) fn enter(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     let p = &skater.player_input.processed;
     skater.ground_lifecycle.skeleton_elapsed_16505 = true;
@@ -39,13 +36,11 @@ pub(crate) fn enter(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Re
     skater.slide_state.state.enter(p.scalar_2656);
     Ok(())
 }
-/// Exit82D3A828 restores the board's cached standard wheel material8280.
 pub(crate) fn exit(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     skater.slide_state.state.exit();
     physics.settings.wheel_material = physics.settings.standard_wheel_material;
     Ok(())
 }
-/// Update82D3A890: complete Reckoning, Skeleton Ground, then Slide board.
 pub(crate) fn update(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     let p = &skater.player_input.processed;
     let t = skater
@@ -62,5 +57,3 @@ pub(crate) fn update(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> R
     super::input_phase::update_ground(physics, skater)?;
     update::board(physics, skater)
 }
-// Post vtable+40 is the same82D387A8 as Ground. The shared coordinator invokes
-// Wipeout::check_ground with the actual complete solved Observations once.

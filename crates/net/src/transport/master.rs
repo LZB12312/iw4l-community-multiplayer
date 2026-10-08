@@ -406,6 +406,7 @@ pub struct MasterAdvert {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MasterBrowserSnapshot {
+    pub completed_refreshes: u64,
     pub generation: u64,
     pub loading: bool,
     pub adverts: Vec<MasterAdvert>,
@@ -1095,6 +1096,7 @@ fn browser_worker(
             .await;
             let mut current = state.lock().expect("master browser state poisoned");
             current.loading = false;
+            current.completed_refreshes = current.completed_refreshes.wrapping_add(1);
             match result {
                 Ok((generation, adverts)) => {
                     current.generation = generation;

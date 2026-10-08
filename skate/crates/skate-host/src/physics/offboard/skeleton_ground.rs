@@ -1,14 +1,11 @@
-//! Original Biped Skeleton update82BDE060 with the existing physical owners.
 mod frames;
-#[cfg(test)]
-mod pose_audit;
+
 mod state;
 use crate::physics::{
     skeleton_air::SkeletonAir,
     skeleton_input_runtime::{CollisionInput, SkeletonInputRuntime, SkeletonOwners},
 };
-#[cfg(test)]
-pub(crate) use pose_audit::audit_render_parts;
+
 use skate_core::{
     animation::output::NativeMatrix,
     physics::{
@@ -24,8 +21,6 @@ pub(crate) struct Input<'a> {
     pub world_frame: &'a Transform,
     pub centre_of_mass_1056: [f32; 4],
 }
-///Terminal82D8E3E0 arguments, emitted after GeneralUpdate and trajectory clear.
-///The caller invokes the canonical ground_reckoning producer in this callback.
 pub(crate) struct ReckoningUpdate {
     pub up: [f32; 4],
     pub forward: [f32; 4],

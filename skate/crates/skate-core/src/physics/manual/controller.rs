@@ -1,5 +1,3 @@
-//! CalcManualEffect 82C047F0 control/scalar response and output construction.
-//! The native angle-between-vectors measurement remains a required dependency.
 use super::{
     angle,
     settings::{ManualMode, ManualSettings},
@@ -30,22 +28,14 @@ pub struct ManualInput {
     /// Reference frame from board+292, matrix+752: first and third columns.
     pub reference_x: [f32; 4],
     pub reference_z: [f32; 4],
-    /// Deck part6 transform's z-axis from 82585CB0, not an animation pose.
     pub deck_z: [f32; 4],
     /// Processed effective transform third column+224 and ground velocity+416.
     pub velocity_frame_z: [f32; 4],
-    /// Legacy field name: this is Processed416, NOT angular velocity720.
-    /// Native82C04C88 projects it into the effective frame;82C04E60..EC4
-    /// emits -400 times this same translational velocity for correction.
     pub angular_velocity_world: [f32; 4],
-    /// Front/back truck drive-frame translations (7840+48 and7904+48).
-    ///82C0B9C0 steering rotates the bases and preserves these translations.
     pub correction_point_7888: [f32; 4],
     pub correction_point_7952: [f32; 4],
 }
 
-/// Exact 8296EC98 dependency: degeneracy gates, normalization, acos and signed
-/// cross-product selection. There is deliberately no host atan2/acos fallback.
 pub trait ManualAngleMeasurement {
     type Error;
     fn angle_between(
@@ -175,7 +165,10 @@ fn apply_correction(
 ) {
     let frame = input.velocity_frame_z;
     let velocity = input.angular_velocity_world;
-    let local_z = frame[2].mul_add(velocity[2], frame[1].mul_add(velocity[1], frame[0] * velocity[0]));
+    let local_z = frame[2].mul_add(
+        velocity[2],
+        frame[1].mul_add(velocity[1], frame[0] * velocity[0]),
+    );
     if !input.braking || !(0.0 > local_z * input.balance) {
         return;
     }

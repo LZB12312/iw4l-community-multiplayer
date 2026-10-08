@@ -356,6 +356,8 @@ pub struct RuntimeMaterial {
     pub state_bits_entry: Option<[u8; TECHNIQUE_SLOT_COUNT]>,
     pub state_bits_table: Vec<[u32; 2]>,
 
+    pub blend_constant_bits: Option<[u32; 4]>,
+
     pub camera_region: u8,
 
     pub sort_key: u8,

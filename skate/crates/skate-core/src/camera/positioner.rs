@@ -1,7 +1,3 @@
-//! TU3 normal-camera positioner 82E01948 and its complete collision/geometry
-//! callees. The caller supplies recovered state/configuration and the native
-//! six-fat-line backend; this module does not choose camera settings.
-
 use super::vector_tracker::{length, refined_reciprocal};
 use super::{ScalarTracker, ScalarTrackerParameters};
 
@@ -22,8 +18,6 @@ pub struct FatLineResult {
     pub surface: u32,
 }
 
-/// Camera server slots+8/+12, implemented natively by82DF31C0/82DF3290.
-/// Results preserve segment order; native submission always contains six lines.
 pub trait PositionerCollisionProvider {
     fn submit(&mut self, lines: [FatLine; 6], context: u32);
     fn results(&mut self) -> [FatLineResult; 6];
@@ -69,7 +63,6 @@ pub struct Positioner {
 }
 
 impl Positioner {
-    /// Complete82E01948. Negative/zero dt follows native tracker/velocity gates.
     pub fn update(
         &mut self,
         dt: f32,
@@ -115,8 +108,6 @@ impl Positioner {
         result
     }
 
-    /// Complete82E01BA0. Query status 3 preserves previous-valid state; the
-    /// current complete82E01EA8 body produces only statuses0,1,2.
     pub fn resolve(
         &mut self,
         context: u32,
@@ -150,7 +141,6 @@ impl Positioner {
         result
     }
 
-    /// Complete82E01D30. Submit happens even when collision_enabled is zero.
     pub fn submit_collision(
         &mut self,
         context: u32,
@@ -173,7 +163,6 @@ impl Positioner {
         collision.submit(lines, context);
     }
 
-    /// Complete82E01EA8, preserving first-three/last-three result roles and order.
     pub fn resolve_collision(
         &mut self,
         context: u32,
@@ -229,7 +218,6 @@ impl Positioner {
     }
 }
 
-/// Complete82E020F0. Invalid hit positions or a zero hit byte preserve the end.
 pub fn project_hit(end: [f32; 4], first_query_start: [f32; 4], result: FatLineResult) -> [f32; 4] {
     if result.position[..3].iter().all(|v| !v.is_nan()) && result.hit != 0 {
         let lower = if -result.fraction >= 0.0 {
@@ -246,7 +234,6 @@ pub fn project_hit(end: [f32; 4], first_query_start: [f32; 4], result: FatLineRe
     }
 }
 
-/// Complete82E02190, including native four-lane basis construction and ordering.
 pub fn position_from_angles(
     anchor: [f32; 4],
     offset: [f32; 4],
@@ -258,7 +245,6 @@ pub fn position_from_angles(
 ) -> [f32; 4] {
     let (s_e, c_e) = crate::trigonometry::sin_cos(-elevation);
     let (s_h, c_h) = crate::trigonometry::sin_cos(-heading);
-    // 822FB890 permutation and vrlimi lane insertion, in guest memory order.
     let first = [
         [1.0, 0.0, 0.0, 1.0],
         [0.0, c_e, s_e, 0.0],

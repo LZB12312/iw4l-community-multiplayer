@@ -1,4 +1,3 @@
-//! Normal gameplay rig pitch/yaw tracking and roll, TU3 82E045E0.
 use super::{
     AngleTracker, ScalarTracker, ScalarTrackerParameters, direction_to_angles, normalize_angle,
 };
@@ -42,8 +41,6 @@ pub struct RigOrientation {
 }
 
 impl RigOrientation {
-    /// Construction82E02738 and reset82E02E58. The angle parameters are host
-    /// storage: every consumed numerical field is rebound before tracking.
     pub fn new() -> Self {
         let tracker = AngleTracker(ScalarTracker {
             target: 0.0,
@@ -87,8 +84,6 @@ impl RigOrientation {
         flags_516: &mut u8,
         flags_517: u8,
     ) {
-        // The same sqrt(2)-scaled quaternion expansion occurs in the rigid
-        // body's basis helper and82E0466C..82E046AC.
         let [x, y, z, w] = self.target;
         let target = basis_from_quaternion(RetailQuaternion { x, y, z, w });
         let at = target.columns[2];

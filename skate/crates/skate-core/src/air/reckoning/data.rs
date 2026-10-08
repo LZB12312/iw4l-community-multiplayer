@@ -1,4 +1,3 @@
-//! Additional persistent Reckoning fields and actual inputs for82D8DBD8.
 use crate::{
     air::{body_flip::BodyFlipSettings, body_spin::BodySpinSettings},
     physics::skeleton_animation_record::{AnimationPartTransform, IDENTITY},
@@ -19,11 +18,9 @@ pub struct AirState {
     ///1232 and1596; their native trajectory/entry producers remain the caller.
     pub flip_axis: [f32; 4],
     pub flip_active: bool,
-    ///1597, BeginBodyFlip82D8EC60 and ResetBodyFlip82D8EAA4.
     pub flip_side: bool,
 }
 impl AirState {
-    ///82D33178: scalar zeros, identity1072, world-X axis and inactive flip.
     pub fn new() -> Self {
         Self {
             spin_angle: 0.0,
@@ -38,7 +35,6 @@ impl AirState {
             flip_side: false,
         }
     }
-    ///Ground entry82D37538/PhysicsAir exit82D346A0 reset exactly this pair.
     pub fn reset_spin(&mut self) {
         self.spin_angle = 0.0;
         self.spin_speed = 0.0;
@@ -64,7 +60,6 @@ pub struct Input {
     pub timestep: f32,
     ///Processed2812, live PhysBodySpin animation attribute.
     pub physical_body_spin: f32,
-    ///Processed2644, produced by Skeleton82BDD008; used only when2484bit15 is set.
     pub grind_adjusted_body_spin: f32,
     pub additive_spin: bool,
     pub direct_spin: bool,

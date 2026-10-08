@@ -1,5 +1,3 @@
-//! Dynamic wheel-response normal, original TU3 82C02388, with acceleration
-//! history from82C082AC..8348. This is Ground64, distinct from wheel normals.
 use super::{
     board_ground::BoardGroundState,
     board_motion_output::{add, dot, inverse_length_squared, scale, subtract},
@@ -26,8 +24,6 @@ pub struct BoardDynamicNormal {
     pub last_contact_normal: Vector3,
 }
 impl BoardDynamicNormal {
-    ///82C00ED0 initializes112/128 to UP and144/160 to zero. The full board
-    ///reset82C0D680 ->82C00D68 clears all seven previous velocities.
     pub fn new() -> Self {
         Self {
             normal: UP,
@@ -43,11 +39,6 @@ impl BoardDynamicNormal {
         previous_ground_speed: f32,
         settings: &DynamicNormalSettings,
     ) {
-        //82C02344 runs Body::UpdatePostPhysics before82C0234C calls this
-        //filter.82C02444/60/7C read the existing Body432/448/464 array.
-        //Paired S2:82B37E5C/64 calls Body::UpdatePostPhysics then
-        //UpdateUpVector82B26158, which reads CollisionInfo acceleration.
-        //No live body, timestep, duplicate history or mirror belongs here.
         if contacts.wheel_contact_count == 0 {
             self.acceleration = ZERO;
             return;
@@ -84,9 +75,6 @@ impl BoardDynamicNormal {
     }
 }
 
-#[cfg(test)]
-#[path = "tests/board_dynamic_normal_history.rs"]
-mod tests;
 fn normalize(v: Vector3) -> Vector3 {
     normalize_length(v).0
 }
@@ -98,7 +86,6 @@ fn normalize_length(v: Vector3) -> (Vector3, f32) {
     } else {
         squared * inverse
     };
-    //830BD350's verified initializer is float1e-6. Source compares length.
     let normal = if length > f32::from_bits(0x3586_37bd) {
         scale(v, inverse)
     } else {

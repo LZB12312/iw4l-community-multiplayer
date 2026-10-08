@@ -1401,6 +1401,9 @@ fn encode_client_meta(out: &mut WireWriter, meta: &ClientSnapshotMeta) {
     }
     super::delta::encode_missile_target(out, lock.aim);
     out.put_i32(lock.acquire_started_at);
+    super::presentation::encode_appearance(out, &meta.appearance);
+    super::presentation::encode_skate(out, meta.skate.as_ref());
+    super::presentation::encode_damage(out, meta.skate_damage);
 }
 
 fn decode_shield_vector(input: &mut WireReader<'_>) -> Result<[f32; 3], WireError> {
@@ -1614,6 +1617,9 @@ fn decode_client_meta(input: &mut WireReader<'_>) -> Result<ClientSnapshotMeta, 
         acquire_started_at: input.get_i32()?,
     };
     Ok(ClientSnapshotMeta {
+        appearance: super::presentation::decode_appearance(input)?,
+        skate: super::presentation::decode_skate(input)?,
+        skate_damage: super::presentation::decode_damage(input)?,
         controls,
         weapon_lock,
         killcam_hud,
@@ -2309,7 +2315,7 @@ fn phase_from_tag(tag: u8) -> Result<MatchPhase, WireError> {
 
 fn encode_corpse_pool(out: &mut WireWriter, pool: &PlayerCorpsePool) {
     out.put_u8(pool.spawn_ring);
-    for slot in &pool.slots {
+    for (i, slot) in pool.slots.iter().enumerate() {
         if !slot.occupied {
             out.put_u8(0);
             continue;
@@ -2339,6 +2345,11 @@ fn encode_corpse_pool(out: &mut WireWriter, pool: &PlayerCorpsePool) {
         }
         out.put_u8(u8::from(slot.falling));
         out.put_i32(slot.ground_entity_num);
+        out.put_u32(slot.life);
+        out.put_i32(slot.spawn_time_ms);
+        super::presentation::encode_appearance(out, &slot.appearance);
+        super::presentation::encode_damage(out, slot.skate_damage);
+        super::presentation::encode_skate(out, pool.skates[i].as_ref());
     }
 }
 
@@ -2348,7 +2359,7 @@ fn decode_corpse_pool(input: &mut WireReader<'_>) -> Result<PlayerCorpsePool, Wi
         spawn_ring,
         ..PlayerCorpsePool::default()
     };
-    for slot in &mut pool.slots {
+    for (i, slot) in pool.slots.iter_mut().enumerate() {
         match input.get_u8()? {
             0 => *slot = PlayerCorpseSlot::default(),
             1 => {
@@ -2372,7 +2383,12 @@ fn decode_corpse_pool(input: &mut WireReader<'_>) -> Result<PlayerCorpsePool, Wi
                     tr_base: [input.get_f32()?, input.get_f32()?, input.get_f32()?],
                     falling: input.get_u8()? != 0,
                     ground_entity_num: input.get_i32()?,
+                    life: input.get_u32()?,
+                    spawn_time_ms: input.get_i32()?,
+                    appearance: super::presentation::decode_appearance(input)?,
+                    skate_damage: super::presentation::decode_damage(input)?,
                 };
+                pool.skates[i] = super::presentation::decode_skate(input)?;
             }
             _ => return Err(WireError::Malformed("bad corpse slot tag")),
         }

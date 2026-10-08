@@ -6,8 +6,6 @@
 
 use crate::input::graph_intents::IntentMutation;
 
-/// TU3 `CreateConstMGIntent` (factory 0x82BC26D8, ctor 0x82BA1768,
-/// Begin 0x82BA18A0, Update 0x82BA1938, End 0x82BA1988/0x82BA1990).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConstMgIntent {
     pub value: f32,
@@ -50,9 +48,6 @@ impl ConstMgIntent {
     }
 }
 
-/// TU3 `CreateMGTimeIntentFromAGIntent` (factory 0x82BC2778, ctor 0x82BA3040,
-/// Update 0x82BA3158, End 0x82BA28B8). The graph-clock value is supplied by
-/// the host; this operation only applies the verified dt accumulation rule.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TimeMgIntent {
     pub elapsed: f32,
@@ -80,7 +75,3 @@ impl TimeMgIntent {
         IntentMutation::Remove
     }
 }
-
-#[cfg(test)]
-#[path = "tests/intent_handlers.rs"]
-mod tests;

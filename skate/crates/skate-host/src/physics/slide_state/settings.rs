@@ -1,4 +1,3 @@
-//! Direct original bindings82D94EC8..4F48,82D3AB30/AD3C/AE68 and stock schema.
 use super::SlideState;
 use skate_core::{
     physics::contact::RetailContactMaterial,

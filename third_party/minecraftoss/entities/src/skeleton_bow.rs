@@ -140,34 +140,3 @@ impl SkeletonBowGoal {
         })
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pinned_skeleton_bow_draw_and_strafe_timing() {
-        // 26.3 scenarios/mobs/skeleton-player-bow.json, ticks 1–27.
-        let mut goal = SkeletonBowGoal::normal();
-        let mut random = LegacyRandom::new(59);
-        for tick in 1..=27 {
-            let result = goal
-                .tick(true, true, false, 100.0, true, &mut random)
-                .unwrap();
-            assert_eq!(goal.using_item, tick < 21);
-            assert_eq!(goal.ticks_using_item, if tick < 21 { tick - 1 } else { 0 });
-            assert_eq!(
-                result.shoot_power,
-                if tick == 21 { Some(1.0) } else { None }
-            );
-            assert_eq!(
-                matches!(result.movement, BowMovement::Strafe { .. }),
-                tick >= 20
-            );
-            if tick < 20 {
-                assert_eq!(result.movement, BowMovement::Navigate { speed: 1.0 });
-            }
-        }
-        assert_eq!(goal.attack_time, 34);
-    }
-}

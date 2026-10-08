@@ -43,7 +43,6 @@ pub(super) fn reciprocal(value: f32) -> f32 {
     }
     inverse
 }
-///8296EBB0: squared-length gate, ONE refinement, clamped dot, native acos.
 pub(super) fn angle_between(a: Vector, b: Vector) -> f32 {
     let aa = dot(a, a);
     let bb = dot(b, b);
@@ -68,7 +67,6 @@ pub(super) fn normalize(a: Vector) -> Vector {
     let square = dot(a, a);
     let inverse = inverse_length(square);
     let length = if square == 0.0 { 0.0 } else { square * inverse };
-    //830BD350's initializer82F826F8 broadcasts82181A88 (1e-6).
     if length > f32::from_bits(0x3586_37bd) {
         scale(a, inverse)
     } else {

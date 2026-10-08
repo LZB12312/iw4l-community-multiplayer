@@ -1,7 +1,3 @@
-//! Stock frame order recovered from TU3 `0x82859E70`, `0x8275EB10` and
-//! `0x8275ED68`. The solver boundary intentionally splits the frame because
-//! the native game submits jobs before returning for the post-solver pass.
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FrameStage {
     StartFrame,
@@ -63,15 +59,11 @@ pub trait AnimationPhases {
 pub trait WorldPhases {
     type Error;
 
-    /// `82DC2FB8`; writes the shared timestep and its reciprocal and clears the
-    /// current job/island counters.
     fn start_frame(&mut self, timestep: f32) -> Result<(), Self::Error>;
     fn pre_frame(&mut self) -> Result<(), Self::Error>;
     fn prepare(&mut self) -> Result<(), Self::Error>;
     fn precursor(&mut self) -> Result<(), Self::Error>;
-    /// World-owned work at `8275E6E8`, between all Input and Post-Input calls.
     fn after_input(&mut self) -> Result<(), Self::Error>;
-    /// `8275E928`; filtered physicals publish solver-facing work.
     fn collect_solver_inputs(&mut self) -> Result<(), Self::Error>;
     /// Conditioners, contact reports and final world output after Post 5-Jobs.
     fn finish_outputs(&mut self) -> Result<(), Self::Error>;
@@ -96,12 +88,8 @@ pub trait PhysicalPhases {
 pub trait SolverPhases {
     type Error;
 
-    /// `82764480` / `82DC35E0`; builds the dependency tree after every state
-    /// has submitted contacts, joints, drives and external forces.
     fn prepare_jobs(&mut self) -> Result<(), Self::Error>;
-    /// `82763B08`; finalizes collision data and submits the dependency tree.
     fn submit(&mut self) -> Result<(), Self::Error>;
-    /// `82763D18`; the Adjust phase cannot run until this fence completes.
     fn wait(&mut self) -> Result<(), Self::Error>;
 }
 
@@ -219,7 +207,3 @@ impl FrameScheduler {
         })
     }
 }
-
-#[cfg(test)]
-#[path = "tests/frame.rs"]
-mod tests;

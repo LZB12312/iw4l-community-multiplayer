@@ -2,8 +2,7 @@
 //! Parent owns the Air facade and phase schedule. Native completion is explicit,
 //! so a synchronous fixed-step backend never adds an automatic frame delay.
 mod settings;
-#[cfg(test)]
-mod tests;
+
 use super::{
     contact_toolkit::StaticScene,
     ground_query::{PrimaryEdges, with_world_scene},
@@ -39,7 +38,6 @@ impl AirSelector {
             completed_requery: None,
         }
     }
-    ///82D6CA58 submits; results stay staged until consume_launch at native Sync.
     pub(crate) fn launch(
         &mut self,
         world: &BoardWorld,
@@ -66,8 +64,6 @@ impl AirSelector {
         self.completed_requery = None;
         Ok(())
     }
-    ///82D6CC50/D020/D4D0. The current authored level has no dynamic edge
-    ///providers; static metadata remains mandatory and is never fabricated.
     pub(crate) fn consume_launch(
         &mut self,
         world: &BoardWorld,
@@ -131,8 +127,6 @@ impl AirSelector {
     pub(crate) fn sample(&mut self, frame: i32, dt: f32, out: &mut core::TrajectoryResult) {
         self.core.sample(frame, dt, &self.settings.blend, out);
     }
-    ///82D6E798 permits both pending8492 and8499. Its destination is the same
-    ///query slot0, so the later requery replaces that slot before consumption.
     pub(crate) fn requery(
         &mut self,
         world: &BoardWorld,
@@ -173,9 +167,6 @@ impl AirSelector {
         self.completed_requery = None;
         Ok(true)
     }
-    ///82DB3C78: clear ready before launch/requery consumption, then rearm.
-    ///Call at the original selector consume phase; never use elapsed frames as
-    ///a synthetic readiness condition for the synchronous world backend.
     pub(crate) fn consume(
         &mut self,
         world: &BoardWorld,

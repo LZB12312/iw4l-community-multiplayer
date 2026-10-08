@@ -1,6 +1,3 @@
-//! TU3 Pumping geometry82D8F280 and82D8F4A0..6AC. The reciprocal and
-//! reciprocal-square-root estimate primitives retain their documented host
-//! approximation boundary; source refinements, fused crosses and gates remain.
 use super::controller::{PumpingGeometry, PumpingSample};
 use crate::physics::{
     board_motion_output::inverse_length_squared,

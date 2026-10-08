@@ -14,8 +14,6 @@ impl MotionHost {
             .ok_or("Unallocated airborne MotionGraph behavior")?;
         match (operation, instance) {
             (MotionOperation::ClearTrickAttr, _) => {
-                //End82BB5DB0 -> IAnimatable112 (8231E050+112) ->82531278:
-                //erase the construction-map key. Begin/Update are82B61BB8.
                 if phase == 2 {
                     self.animation
                         .construction_values

@@ -8,13 +8,6 @@ mod face_face;
 #[path = "face_specialized.rs"]
 mod face_specialized;
 
-/// TU3 82ACE190, FindFeatureIntersectionPrism. Features contain a point (zero
-/// edges), segment (one), or convex face. Both feature tags may be updated by
-/// closest-feature selection. The caller owns the initial normal/override flag;
-/// they change only when the recovered helpers explicitly correct the normal.
-///
-/// Numerical helpers retain the core's current host arithmetic approximation;
-/// this source port has not been compared with a Skate 3 hardware capture.
 pub fn find_feature_intersection_prism(
     output: &mut FeaturePrism,
     a: &mut MaximumFeature,

@@ -1,4 +1,3 @@
-//! Distinct State501 lifecycle: original S3 82D2E5C0/EF38/FFF8/30300/EF20.
 mod input;
 mod post;
 mod publication;
@@ -24,15 +23,11 @@ impl BipedAir {
         })
     }
 }
-///82DB3C78 at the early fixed-step phase, before current ProcessInput.
-///82859E70 completes earlier trajectory work atA06C/A080 and invokes virtual
-///slot16 atA0D0. Actual vtable82328688+16 points to82DB3C78.
 pub(crate) fn consume_selector(
     physics: &GamePhysics,
     skater: &mut SkaterRuntime,
 ) -> Result<(), String> {
     let context = input::context(skater);
-    //82C209E4 supplies the stock Air clearance parameter, not guessed geometry.
     let clearance = skater.offboard_air_selector.settings.deck_center_to_truck;
     skater
         .offboard_air_selector
@@ -63,7 +58,6 @@ pub(crate) fn enter(physics: &GamePhysics, skater: &mut SkaterRuntime) -> Result
         input::submit(physics, skater, packet)?;
     }
     let p = &skater.player_input.processed;
-    //82D7B7A0 is the common Biped placement, not Ground Enter/Update.
     skater.biped_ground.controller.place(PlacementInput {
         frame: entry.animation_frame,
         velocity: p.vectors_544_560_592_608[3].map(f32::from_bits),
@@ -87,7 +81,6 @@ pub(crate) fn fill(skater: &mut SkaterRuntime) -> Result<(), String> {
     let physical = &mut skater.player_input.physical;
     publication::publish(skater.biped_air.state.output(), &mut physical.off_board);
     super::offboard::air_feet::publish(&skater.offboard_feet, &mut physical.off_board);
-    //82D7948C/98: destination is PhysOut24 collision, NOT Skeleton20.
     skater
         .landing_deck
         .publish(super::offboard::landing_deck::PublishTargets {

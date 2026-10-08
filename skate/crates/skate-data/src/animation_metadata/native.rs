@@ -1,5 +1,3 @@
-//! Lossless original ABIN metadata layouts. No pose codec or numerical decoder.
-//! Clip header827B8AB0, attribute82D164F8, tree lookup82D1B5B8.
 use super::{
     AnimationMetadata, ClipAttribute, ClipMetadata, File, PhaseBlendMetadata, SelectorMetadata,
     UnsupportedTree,
@@ -36,7 +34,9 @@ impl AnimationMetadata {
                     .push(read_clip(r, h, clip).map_err(|e| e.to_string())?),
                 RecordData::Pose(_) | RecordData::Hierarchy(_) | RecordData::PhysicsPose(_) => {}
                 RecordData::Opaque => match h.type_id {
-                    6 => file.blend_spaces.push(super::blend_space::read(r, h).map_err(|e| e.to_string())?),
+                    6 => file
+                        .blend_spaces
+                        .push(super::blend_space::read(r, h).map_err(|e| e.to_string())?),
                     7 => file
                         .phase_blends
                         .push(read_phase_blend(r, h).map_err(|e| e.to_string())?),
@@ -62,7 +62,6 @@ fn read_clip(r: Reader<'_>, h: &RecordHeader, clip: &Clip) -> Result<ClipMetadat
     let mut at = clip.attribute_offset;
     let mut attributes = Vec::with_capacity(clip.attribute_count as usize);
     for _ in 0..clip.attribute_count {
-        // Original GetAttribute82D25CA0 advances by the record's first word.
         let size = r.u32(at)? as usize;
         if size < 48 {
             return Err(Error::new(at, "attribute record smaller than header"));
@@ -108,7 +107,6 @@ fn read_clip(r: Reader<'_>, h: &RecordHeader, clip: &Clip) -> Result<ClipMetadat
 }
 
 fn read_phase_blend(r: Reader<'_>, h: &RecordHeader) -> Result<PhaseBlendMetadata> {
-    // Type7 construction82D1B5B8: count+8, parameter+16, child names+36.
     let p = h.payload_offset;
     let count = r.u32(p + 8)? as usize;
     let size = count
@@ -127,8 +125,6 @@ fn read_phase_blend(r: Reader<'_>, h: &RecordHeader) -> Result<PhaseBlendMetadat
 }
 
 fn read_selector(r: Reader<'_>, h: &RecordHeader) -> Result<SelectorMetadata> {
-    // Type8 construction82D1B5B8 keeps the first name as authored default.
-    // Child/value order matters: runtime chooses the first matching value.
     let p = h.payload_offset;
     let count = r.u32(p + 28)? as usize;
     let names_size = count

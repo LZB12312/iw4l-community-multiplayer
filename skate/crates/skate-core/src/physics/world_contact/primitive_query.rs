@@ -1,6 +1,3 @@
-//! Physics/world primitive query 8277B720 and moving-volume/triangle dispatch
-//! 8277BC58. Geometry lives in typed host-owned records; only the recovered
-//! kernels' GP and feature scratch boundaries use native word layouts.
 #[path = "box_box_sat.rs"]
 pub(super) mod box_box_sat;
 #[path = "primitive_geometry.rs"]
@@ -49,8 +46,6 @@ pub fn primitive_triangle_world_contacts(
     let (a, a_kind) = pack(primitive);
     let (b, b_kind) = pack(ContactPrimitive::Triangle(triangle));
     let (separation, normal) = if matches!(a_kind, PrimitiveKind::Box) {
-        // Reversed specialized entry82ACE968 calls triangle/box then flips
-        // every sign bit. Native pair direction always points A toward B.
         let (separation, normal) = triangle_box_sat::triangle_box(&b, &a);
         (separation, normal.map(|v| v ^ 0x8000_0000))
     } else {
@@ -151,7 +146,6 @@ fn contact_points(
     let a_offset = scale(normal, fat_a);
     let b_offset = scale(normal, fat_b);
     for point in &mut points[..count] {
-        // Separate multiply and add/subtract in8277BA50..BA60, after fixup.
         let a = lanes(point.a, 1.0);
         point.a = xyz(std::array::from_fn(|i| a[i] + a_offset[i]));
         point.b = xyz(sub(lanes(point.b, 1.0), b_offset));
@@ -163,11 +157,15 @@ fn contact_points(
     })
 }
 
-pub(super) fn maximum(gp: &[u32; 48], kind: PrimitiveKind, mode: u32, direction: [u32; 4]) -> MaximumFeature {
+pub(super) fn maximum(
+    gp: &[u32; 48],
+    kind: PrimitiveKind,
+    mode: u32,
+    direction: [u32; 4],
+) -> MaximumFeature {
     let mut feature = [0; 144];
     match kind {
         PrimitiveKind::Sphere => {
-            // Complete sphere callback82ADD7E0: center, point type, header0.
             feature[136..140].copy_from_slice(&gp[..4]);
             feature[140] = 0;
             feature[0] = 0;

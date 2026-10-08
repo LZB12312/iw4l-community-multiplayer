@@ -384,6 +384,8 @@ pub enum TechsetResolve<'a> {
 pub struct AuthoredMaterial {
     pub name: AssetRef,
 
+    pub extended_sort: bool,
+
     pub namespace: crate::AssetNamespace,
     pub technique_set: AssetRef,
 
@@ -403,6 +405,8 @@ pub struct AuthoredMaterial {
     pub camera_region: u8,
 
     pub state_bits: Vec<[u32; 2]>,
+
+    pub blend_constant: Option<[f32; 4]>,
 
     pub state_bits_entry: Option<[u8; asset_iw4::size::TECHNIQUE_SLOT_COUNT]>,
 
@@ -1467,6 +1471,7 @@ impl MaterialCatalog {
             )
         });
         Some(self.take_material_slot(AuthoredMaterial {
+            extended_sort: false,
             name,
             namespace: self.capture_ns,
             technique_set_edge: if technique_set.name.is_empty() {
@@ -1483,6 +1488,7 @@ impl MaterialCatalog {
             t5_layered_surface_types: None,
             state_flags: geometry.state_flags,
             camera_region: geometry.camera_region,
+            blend_constant: None,
             state_bits: read_state_bits(
                 |offset| s.u32_at(geometry.state_bits?, offset).ok(),
                 geometry.state_bits_count,
@@ -2443,6 +2449,8 @@ impl MaterialCatalog {
         }
         Some(
             self.take_material_slot(AuthoredMaterial {
+                extended_sort: false,
+                blend_constant: None,
                 name,
                 namespace: self.capture_ns,
                 technique_set_edge: if technique_set.name.is_empty() {
@@ -2774,6 +2782,8 @@ impl MaterialCatalog {
             .as_ref()
             .map(crate::iw5_tech_map::remap_state_bits_entry);
         Some(self.take_material_slot(AuthoredMaterial {
+            extended_sort: false,
+            blend_constant: None,
             name,
             namespace: self.capture_ns,
             technique_set_edge: if technique_set.name.is_empty() {

@@ -1,5 +1,3 @@
-//! UpdateRidingFakie82BB2330. The two persistent clocks belong to the graph
-//! instance, so re-entering another leaf does not restart them.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Settings {
     pub high_speed: f32,

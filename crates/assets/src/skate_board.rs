@@ -5,7 +5,7 @@ use std::path::Path;
 
 use bevy::math::DMat4;
 use serde::Serialize;
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 const TEXTURE_LIMIT: u32 = 512;
 
@@ -182,34 +182,41 @@ struct BoardTexture {
     rgba: Vec<u8>,
 }
 
-fn index(value: &Value) -> Result<usize, String> {
+pub(crate) fn index(value: &Value) -> Result<usize, String> {
     value
         .as_u64()
         .map(|v| v as usize)
         .ok_or_else(|| format!("expected an index, found {value}"))
 }
 
-struct Glb<'a> {
-    json: Value,
+pub(crate) struct Glb<'a> {
+    pub(crate) json: Value,
     blob: &'a [u8],
 }
 
 impl<'a> Glb<'a> {
-    fn parse(bytes: &'a [u8]) -> Result<Self, String> {
+    pub(crate) fn parse(bytes: &'a [u8]) -> Result<Self, String> {
         let word = |at: usize| -> Result<usize, String> {
             bytes
                 .get(at..at + 4)
                 .map(|b| u32::from_le_bytes([b[0], b[1], b[2], b[3]]) as usize)
                 .ok_or_else(|| "truncated GLB".to_owned())
         };
-        if bytes.get(..4) != Some(b"glTF") {
-            return Err("skater.glb is not a GLB file".into());
+        if bytes.get(..4) != Some(b"glTF")
+            || word(4)? != 2
+            || word(8)? != bytes.len()
+            || bytes.get(16..20) != Some(b"JSON")
+        {
+            return Err("invalid GLB header".into());
         }
         let json_len = word(12)?;
         let json_bytes = bytes.get(20..20 + json_len).ok_or("truncated GLB JSON")?;
         let json = serde_json::from_slice(json_bytes).map_err(|error| error.to_string())?;
         let blob_len = word(20 + json_len)?;
         let blob_start = 28 + json_len;
+        if bytes.get(24 + json_len..blob_start) != Some(b"BIN\0") {
+            return Err("missing GLB binary chunk".into());
+        }
         let blob = bytes
             .get(blob_start..blob_start + blob_len)
             .ok_or("truncated GLB binary chunk")?;
@@ -234,18 +241,25 @@ impl<'a> Glb<'a> {
         let view = &self.json["bufferViews"][view];
         let offset = view["byteOffset"].as_u64().unwrap_or(0) as usize;
         let length = index(&view["byteLength"])?;
+        let end = offset
+            .checked_add(length)
+            .ok_or("buffer view is too large")?;
         let bytes = self
             .blob
-            .get(offset..offset + length)
+            .get(offset..end)
             .ok_or("buffer view outside the GLB")?;
         Ok((bytes, view["byteStride"].as_u64().map(|s| s as usize)))
     }
 
     /// Every component of an accessor, widened to `f64`.
     fn components(&self, accessor: usize) -> Result<Vec<f64>, String> {
-        let accessor: &Map<String, Value> = self.json["accessors"][accessor]
-            .as_object()
-            .ok_or("missing accessor")?;
+        let accessor = &self.json["accessors"][accessor];
+        if !accessor.is_object() {
+            return Err("missing accessor".into());
+        }
+        if accessor["normalized"].as_bool() == Some(true) || accessor.get("sparse").is_some() {
+            return Err("unsupported normalized or sparse accessor".into());
+        }
         let count = index(&accessor["count"])?;
         let width = match accessor["type"].as_str() {
             Some("SCALAR") => 1,
@@ -272,7 +286,25 @@ impl<'a> Glb<'a> {
             .and_then(Value::as_u64)
             .unwrap_or(0) as usize;
         let stride = stride.unwrap_or(size * width);
-        let mut out = Vec::with_capacity(count * width);
+        let component_count = count.checked_mul(width).ok_or("accessor is too large")?;
+        if stride < size * width {
+            return Err("accessor stride is too short".into());
+        }
+        let length = if count == 0 {
+            0
+        } else {
+            (count - 1)
+                .checked_mul(stride)
+                .and_then(|v| v.checked_add(size * width))
+                .ok_or("accessor is too large")?
+        };
+        if start
+            .checked_add(length)
+            .is_none_or(|end| end > bytes.len())
+        {
+            return Err("accessor outside its view".into());
+        }
+        let mut out = Vec::with_capacity(component_count);
         for element in 0..count {
             for component in 0..width {
                 let at = start + element * stride + component * size;
@@ -285,15 +317,25 @@ impl<'a> Glb<'a> {
         Ok(out)
     }
 
-    fn floats(&self, accessor: usize) -> Result<Vec<f32>, String> {
-        Ok(self
+    pub(crate) fn floats(&self, accessor: usize) -> Result<Vec<f32>, String> {
+        let values: Vec<f32> = self
             .components(accessor)?
             .into_iter()
             .map(|v| v as f32)
-            .collect())
+            .collect();
+        if values.iter().any(|v| !v.is_finite()) {
+            return Err("non-finite accessor".into());
+        }
+        Ok(values)
     }
 
-    fn integers(&self, accessor: usize) -> Result<Vec<u32>, String> {
+    pub(crate) fn integers(&self, accessor: usize) -> Result<Vec<u32>, String> {
+        if !matches!(
+            self.json["accessors"][accessor]["componentType"].as_u64(),
+            Some(5121 | 5123 | 5125)
+        ) {
+            return Err("expected an unsigned integer accessor".into());
+        }
         Ok(self
             .components(accessor)?
             .into_iter()

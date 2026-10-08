@@ -1,11 +1,8 @@
-//! Original82BD8F10 writes the existing AnimatedSkeleton board-offset owner.
 use crate::physics::animated_skeleton::AnimatedSkeleton;
 use skate_core::{
     physics::skeleton_animation_record::AnimationPartTransform,
     player::{input_phase::ProcessedPhysicsInput, offboard::pose_adjust},
 };
-/// Reparented indices are the existing target_bones[2] and[3] loaded by82BED688.
-/// No state is changed when category500/state503 eligibility is false.
 pub(crate) fn update(
     animated: &mut AnimatedSkeleton,
     globals: &[AnimationPartTransform],

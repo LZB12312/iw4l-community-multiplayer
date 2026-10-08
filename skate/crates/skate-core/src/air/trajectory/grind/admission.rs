@@ -1,4 +1,3 @@
-//! Original S3 82D6A840 admission and82D6AF58 landing publication.
 use super::*;
 ///position/material stay intact; time, frame, trajectory and normal change.
 pub fn apply_admitted_target(
@@ -28,8 +27,6 @@ pub fn apply_admitted_target(
     );
 }
 
-///82D6AF58: bias by cross-rail velocity, bound against the investigated
-///support normal, reject the rail axis, then normalize.
 pub fn landing_normal(
     direction: Vector,
     velocity: Vector,
@@ -44,8 +41,6 @@ pub fn landing_normal(
         support,
         maximum_angle_degrees * f32::from_bits(0x3c8e_fa35),
     );
-    //82C1E170 removes only the positive normalized-direction component,
-    //multiplying by the ORIGINAL supplied direction.
     let component = dot(limited, normalize(direction));
     normalize(if component > 0.0 {
         sub(limited, scale(direction, component))
@@ -54,7 +49,6 @@ pub fn landing_normal(
     })
 }
 
-///82BD3E78, shared with the offboard surface-frame port.
 fn clamp_angle(target: Vector, reference: Vector, limit: f32) -> Vector {
     let a = normalize(target);
     let b = normalize(reference);
@@ -78,9 +72,6 @@ fn clamp_angle(target: Vector, reference: Vector, limit: f32) -> Vector {
     )
 }
 
-///Admission and displacement portion82D6A840. The caller retries the next
-///ranked candidate on None, then applies82D609E0 and82D6AF58 on success.
-///This deliberately requires native surface evidence before any correction.
 pub fn admitted_displacement(
     prediction: Prediction,
     candidate: GrindTrajectoryCandidate,

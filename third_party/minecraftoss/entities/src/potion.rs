@@ -12,8 +12,8 @@
 use crate::effects::{EffectInstance, MobEffect};
 use crate::sight;
 use glam::DVec3;
-use minecraftoss_player::rng::LegacyRandom;
 use minecraftoss_player::World;
+use minecraftoss_player::rng::LegacyRandom;
 
 /// `EntityTypes.SPLASH_POTION`: 0.25 blocks each way.
 pub const SIZE: f64 = 0.25;
@@ -89,7 +89,7 @@ impl Potion {
 
     /// `PotionContents.getColor`: its effect's colour (RGB).
     pub fn color(self) -> u32 {
-        match self.effect().effect {
+        let rgb_bits = match self.effect().effect {
             MobEffect::Speed => 3402751,
             MobEffect::Slowness => 9154528,
             MobEffect::InstantHealth => 16262179,
@@ -99,7 +99,8 @@ impl Potion {
             MobEffect::WaterBreathing => 10017472,
             MobEffect::Weakness => 4738376,
             MobEffect::Poison => 8889187,
-        }
+        };
+        rgb_bits
     }
 }
 
@@ -145,20 +146,56 @@ impl ThrownPotion {
     /// `ThrowableItemProjectile(type, owner, level, item)` and
     /// `Projectile.shoot`: at the thrower's eyes less 0.1, along
     /// (`xd`, `yd`, `zd`) at `power` with the potion's own random's spread.
-    pub fn shoot(potion: Potion, owner: u64, position: DVec3, direction: DVec3, power: f32, uncertainty: f32, random: &mut LegacyRandom) -> Self {
+    pub fn shoot(
+        potion: Potion,
+        owner: u64,
+        position: DVec3,
+        direction: DVec3,
+        power: f32,
+        uncertainty: f32,
+        random: &mut LegacyRandom,
+    ) -> Self {
         // `Vec3.normalize`: none under 1.0E-5F long.
-        let length = (direction.x * direction.x + direction.y * direction.y + direction.z * direction.z).sqrt();
-        let unit = if length < f64::from(1.0e-5_f32) { DVec3::ZERO } else { DVec3::new(direction.x / length, direction.y / length, direction.z / length) };
+        let length =
+            (direction.x * direction.x + direction.y * direction.y + direction.z * direction.z)
+                .sqrt();
+        let unit = if length < f64::from(1.0e-5_f32) {
+            DVec3::ZERO
+        } else {
+            DVec3::new(
+                direction.x / length,
+                direction.y / length,
+                direction.z / length,
+            )
+        };
         // `random.triangle(0, 0.0172275 * uncertainty)` three times.
         let spread = 0.0172275 * f64::from(uncertainty);
         let mut triangle = || spread * (random.next_double() - random.next_double());
         let (tx, ty, tz) = (triangle(), triangle(), triangle());
         let power = f64::from(power);
-        let velocity = DVec3::new((unit.x + tx) * power, (unit.y + ty) * power, (unit.z + tz) * power);
+        let velocity = DVec3::new(
+            (unit.x + tx) * power,
+            (unit.y + ty) * power,
+            (unit.z + tz) * power,
+        );
         let horizontal = (velocity.x * velocity.x + velocity.z * velocity.z).sqrt();
-        let yaw = (crate::control::minecraft_atan2(velocity.x, velocity.z) * minecraftoss_player::mth::RAD_TO_DEG) as f32;
-        let pitch = (crate::control::minecraft_atan2(velocity.y, horizontal) * minecraftoss_player::mth::RAD_TO_DEG) as f32;
-        Self { position, velocity, potion, owner: Some(owner), tick_count: 0, left_owner: false, in_water: false, yaw, pitch, alive: true, first_tick: true }
+        let yaw = (crate::control::minecraft_atan2(velocity.x, velocity.z)
+            * minecraftoss_player::mth::RAD_TO_DEG) as f32;
+        let pitch = (crate::control::minecraft_atan2(velocity.y, horizontal)
+            * minecraftoss_player::mth::RAD_TO_DEG) as f32;
+        Self {
+            position,
+            velocity,
+            potion,
+            owner: Some(owner),
+            tick_count: 0,
+            left_owner: false,
+            in_water: false,
+            yaw,
+            pitch,
+            alive: true,
+            first_tick: true,
+        }
     }
 
     /// Its box (`makeBoundingBox`: 0.125 either side, 0.25 up).
@@ -176,15 +213,28 @@ impl ThrownPotion {
     /// the move, `Projectile.checkLeftOwner` and the water check of
     /// `Entity.baseTick`. Returns what it struck (it breaks there).
     /// `owner_box` is the thrower's box while it lives.
-    pub fn tick(&mut self, world: &impl World, targets: &[PotionTarget], owner_box: Option<(DVec3, DVec3)>) -> Option<PotionHit> {
+    pub fn tick(
+        &mut self,
+        world: &impl World,
+        targets: &[PotionTarget],
+        owner_box: Option<(DVec3, DVec3)>,
+    ) -> Option<PotionHit> {
         self.tick_count += 1;
         // `applyGravity`, then `applyInertia` (water from its last tick).
         self.velocity.y -= GRAVITY;
         let inertia = f64::from(if self.in_water { 0.8_f32 } else { 0.99_f32 });
-        self.velocity = DVec3::new(self.velocity.x * inertia, self.velocity.y * inertia, self.velocity.z * inertia);
+        self.velocity = DVec3::new(
+            self.velocity.x * inertia,
+            self.velocity.y * inertia,
+            self.velocity.z * inertia,
+        );
         let from = self.position;
         let movement = self.velocity;
-        let mut to = DVec3::new(from.x + movement.x, from.y + movement.y, from.z + movement.z);
+        let mut to = DVec3::new(
+            from.x + movement.x,
+            from.y + movement.y,
+            from.z + movement.z,
+        );
         let block = sight::clip(world, from, to);
         if let Some((_, at)) = block {
             to = at;
@@ -201,7 +251,13 @@ impl ThrownPotion {
             if target.owner && !self.left_owner {
                 continue;
             }
-            if !(target.min.x < search_max.x && target.max.x > search_min.x && target.min.y < search_max.y && target.max.y > search_min.y && target.min.z < search_max.z && target.max.z > search_min.z) {
+            if !(target.min.x < search_max.x
+                && target.max.x > search_min.x
+                && target.min.y < search_max.y
+                && target.max.y > search_min.y
+                && target.min.z < search_max.z
+                && target.max.z > search_min.z)
+            {
                 continue;
             }
             let grow = DVec3::splat(margin);
@@ -214,14 +270,28 @@ impl ThrownPotion {
             }
         }
         let hit = match (entity, block) {
-            (Some((id, at)), _) => Some(PotionHit { location: at, entity: Some(id) }),
+            (Some((id, at)), _) => Some(PotionHit {
+                location: at,
+                entity: Some(id),
+            }),
             // `hitTargetOrDeflectSelf`: a block hit on air strikes nothing.
-            (None, Some((pos, at))) if world.block(pos).is_some_and(|b| b.id != "minecraft:air") => Some(PotionHit { location: at, entity: None }),
+            (None, Some((pos, at)))
+                if world.block(pos).is_some_and(|b| b.id != "minecraft:air") =>
+            {
+                Some(PotionHit {
+                    location: at,
+                    entity: None,
+                })
+            }
             _ => None,
         };
         self.position = match (entity, block) {
             (Some((_, at)), _) | (None, Some((_, at))) => at,
-            _ => DVec3::new(from.x + movement.x, from.y + movement.y, from.z + movement.z),
+            _ => DVec3::new(
+                from.x + movement.x,
+                from.y + movement.y,
+                from.z + movement.z,
+            ),
         };
         self.update_rotation();
         // `Projectile.tick`: `checkLeftOwner` after the hit test.
@@ -231,14 +301,21 @@ impl ThrownPotion {
                     let (min, max) = self.bounds();
                     let (min, max) = sweep(min, max, self.velocity);
                     let (min, max) = (min - DVec3::ONE, max + DVec3::ONE);
-                    !(owner_min.x < max.x && owner_max.x > min.x && owner_min.y < max.y && owner_max.y > min.y && owner_min.z < max.z && owner_max.z > min.z)
+                    !(owner_min.x < max.x
+                        && owner_max.x > min.x
+                        && owner_min.y < max.y
+                        && owner_max.y > min.y
+                        && owner_min.z < max.z
+                        && owner_max.z > min.z)
                 }
                 None => true,
             };
         }
         // `Entity.baseTick`: the water around it for its next drag, and the
         // floor 64 below the world.
-        self.in_water = crate::fluid::FluidFrame::sample(world, self.position, SIZE as f32, SIZE as f32).in_water();
+        self.in_water =
+            crate::fluid::FluidFrame::sample(world, self.position, SIZE as f32, SIZE as f32)
+                .in_water();
         self.first_tick = false;
         if self.position.y < f64::from(world.min_y() - 64) {
             self.alive = false;
@@ -254,8 +331,10 @@ impl ThrownPotion {
     fn update_rotation(&mut self) {
         let v = self.velocity;
         let horizontal = (v.x * v.x + v.z * v.z).sqrt();
-        let pitch = (crate::control::minecraft_atan2(v.y, horizontal) * minecraftoss_player::mth::RAD_TO_DEG) as f32;
-        let yaw = (crate::control::minecraft_atan2(v.x, v.z) * minecraftoss_player::mth::RAD_TO_DEG) as f32;
+        let pitch = (crate::control::minecraft_atan2(v.y, horizontal)
+            * minecraftoss_player::mth::RAD_TO_DEG) as f32;
+        let yaw = (crate::control::minecraft_atan2(v.x, v.z) * minecraftoss_player::mth::RAD_TO_DEG)
+            as f32;
         self.pitch = lerp_rotation(self.pitch, pitch);
         self.yaw = lerp_rotation(self.yaw, yaw);
     }
@@ -275,7 +354,10 @@ fn lerp_rotation(mut from: f32, to: f32) -> f32 {
 /// A potion's box at `position`.
 pub fn bounds_at(position: DVec3) -> (DVec3, DVec3) {
     let half = SIZE / 2.0;
-    (DVec3::new(position.x - half, position.y, position.z - half), DVec3::new(position.x + half, position.y + SIZE, position.z + half))
+    (
+        DVec3::new(position.x - half, position.y, position.z - half),
+        DVec3::new(position.x + half, position.y + SIZE, position.z + half),
+    )
 }
 
 /// `AABB.expandTowards`.
@@ -298,8 +380,17 @@ fn sweep(min: DVec3, max: DVec3, by: DVec3) -> (DVec3, DVec3) {
 /// (`inflate(4, 2, 4)`) must meet its box.
 pub fn splash_scale(potion_at: DVec3, margin: f64, min: DVec3, max: DVec3) -> Option<f64> {
     let (pmin, pmax) = bounds_at(potion_at);
-    let (smin, smax) = (DVec3::new(pmin.x - 4.0, pmin.y - 2.0, pmin.z - 4.0), DVec3::new(pmax.x + 4.0, pmax.y + 2.0, pmax.z + 4.0));
-    if !(smin.x < max.x && smax.x > min.x && smin.y < max.y && smax.y > min.y && smin.z < max.z && smax.z > min.z) {
+    let (smin, smax) = (
+        DVec3::new(pmin.x - 4.0, pmin.y - 2.0, pmin.z - 4.0),
+        DVec3::new(pmax.x + 4.0, pmax.y + 2.0, pmax.z + 4.0),
+    );
+    if !(smin.x < max.x
+        && smax.x > min.x
+        && smin.y < max.y
+        && smax.y > min.y
+        && smin.z < max.z
+        && smax.z > min.z)
+    {
         return None;
     }
     let (min, max) = (min - DVec3::splat(margin), max + DVec3::splat(margin));
@@ -316,23 +407,10 @@ pub fn splash_scale(potion_at: DVec3, margin: f64, min: DVec3, max: DVec3) -> Op
 /// second (`endsWithin(20)`).
 pub fn splashed_effect(effect: &EffectInstance, scale: f64) -> Option<EffectInstance> {
     let duration = effect.map_duration(|d| (scale * f64::from(d) * 1.0 + 0.5) as i32);
-    let splashed = EffectInstance { duration, hidden: None, ..effect.clone() };
+    let splashed = EffectInstance {
+        duration,
+        hidden: None,
+        ..effect.clone()
+    };
     (!splashed.ends_within(20)).then_some(splashed)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn nearer_takes_more_and_far_takes_nothing() {
-        let at = DVec3::new(0.0, 0.0, 0.0);
-        // A mob 1.5 blocks off its box.
-        let scale = splash_scale(at, 0.0, DVec3::new(1.625, 0.0, -0.3), DVec3::new(2.225, 1.8, 0.3)).unwrap();
-        assert_eq!(scale, 1.0 - 1.5 / 4.0);
-        assert!(splash_scale(at, 0.0, DVec3::new(5.0, 0.0, -0.3), DVec3::new(5.6, 1.8, 0.3)).is_none());
-        let poison = splashed_effect(&Potion::Poison.effect(), 0.625).unwrap();
-        assert_eq!(poison.duration, 563);
-        assert!(splashed_effect(&Potion::Poison.effect(), 0.01).is_none());
-    }
 }

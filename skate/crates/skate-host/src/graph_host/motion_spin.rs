@@ -1,4 +1,3 @@
-//! BodySpin82BAB640, including its native five-state channel controller.
 use super::motion_animation::MotionAnimation;
 use skate_core::{
     animation::{channel_playback::ChannelSettings, playback_parameters::ParameterInputs},
@@ -24,7 +23,6 @@ pub struct Settings {
 }
 impl Settings {
     pub fn load(data: &Collections) -> Result<Self, String> {
-        //Global304 writer8289F9C0..F9EC:DCBADE97CA665643=body_spin.
         let float = |name| data.float("anim_motion", "body_spin", name);
         let w = data.words::<16>("anim_motion", "body_spin", "spin_map")?;
         let d = data.words::<16>("animation", "default", "LandingDistanceScalarVsNormalY")?;
@@ -79,7 +77,6 @@ pub struct PrelandingPhysical {
     pub animation_height_72: f32,
 }
 impl PrelandingPhysical {
-    ///825954C0 ->82595670, original source guards and strict comparisons.
     pub(crate) fn override_prelanding(self, s: &Settings) -> bool {
         self.air_444
             || (self.air_normal_144_y <= 0.5
@@ -104,7 +101,6 @@ impl PrelandingPhysical {
     }
 }
 
-///82BABE20 initializes every represented scalar and the state enum to zero.
 #[derive(Default)]
 pub struct State {
     mode: u32,
@@ -277,7 +273,6 @@ impl State {
     }
 }
 fn update_influence(value: &mut f32, delta: &mut f32, target: f32, blend: f32, s: &Settings) {
-    //82BABC68..BD9C: first clamp acceleration, then change, then [0,1].
     let desired = blend.mul_add(target, (1.0 - blend) * *value) - *value;
     *delta = clamp(
         desired,

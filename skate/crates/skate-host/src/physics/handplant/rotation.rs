@@ -1,4 +1,3 @@
-//! CreateMtxFromHeadingAndUp82D61B60 and axis-angle frame blend82BD3150.
 use super::*;
 use skate_core::animation::foot_ik::transforms::inverse_rigid;
 use skate_core::math::Basis3;

@@ -1,6 +1,3 @@
-//! Canonical ActionGraph/MotionGraph intent identity.
-//! TU3 FastString constructor823C3BF8 uses six words of82382B50 encoding.
-//! Storage is ours; aliases share one value and the most recent write wins.
 use crate::animation::playback_parameters::intent_key;
 use std::collections::BTreeMap;
 

@@ -314,6 +314,11 @@ pub(crate) fn update_scorebar(
         return;
     };
 
+    if local_meta.skate_damage.display_active(snap.tick.0) {
+        hide(&mut pass);
+        return;
+    }
+
     let mut others = [0i32; 18];
     let mut n_others = 0usize;
     for (id, meta) in &snap.meta.clients {

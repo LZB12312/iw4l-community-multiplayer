@@ -1,4 +1,3 @@
-//! Immutable stock shot definitions. Field order/units follow TU382CA4660.
 use skate_core::camera::{Shot, ShotDatabase, ShotDefinition};
 use skate_data::collections::Collections;
 use std::collections::BTreeMap;

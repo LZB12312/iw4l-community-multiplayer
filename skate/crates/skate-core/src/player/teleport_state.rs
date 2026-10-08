@@ -1,5 +1,3 @@
-//! Teleporting702 from original TU3 VT823272FC.
-//! Enter82D431D8, Update82D431F0 and FillPhysOut82D43280.
 use super::input_phase::RawMatrix;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,7 +53,6 @@ impl TeleportState {
         self.received = true;
         self.target = matrix_1536;
         self.ready = true;
-        //rlwimi82D43254 inserts only byte1600 bit0, not a nonzero test.
         self.on_board = byte_1600 & 1 != 0;
         Update::Captured
     }

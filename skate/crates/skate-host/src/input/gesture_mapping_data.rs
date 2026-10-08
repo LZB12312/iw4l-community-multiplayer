@@ -1,5 +1,3 @@
-//! TU3 82B98F70 records, re-extracted from original bytes and all 270 map inserts.
-// Each tuple is (gesture key, normal intent, mirrored intent, dark-catch category).
 pub(super) const TABLES: [&[(&str, &str, &str, u32)]; 7] = [
     &[
         ("Ollie", "Ollie", "Ollie", 1),

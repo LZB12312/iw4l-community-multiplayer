@@ -1,9 +1,3 @@
-//! Solver observations consumed by the board's post-physics update.
-//!
-//! TU3 82AE1608 observes completed contact rows after integration; 827682B0
-//! then constructs at most sixteen reports per board, in contact order.
-//! Rust owns the report storage and part identifiers. No guest pointers or
-//! copied native map/locking infrastructure are needed for this single board.
 use crate::math::Vector3;
 
 use super::super::{
@@ -44,14 +38,14 @@ pub(crate) fn collect(
     for contact in contacts {
         let words = contact.words();
         let impulse = contact.accumulated_impulse();
-        // 82AE1668..168C: enabled spy and strictly positive normal response.
         if words[11] & 8 == 0 || !(impulse[0] > 0.0) {
             continue;
         }
         //Other assemblies share this solve. Their own output owners consume
         //their spies; only board/world records are routed to this collector.
         if !((words[31] < BODY_COUNT as u32 && words[43] == u32::MAX)
-            || (words[43] < BODY_COUNT as u32 && words[31] == u32::MAX)) {
+            || (words[43] < BODY_COUNT as u32 && words[31] == u32::MAX))
+        {
             continue;
         }
         let a = body_id(words[31]);
@@ -59,7 +53,6 @@ pub(crate) fn collect(
         let (part, other, is_body_a) = match (a, b) {
             (CollisionBody::Board(part), CollisionBody::StaticWorld) => (part, b, true),
             (CollisionBody::StaticWorld, CollisionBody::Board(part)) => (part, a, false),
-            // 82768418: same board/owner exclusion; no world report subscriber.
             _ => continue,
         };
         if output.len() == 16 {

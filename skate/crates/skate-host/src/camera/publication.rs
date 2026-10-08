@@ -1,7 +1,6 @@
-//! Game owners -> normal camera subject82DF69C0. Call after physical output.
-//! Missing publications are explicit inputs, never inferred from render pose.
 use super::{graph_subject::CameraGraphSubject, subject::CameraSubjectSnapshot};
 use crate::physics::{GamePhysics, SkaterRuntime};
+use bevy::log::debug;
 use skate_core::{
     camera::{
         AnchorInputs, Anchors, CompassPoseInputs, ManagerSubject, ReferencePointInputs, Subject,
@@ -9,7 +8,6 @@ use skate_core::{
     },
     physics::{board::BodyId, skeleton_animation_record::AnimationPartTransform as Transform},
 };
-use bevy::log::debug;
 
 /// State record fields absent from the input phase's smaller CurrentStateFields.
 /// The same output/reset owner must publish these; there is no camera default.
@@ -33,7 +31,6 @@ pub(crate) struct CameraAnimationOutput {
     pub wipeout_tweak_148: u32,
     pub stance_155: u8,
     pub running_out_160: u8,
-    /// Actor's actual SkaterAnim component virtual28, copied at82DF6EA4.
     pub skater_animation_stance: u8,
 }
 
@@ -153,14 +150,10 @@ pub(crate) fn snapshot(
         deck.translation.z,
         0.0,
     ];
-    //82BE3650 -> PhysOutSkeleton0/432 at82BE20F4/2100. Its stance flag is
-    //Processed2476 bit2, distinct from the board's effective-frame flag2468.
     let skeleton_root = effective_skeleton_root(
         skater.animated_skeleton.roots.animation_to_world,
         processed.flags_2476,
     );
-    //82DF80D8 selects the subject pose separately.82DF70CC/70E8 still
-    //publish the board transform/position, including while off-board.
     let record = &skater.skeleton.record;
     let com = p.reckoning.vector_64.map(f32::from_bits);
     let up = p.reckoning.vector_96.map(f32::from_bits);
@@ -177,8 +170,7 @@ pub(crate) fn snapshot(
         } else {
             Err(format!(
                 "Camera subject owner published non-finite {name}: {values:?}; state={:?}; category={:?}",
-                processed.state_2508,
-                processed.category_2512,
+                processed.state_2508, processed.category_2512,
             ))
         }
     };
@@ -189,14 +181,28 @@ pub(crate) fn snapshot(
     for column in &skeleton_root {
         finite("skeleton_root", column)?;
     }
-    for (index, pose) in [1usize, 15, 19, 23].into_iter().map(|index| (index, record.pose[index][3])) {
-        finite(match index { 1 => "head", 15 => "left_foot", 19 => "right_foot", _ => "hips" }, &pose)?;
+    for (index, pose) in [1usize, 15, 19, 23]
+        .into_iter()
+        .map(|index| (index, record.pose[index][3]))
+    {
+        finite(
+            match index {
+                1 => "head",
+                15 => "left_foot",
+                19 => "right_foot",
+                _ => "hips",
+            },
+            &pose,
+        )?;
     }
-    if velocity[..3].iter().chain(acceleration[..3].iter()).any(|v| !v.is_finite()) {
+    if velocity[..3]
+        .iter()
+        .chain(acceleration[..3].iter())
+        .any(|v| !v.is_finite())
+    {
         return Err(format!(
             "Camera received non-finite board motion publication: velocity={velocity:?}; acceleration={acceleration:?}; raw_velocity={:?}; raw_acceleration={:?}",
-            p.skateboard.vector_80,
-            p.skateboard.vector_64,
+            p.skateboard.vector_80, p.skateboard.vector_64,
         ));
     }
     debug!(state = p.state.state_16, category = p.state.category_12,
@@ -267,7 +273,11 @@ pub(crate) fn snapshot(
             grinding,
             // KnownAir Fill publishes validity at437. Byte441 is the body-flip
             // flag; using it hides ordinary ollie trajectories from the camera.
-            trajectory_valid: if alternate { 1 } else { p.air.known_air_valid_437 },
+            trajectory_valid: if alternate {
+                1
+            } else {
+                p.air.known_air_valid_437
+            },
             wiping_out: input.state.wiping_out_59,
             physically_pushing: input.state.physically_pushing_55,
             at_pushable_speed: u8::from(ground.skateboard_motion_4.is_at_pushable_speed),
@@ -278,7 +288,7 @@ pub(crate) fn snapshot(
                 input.events.broken_bone_duration_200 > 0.0
                     && input.events.capabilities_204 & 4 != 0,
             ),
-            subject_flag_328: 0, //82DF726C clears this every publication.
+            subject_flag_328: 0,
         },
         anchors: Anchors::new().entries, //filled by the real anchor histories.
         compass: [0.0; 9],               //filled by the real Compass owner.
@@ -308,7 +318,7 @@ pub(crate) fn snapshot(
         stance_592: input.animation.skater_animation_stance,
         flag_652: input.state.flag_79,
         shake_variant: input.preferences.shake_variant,
-        special_effect: 0, //82DF6A44..6A60 clears observer mode for this subject.
+        special_effect: 0,
         flag_684: off.object_held_304,
     };
     Ok(CameraSubjectSnapshot {
@@ -335,7 +345,6 @@ pub(crate) fn snapshot(
             reset: input.state.reset_62 != 0,
         },
         reference_points: ReferencePointInputs {
-            //82BE1E64..1ED4 copies these actual physical volume positions.
             head: record.pose[1][3],
             hips: record.pose[23][3],
             left_foot: record.pose[15][3],

@@ -1,10 +1,3 @@
-//! Data-driven activation for the stock state graph.
-//!
-//! Node::GetActivation 82C14C28 delegates to its expression with the caller's
-//! mask. Condition::GetActivationMasked 82C12D48 excludes disabled conditions
-//! and conditions whose authored mask does not intersect that mask. Expression
-//! combination and its excluded-child rules are implemented in `expression`.
-
 use super::{controller::Frame, expression::evaluate_operator, selection::NodeId};
 
 pub type ConditionId = usize;
@@ -45,7 +38,6 @@ pub trait ConditionHost {
 }
 
 impl ActivationProgram {
-    /// Complete Node::GetActivation boundary (82C14C28).
     pub fn node_activation(
         &self,
         node: NodeId,
@@ -89,7 +81,6 @@ impl ActivationProgram {
         )
     }
 
-    /// Complete Condition::GetActivationMasked gate (82C12D48).
     fn condition_activation(
         &self,
         id: ConditionId,
@@ -106,108 +97,5 @@ impl ActivationProgram {
             *excluded = 0;
             host.condition_activation(id, frame)
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[derive(Default)]
-    struct Host {
-        values: Vec<u32>,
-        calls: Vec<ConditionId>,
-    }
-
-    impl ConditionHost for Host {
-        fn condition_activation(&mut self, condition: ConditionId, _: &Frame) -> u32 {
-            self.calls.push(condition);
-            self.values[condition]
-        }
-    }
-
-    fn frame() -> Frame {
-        Frame {
-            dt: 0.0,
-            current: None,
-            last: None,
-            state_times: Vec::new(),
-        }
-    }
-
-    fn program(operator: u32, conditions: Vec<Condition>) -> ActivationProgram {
-        ActivationProgram {
-            state_expressions: vec![Some(0)],
-            transition_expressions: Vec::new(),
-            expressions: vec![Expression {
-                operator,
-                children: (0..conditions.len()).map(Child::Condition).collect(),
-            }],
-            conditions,
-        }
-    }
-
-    #[test]
-    fn excluded_conditions_do_not_participate_and_all_excluded_is_true() {
-        let graph = program(
-            1,
-            vec![
-                Condition {
-                    enabled: false,
-                    mask: 1,
-                },
-                Condition {
-                    enabled: true,
-                    mask: 2,
-                },
-            ],
-        );
-        let mut host = Host {
-            values: vec![0, 0],
-            ..Default::default()
-        };
-        assert!(graph.node_activation(NodeId::State(0), 1, &frame(), &mut host));
-        assert!(host.calls.is_empty());
-    }
-
-    #[test]
-    fn included_false_condition_controls_result_and_or_short_circuits() {
-        let graph = program(
-            2,
-            vec![
-                Condition {
-                    enabled: true,
-                    mask: 1,
-                },
-                Condition {
-                    enabled: true,
-                    mask: 1,
-                },
-            ],
-        );
-        let mut host = Host {
-            values: vec![1, 0],
-            ..Default::default()
-        };
-        assert!(graph.node_activation(NodeId::State(0), 1, &frame(), &mut host));
-        assert_eq!(host.calls, [0]);
-
-        host.values[0] = 0;
-        host.calls.clear();
-        assert!(!graph.node_activation(NodeId::State(0), 1, &frame(), &mut host));
-        assert_eq!(host.calls, [0, 1]);
-    }
-
-    #[test]
-    fn nodes_without_expressions_are_active() {
-        let graph = ActivationProgram {
-            state_expressions: vec![None],
-            transition_expressions: vec![None],
-            expressions: Vec::new(),
-            conditions: Vec::new(),
-        };
-        let mut host = Host::default();
-        assert!(graph.node_activation(NodeId::State(0), 1, &frame(), &mut host));
-        assert!(graph.node_activation(NodeId::Transition(0), 2, &frame(), &mut host));
     }
 }

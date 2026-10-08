@@ -159,7 +159,6 @@ impl HangUpServices for BoardServices<'_, '_> {
             .detect_hung_up_geometry(self.world, self.physical.hang_geometry)
     }
     fn request_wipeout(&mut self) -> Result<(), String> {
-        //82D3983C..54 writes byte32 (reason12), value104 and increments200.
         self.physical.wipeout.request(12, 0.0);
         Ok(())
     }
@@ -260,8 +259,6 @@ impl GroundBoardServices for BoardServices<'_, '_> {
         (self.physical.launch_and_update)(info)
     }
     fn finalize_animated_board_sk83_na_f_01a4(&mut self) -> Result<(), String> {
-        //TU382B61BB8 is one blr instruction. This confirmed native no-op
-        //does not replace the preceding required trajectory calculation.
         Ok(())
     }
     fn collision_force_82d944e8(

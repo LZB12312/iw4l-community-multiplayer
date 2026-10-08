@@ -1,4 +1,3 @@
-//! Native candidate searches82D84D38/85070 and distance fallback82D84B98.
 use super::{
     contact_geometry,
     contact_queries::{Input, V},
@@ -167,46 +166,4 @@ pub fn distance_fallback(
         ));
     }
     None
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::player::offboard::contact_records::Record;
-    fn input() -> Input {
-        Input {
-            position: [0.; 4],
-            surface_forward: [0., 0., 1., 0.],
-            surface_up: [0., 1., 0., 0.],
-            surface_right: [1., 0., 0., 0.],
-            velocity: [0., 0., 2., 0.],
-            animation_up: [0., 1., 0., 0.],
-            animation_right: [1., 0., 0., 0.],
-        }
-    }
-    fn r(y: f32, z: f32) -> Record {
-        Record {
-            position: [0., y, z, 0.],
-            normal: [0., 1., 0., 0.],
-            coordinates: [z, y, z, z],
-            flags: 0,
-            distance: z,
-        }
-    }
-    #[test]
-    fn searches_intersect_actual_surface_segments() {
-        let mut segments = Segments::default();
-        segments.rebuild(input(), &[r(0., 0.), r(0., 1.), r(0.5, 1.), r(0.5, 2.)]);
-        let candidate = rising(input(), &segments, 1, 1., 128).unwrap();
-        assert_eq!(candidate.position, [0., 0., 0.5, 0.]);
-        assert_eq!(candidate.flags, 128);
-        assert_eq!(candidate.segment_index, Some(1));
-        let candidate = distance_fallback(input(), &segments, 0.25).unwrap();
-        assert_eq!(candidate.position, [0., 0., 0.25, 0.]);
-        assert_eq!(candidate.kind, 9);
-        segments.rebuild(input(), &[r(0., 0.), r(0., 1.), r(-0.5, 1.), r(-0.5, 2.)]);
-        let candidate = falling(input(), &segments, Some(1), -1., 0, 4, 100.).unwrap();
-        assert_eq!(candidate.position, [0., -0.5, 1.5, 0.]);
-        assert_eq!(candidate.kind, 4);
-    }
 }

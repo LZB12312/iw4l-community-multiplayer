@@ -53,6 +53,7 @@ impl Plugin for MenuPlugin {
 
 pub fn install_frontend_menus(catalog: &mut asset_game::MenuCatalog) -> Result<(), String> {
     catalog.load_definitions(include_str!("../menus/frontend.json"))?;
+    catalog.load_definitions(include_str!("../menus/characters.json"))?;
     catalog.load_definitions(include_str!("../menus/connection_error.json"))?;
     catalog.load_definitions(include_str!("../menus/classes.json"))?;
     catalog.load_definitions(include_str!("../menus/settings.json"))?;

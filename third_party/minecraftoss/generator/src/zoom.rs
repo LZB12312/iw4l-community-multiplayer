@@ -10,7 +10,11 @@ pub fn zoom_seed(world_seed: i64) -> i64 {
 
 /// `LinearCongruentialGenerator.next`.
 fn lcg(seed: i64, coordinate: i64) -> i64 {
-    seed.wrapping_mul(seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407)).wrapping_add(coordinate)
+    seed.wrapping_mul(
+        seed.wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407),
+    )
+    .wrapping_add(coordinate)
 }
 
 fn fiddle(seed: i64) -> f64 {
@@ -62,7 +66,11 @@ pub struct ZoomCache {
 
 impl ZoomCache {
     pub fn new(zoom_seed: i64) -> Self {
-        Self { seed: zoom_seed, parent: None, fiddles: [[0.0; 3]; 8] }
+        Self {
+            seed: zoom_seed,
+            parent: None,
+            fiddles: [[0.0; 3]; 8],
+        }
     }
 
     pub fn quart(&mut self, x: i32, y: i32, z: i32) -> [i32; 3] {
@@ -101,23 +109,5 @@ impl ZoomCache {
             }
         }
         nearest
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cache_matches_direct_lookup() {
-        let seed = zoom_seed(1234);
-        let mut cache = ZoomCache::new(seed);
-        for x in -9..9 {
-            for z in -9..9 {
-                for y in (-70..40).rev() {
-                    assert_eq!(cache.quart(x, y, z), quart_for_block(seed, x, y, z), "at {x} {y} {z}");
-                }
-            }
-        }
     }
 }

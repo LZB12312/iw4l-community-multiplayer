@@ -1,6 +1,3 @@
-//! Concrete SkaterAnim::GetPhysUpdateData, TU3 82B985E8.
-//! This owns only fields written by that function, not the full AnimOutPhysIn
-//! reset, motion-graph merge, attribute dispatch, or physical force consumers.
 use super::NativeMatrix;
 use crate::animation::commands::{
     batch::CompletedSetData,
@@ -59,12 +56,6 @@ pub struct PhysicsPosePacket {
     pub air_dismount_revert_frames: i32,
 }
 
-/// Publish after the source worker completes. Before modifying state, this safe
-/// adapter rejects invalid/uninitialized ranges; native assumes valid storage.
-/// `signal_name` is the current string selected by native global830301E4 (the
-/// inspected TU3 image selects "signup"). Supply it from verified startup data.
-/// Concrete getters 82B970D8/82B97100/82B97128 are pure field reads here;
-/// polymorphic replacement getters are outside this concrete SkaterAnim port.
 pub fn publish(
     state: &mut SkaterPublicationState,
     completed: &CompletedSetData,
@@ -94,8 +85,12 @@ pub fn publish_evaluated(
     timestep: f64,
     signal_name: &[u8],
 ) -> Result<i32, BufferError> {
-    let count=packet.bone_count as usize;
-    if hierarchy.len()<count || local.len()<count || packet.hierarchy.len()<count || packet.local.len()<count {
+    let count = packet.bone_count as usize;
+    if hierarchy.len() < count
+        || local.len() < count
+        || packet.hierarchy.len() < count
+        || packet.local.len() < count
+    {
         return Err(BufferError::RangeOutsideAllocation);
     }
 
@@ -132,8 +127,6 @@ fn replace_flag(flags: &mut u32, bit: u32, value: bool) {
     *flags = (*flags & !(1 << bit)) | (u32::from(value) << bit);
 }
 
-/// 8296EA10: NUL-terminated, signed-byte name hashing. This deliberately does
-/// not substitute a library hash or unsigned-byte variant.
 pub fn signal_hash(name: &[u8]) -> u32 {
     let mut hash = 0_u32;
     for &byte in name.iter().take_while(|&&byte| byte != 0) {

@@ -1,5 +1,3 @@
-//! Original PostInput82DB5588 with the live ballistic trajectory selector.
-//! The authored world has no grind edges or grab-spline descriptors.
 use super::*;
 use skate_core::player::post_input::*;
 
@@ -18,7 +16,6 @@ pub(crate) struct PostInputState {
 impl PostInputState {
     pub fn new() -> Self {
         Self {
-            //Original Player ctor82DB1AAC=1000,1ACC=0,3028 clears1264.
             jump_reference: [0; 4],
             jump_fix_frames: 1000,
             latch_frames: 0,
@@ -32,8 +29,6 @@ impl PostInputState {
         }
     }
 }
-///Scorer/decision state that still advances in the genuine no-candidate path
-///82D8AB08 ->82D86808/82D86C88/82D86DE8/82D89F58/82D739D8.
 pub(crate) struct EmptyEdgePost {
     free_frames: u32,
     duration: u32,
@@ -60,7 +55,6 @@ impl EmptyEdgePost {
         }
     }
     fn advance(&mut self, p: &mut skate_core::player::input_phase::ProcessedPhysicsInput) {
-        //No candidate means82D8ACF0 skips wallassist,82D86318 skips geometry.
         self.expiry = (self.expiry - p.timestep_2604).max(0.0);
         self.free_frames = self.free_frames.wrapping_add(1);
         if self.free_frames > 20 {
@@ -121,8 +115,6 @@ impl PostInputServices for Services<'_> {
         }
     }
     fn update_trajectory_selector_82d68800(&mut self) -> u8 {
-        //82DB56B0 runs the real selector after GrindManager. That manager
-        //can change2476, so use its current output rather than a prior snapshot.
         let mut input = self.trajectory_input;
         input.flags_2476 = self.processed.flags_2476;
         let grind_context = super::super::air_trajectory::GrindContext::from_processed(
@@ -166,7 +158,6 @@ pub(super) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
         .deck[3];
     let post = &mut skater.player_state.post;
     let p = &mut skater.player_input.processed;
-    //82DB573C ->82D740F8 consumes the one live owner's completed results.
     let publication = skater.offboard_grab.publish();
     let mut candidates = CandidatePublicationFields {
         first_object_present_196: publication.records[0].is_some(),
@@ -203,7 +194,6 @@ pub(super) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
             .ground_output
             .as_ref()
             .is_some_and(|g| g.ground_32.wall_ride_exit),
-        //82DB5588 consumes the preceding state's actual jump publication.
         capture_jump_reference_442: skater.player_input.physical.air.launched_442 != 0,
         jump_reference_128: skater.player_input.physical.air.launch_velocity_128,
         complete_76: post.complete,

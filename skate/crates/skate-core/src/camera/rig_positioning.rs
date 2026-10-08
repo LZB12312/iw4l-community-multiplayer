@@ -1,5 +1,3 @@
-//! TU3 rig-to-positioner operation82E037F0. Authored settings and the subject
-//! adapter are inputs; the world provider retains the positioner's six-line ABI.
 use super::{
     AngularRigTracking, Positioner, PositionerCollisionProvider, PositionerConfig, RigFraming,
 };
@@ -132,7 +130,6 @@ impl RigPositioning {
         }
     }
 
-    /// Complete82E03150, including the optional avoidance-angle blend.
     pub fn set_elevation(
         &mut self,
         elevation: f32,
@@ -155,7 +152,6 @@ impl RigPositioning {
         angular.elevation_target = super::rig_tracking::wrap_vmx(angular.elevation_target);
     }
 }
-/// Complete82DF3410: wrap delta, fused interpolation, then wrap result.
 fn blend_angle(current: f32, target: f32, weight: f32) -> f32 {
     super::rig_tracking::wrap_vmx(
         weight.mul_add(super::rig_tracking::wrap_vmx(target - current), current),

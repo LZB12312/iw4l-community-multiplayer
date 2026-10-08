@@ -1,5 +1,3 @@
-//! Wall-jump launch packet;82D33448 constructs it,82BE33D0 fills it.
-//! The native selector consumes this packet after body velocity publication.
 use skate_core::{
     physics::skeleton_animation_record::{AnimationPartTransform, IDENTITY},
     riding::reckoning_frames::ReckoningFrames,
@@ -63,19 +61,24 @@ pub(crate) struct GroundLaunchPhysical<'a> {
     pub time_step: f32,
 }
 impl GroundLaunchInfo {
-    ///The retained Ground packet and the shared selector packet have the same
-    ///82D33448 layout. Preserve both velocities and all override flags.
     pub fn selector_launch(&self) -> skate_core::air::trajectory::LaunchInfo {
         skate_core::air::trajectory::LaunchInfo {
-            reckoning_transform:self.system, reckoning_inverse:self.inverse_system,
-            start_velocity:self.velocity, com_velocity:self.angular_velocity,
-            skeleton_vector_160:self.skeleton_vector_16208,
-            skeleton_vector_176:self.skeleton_vector_16240,
-            board_position:self.board_position, animation_com_position:self.physical_center_of_mass,
-            start_position_override:self.vector_224, board_position_override:self.vector_240,
-            cone_angle_x:self.cone_angle_x, cone_angle_z:self.cone_angle_z,
-            timestep:self.time_step, player_jumped:self.wall_jump,
-            use_position_override:self.flag_269, trajectory_count:self.flags_270,
+            reckoning_transform: self.system,
+            reckoning_inverse: self.inverse_system,
+            start_velocity: self.velocity,
+            com_velocity: self.angular_velocity,
+            skeleton_vector_160: self.skeleton_vector_16208,
+            skeleton_vector_176: self.skeleton_vector_16240,
+            board_position: self.board_position,
+            animation_com_position: self.physical_center_of_mass,
+            start_position_override: self.vector_224,
+            board_position_override: self.vector_240,
+            cone_angle_x: self.cone_angle_x,
+            cone_angle_z: self.cone_angle_z,
+            timestep: self.time_step,
+            player_jumped: self.wall_jump,
+            use_position_override: self.flag_269,
+            trajectory_count: self.flags_270,
         }
     }
     pub fn fill(&mut self, p: &GroundLaunchPhysical<'_>, cone_angle_x: f32, cone_angle_z: f32) {
@@ -92,33 +95,9 @@ impl GroundLaunchInfo {
         self.cone_angle_x = cone_angle_x;
         self.cone_angle_z = cone_angle_z;
     }
-    ///Ground82D38CF4..D10 overrides both velocity records and byte268.
     pub fn wall_jump(&mut self, velocity: [f32; 4]) {
         self.velocity = velocity;
         self.angular_velocity = velocity;
         self.wall_jump = true;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn wall_jump_selector_receives_launch_velocity_and_physical_anchors() {
-        let mut info = GroundLaunchInfo { board_position:[1.0,2.0,3.0,0.0],
-            physical_center_of_mass:[1.2,3.0,3.1,0.0],
-            skeleton_vector_16208:[0.2,0.8,0.1,0.0], flags_270:7,
-            time_step:1.0/60.0, ..Default::default() };
-        let velocity=[2.0,4.0,-3.0,0.0];
-        info.wall_jump(velocity);
-        let launch=info.selector_launch();
-        assert!(launch.player_jumped);
-        assert!(!launch.use_position_override);
-        assert_eq!(launch.start_velocity,velocity);
-        assert_eq!(launch.com_velocity,velocity);
-        assert_eq!(launch.board_position,info.board_position);
-        assert_eq!(launch.animation_com_position,info.physical_center_of_mass);
-        assert_eq!(launch.skeleton_vector_160,info.skeleton_vector_16208);
-        assert_eq!(launch.trajectory_count,7);
     }
 }

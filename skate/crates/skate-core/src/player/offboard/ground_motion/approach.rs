@@ -1,9 +1,7 @@
-//!82D7F458..FDD0 animation-directed movement and ground/obstacle approach.
 use super::math::*;
 use super::{Frame, GroundMotionInput, GroundMotionState, Vector};
 use crate::trigonometry;
 
-///82D80EB0. No state change when the job has no target frame.
 fn refresh_target(s: &mut GroundMotionState, i: &GroundMotionInput) {
     if i.target_frame_present_352 {
         s.target_frame_608 = i.target_frame_368;

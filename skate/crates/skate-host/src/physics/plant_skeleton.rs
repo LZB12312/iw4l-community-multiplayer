@@ -1,4 +1,3 @@
-//! Skeleton82BDEC48 (anchored foot) and82BDF090 (plant COM).
 use super::{GamePhysics, SkaterRuntime, input_phase, skeleton_input_runtime::SkeletonOwners};
 use skate_core::{
     math::Vector3,

@@ -1,4 +1,3 @@
-//! Original82D6FD60 ->82D6F5F0 ->82D6F910, invoked by82D36728.
 use super::{Footplant, V, math::*};
 use crate::physics::{
     air_trajectory::AirTrajectoryRuntime, animated_skeleton::AnimatedSkeleton, foot_ik::FootIk,
@@ -78,7 +77,6 @@ impl Footplant {
         let from = scale(self.current_up, -1.0);
         let angle = f32::from_bits(0x420c0000) * f32::from_bits(0x3c8efa35);
         let direction = normalize(limit(candidate, from, angle));
-        //82D6F7A8's second pure limiter result is discarded; v125 retains direction.
         let _ = limit(sub(self.adjusted_contact, self.physical_com), from, angle);
         self.launch_direction = normalize(direction);
         self.launch_valid = true;
@@ -89,7 +87,6 @@ impl Footplant {
                 self.physical_com,
             ),
             velocity: input.trajectory.velocity,
-            //830BD330 initializer82F826B0 uses822F8B40, independently read original bytes.
             acceleration: [0.0, f32::from_bits(0xc11ccccd), 0.0, 0.0],
             duration: -1.0,
         };
@@ -136,8 +133,10 @@ impl Footplant {
         }
         self.current_up = frame.processed.vectors_544_560_592_608[0].map(f32::from_bits);
         let submitted = Trajectory {
-            position: self.request.position, velocity: self.request.velocity,
-            acceleration: frame.gravity, duration: 1.0,
+            position: self.request.position,
+            velocity: self.request.velocity,
+            acceleration: frame.gravity,
+            duration: 1.0,
         };
         let next = AirTrajectoryRuntime::query(
             frame.world,
@@ -156,32 +155,64 @@ impl Footplant {
     fn clear_contact(&mut self) {
         self.surface = 0;
         self.hit = false;
-        self.contact_time = 0.0; //82D6FA80/82D6FAC4, distinct from Reset's -1.
+        self.contact_time = 0.0;
         self.contact = [0.0; 4];
     }
 
-    ///82D6FBB0: query the real edge geometry within the native two-metre box.
     fn nearby_edge(&mut self, frame: &FootplantFrame<'_>) {
-        use skate_core::{math::Vector3, player::offboard::{air_selector::ledge::filter_edges as visible_edges, ground_query::Edge}};
+        use skate_core::{
+            math::Vector3,
+            player::offboard::{
+                air_selector::ledge::filter_edges as visible_edges, ground_query::Edge,
+            },
+        };
         let xyz = |v: V| Vector3::new(v[0], v[1], v[2]);
         let lanes = |v: Vector3| [v.x, v.y, v.z, 0.0];
-        let edges: Vec<_> = frame.edges.iter().filter(|e| (0..3).all(|i|
-            e.start[i].min(e.end[i]) <= self.contact[i] + 2.0 && e.start[i].max(e.end[i]) >= self.contact[i] - 2.0
-        )).map(|e| Edge { start: xyz(e.start), end: xyz(e.end) }).collect();
+        let edges: Vec<_> = frame
+            .edges
+            .iter()
+            .filter(|e| {
+                (0..3).all(|i| {
+                    e.start[i].min(e.end[i]) <= self.contact[i] + 2.0
+                        && e.start[i].max(e.end[i]) >= self.contact[i] - 2.0
+                })
+            })
+            .map(|e| Edge {
+                start: xyz(e.start),
+                end: xyz(e.end),
+            })
+            .collect();
         let original_height = self.contact[1];
-        let mut best = 0.25; //820C6D98
+        let mut best = 0.25;
         for edge in visible_edges(&edges, frame.toolkit.deck[3]) {
             let start = lanes(edge.start);
             let delta = sub(lanes(edge.end), start);
-            let raw_normal = cross(cross(delta, [0.0,1.0,0.0,0.0]), delta);
-            let normal = if length(raw_normal) > f32::from_bits(0x3586_37bd) { normalize(raw_normal) } else { [0.0,1.0,0.0,0.0] };
-            let Some(time) = skate_core::air::trajectory::grind::descending_plane_time(self.completed_trajectory, start, normal) else { continue; };
+            let raw_normal = cross(cross(delta, [0.0, 1.0, 0.0, 0.0]), delta);
+            let normal = if length(raw_normal) > f32::from_bits(0x3586_37bd) {
+                normalize(raw_normal)
+            } else {
+                [0.0, 1.0, 0.0, 0.0]
+            };
+            let Some(time) = skate_core::air::trajectory::grind::descending_plane_time(
+                self.completed_trajectory,
+                start,
+                normal,
+            ) else {
+                continue;
+            };
             let arc = self.completed_trajectory.position_at(time);
             let edge_length = length(delta);
-            let direction = if edge_length > f32::from_bits(0x3780_0000) { scale(delta, reciprocal(edge_length)) } else { delta };
-            let point = madd(direction, dot(direction, sub(arc, start)).min(edge_length).max(0.0), start);
+            let direction = if edge_length > f32::from_bits(0x3780_0000) {
+                scale(delta, reciprocal(edge_length))
+            } else {
+                delta
+            };
+            let point = madd(
+                direction,
+                dot(direction, sub(arc, start)).min(edge_length).max(0.0),
+                start,
+            );
             let distance = length(sub(arc, point));
-            //Globals3644 at822F943C permits at most 3cm below the triangle hit.
             if distance < best && point[1] - original_height > f32::from_bits(0xbcf5_c28f) {
                 self.contact_time = time;
                 self.current_up = normal;

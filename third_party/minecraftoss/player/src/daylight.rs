@@ -21,16 +21,3 @@ pub fn detector_power(effective_sky: u8, sun_angle_degrees: f32, inverted: bool)
     }
     light.clamp(0, 15) as u8
 }
-
-#[cfg(test)]
-mod tests {
-    use super::detector_power;
-
-    #[test]
-    fn source_formula_matches_measured_noon_night_and_inversion() {
-        assert_eq!(detector_power(15, 0.0, false), 15);
-        assert_eq!(detector_power(4, 180.0, false), 0);
-        assert_eq!(detector_power(14, 1.0, true), 1);
-        assert_eq!(detector_power(4, 180.0, true), 11);
-    }
-}

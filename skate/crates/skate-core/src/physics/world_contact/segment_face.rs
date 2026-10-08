@@ -7,8 +7,6 @@ fn store(output: &mut FeaturePrism, offset: usize, point: V) {
     output[offset..offset + 4].copy_from_slice(&point.map(f32::to_bits));
 }
 
-/// Complete TU3 82ACC5F0 segment/face prism and its interval/edge-clamp callees.
-/// Keeps the normal correction flag, feature tags and both output-pointer orders.
 pub fn intersect_segment_face(
     output: &mut FeaturePrism,
     face: &mut MaximumFeature,

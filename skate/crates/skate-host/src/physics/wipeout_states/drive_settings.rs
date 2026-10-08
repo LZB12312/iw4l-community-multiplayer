@@ -1,4 +1,3 @@
-//! Native82BE7860's per-part records and82BEB0C8/82BEB790 settings.
 use skate_core::player::wipeout_state::drives::Settings;
 use skate_data::{collections::Collections, physics_skeleton::PhysicsSkeleton};
 use std::path::Path;

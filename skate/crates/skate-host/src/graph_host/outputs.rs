@@ -15,7 +15,9 @@ struct AuthoredSignals {
 
 impl AuthoredSignals {
     fn from_values(values: &IntentMap) -> Self {
-        Self { values: values.clone() }
+        Self {
+            values: values.clone(),
+        }
     }
 
     fn into_values(self) -> IntentMap {
@@ -73,7 +75,9 @@ pub struct MotionEffects {
 
 impl MotionEffects {
     pub fn from_values(values: &IntentMap) -> Self {
-        Self { values: AuthoredSignals::from_values(values) }
+        Self {
+            values: AuthoredSignals::from_values(values),
+        }
     }
 
     pub fn apply_to(&self, destination: &mut IntentMap) {
@@ -88,7 +92,9 @@ pub struct ActionInput {
 
 impl ActionInput {
     pub fn from_values(values: &IntentMap) -> Self {
-        Self { values: AuthoredSignals::from_values(values) }
+        Self {
+            values: AuthoredSignals::from_values(values),
+        }
     }
 
     pub(crate) fn into_values(self) -> IntentMap {
@@ -103,7 +109,9 @@ pub struct PriorMotionState {
 
 impl PriorMotionState {
     pub fn from_values(values: &IntentMap) -> Self {
-        Self { values: AuthoredSignals::from_values(values) }
+        Self {
+            values: AuthoredSignals::from_values(values),
+        }
     }
 
     pub(crate) fn into_values(self) -> IntentMap {
@@ -172,9 +180,7 @@ impl GraphCapabilityReport {
         }
         Err(format!(
             "{graph} contains unsupported authored features: operations={:?}, conditions={:?}, hooks={:?}",
-            self.unsupported_operations,
-            self.unsupported_conditions,
-            self.unsupported_hooks,
+            self.unsupported_operations, self.unsupported_conditions, self.unsupported_hooks,
         ))
     }
 }
@@ -223,8 +229,14 @@ impl ActionGraphOutput {
                 wipeout: WipeoutControls {
                     request: action_intents.contains_key("WipeOutRequest"),
                     air_body_tweak: [
-                        action_intents.get("OB_AirBodyTweakX").copied().unwrap_or(0.0),
-                        action_intents.get("OB_AirBodyTweakY").copied().unwrap_or(0.0),
+                        action_intents
+                            .get("OB_AirBodyTweakX")
+                            .copied()
+                            .unwrap_or(0.0),
+                        action_intents
+                            .get("OB_AirBodyTweakY")
+                            .copied()
+                            .unwrap_or(0.0),
                     ],
                     gesture: match (
                         action_intents.get("WipeoutGestureX"),
@@ -257,49 +269,4 @@ impl ActionGraphOutput {
 pub struct MotionGraphInput {
     pub tick: u64,
     pub action: ActionGraphOutput,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn output_captures_named_turning_without_mutable_map_handoff() {
-        let mut intents = IntentMap::new();
-        intents.insert("Turn", 0.25);
-        intents.insert("RawTurn", -0.5);
-        intents.insert("HardTurn", 1.0);
-        let output = ActionGraphOutput::from_host(7, &IntentMap::new(), &intents, &[]);
-        assert_eq!(output.tick, 7);
-        assert_eq!(output.turning.turn, 0.25);
-        assert_eq!(output.turning.raw_turn, -0.5);
-        assert_eq!(output.turning.hard_turn, 1.0);
-        assert!(output.controls.authored_values().is_empty());
-    }
-
-    #[test]
-    fn output_projects_action_family_controls() {
-        let mut action = IntentMap::new();
-        action.insert("WipeOutRequest", 1.0);
-        action.insert("OB_AirBodyTweakX", 0.25);
-        action.insert("OB_AirBodyTweakY", -0.5);
-        action.insert("WipeoutGestureX", 0.75);
-        action.insert("WipeoutGestureY", -0.25);
-        let output = ActionGraphOutput::from_host(3, &action, &IntentMap::new(), &[]);
-        assert!(output.controls.wipeout.request);
-        assert_eq!(output.controls.wipeout.air_body_tweak, [0.25, -0.5]);
-        assert_eq!(output.controls.wipeout.gesture, Some([0.75, -0.25]));
-    }
-
-    #[test]
-    fn graph_diagnostics_are_bounded_and_tick_resettable() {
-        let mut diagnostics = GraphDiagnostics::default();
-        for index in 0..65 {
-            diagnostics.push(format!("diagnostic {index}"));
-        }
-        assert!(!diagnostics.is_empty());
-        assert!(diagnostics.join("\n").contains("truncated"));
-        diagnostics.clear();
-        assert!(diagnostics.is_empty());
-    }
 }

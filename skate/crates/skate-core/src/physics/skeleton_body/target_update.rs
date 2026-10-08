@@ -1,5 +1,3 @@
-//! Original Skeleton::UpdateHookPositions82BE1618 and extra followers82BE18B8.
-//! Their target changes precede the returned teleport/large-displacement gate.
 use super::{SkeletonBody, SkeletonTargets};
 use crate::{
     math::Vector3,
@@ -45,8 +43,6 @@ pub struct SkeletonTargetUpdate {
 }
 
 impl SkeletonTargets {
-    ///82BE1618 updates only the two hook targets and returns the board-space
-    /// transform consumed by the skeleton input owner.
     pub fn update_hook_positions(&mut self, input: &SkeletonTargetInput<'_>) -> Transform {
         let hips = compose_affine(input.animation_to_world, input.animation_hips);
         let board = compose_affine(input.animation_to_world, input.animation_board);
@@ -67,8 +63,6 @@ impl SkeletonTargets {
         let change = std::array::from_fn(|i| previous[i] - hips[i]);
         let positions =
             self.update_extra_targets(skeleton, input.com_frame, input.lifted_com_frame);
-        //82BE18A0 checks strictly greater; unordered distance alone does not
-        //force this returnfalse. Preserve the independent teleport byte test.
         let continuous = !input.teleporting && !(dot3(change, change) > 1.0);
         SkeletonTargetUpdate {
             animation_board_to_physics,
@@ -77,8 +71,6 @@ impl SkeletonTargets {
         }
     }
 
-    ///Complete82BE18B8, also called by Reset82BD9990 after constructing its
-    ///COM frames. Replaces only physical extra-body velocities, never forces.
     pub fn update_extra_targets(
         &mut self,
         skeleton: &mut SkeletonBody,

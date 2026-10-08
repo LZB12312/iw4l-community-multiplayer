@@ -7,16 +7,23 @@
 # (the checkout's tools/requirements-setup.txt) and rustc.
 param(
     [Parameter(Mandatory)] [string] $SkateEngine,
-    [Parameter(Mandatory)] [string] $Out
+    [Parameter(Mandatory)] [string] $Out,
+    [Parameter(Mandatory)] [string] $AudioDecoder
 )
 $ErrorActionPreference = 'Stop'
 $SkateEngine = (Resolve-Path $SkateEngine).Path
+$AudioDecoder = (Resolve-Path $AudioDecoder).Path
+if (!(Test-Path -LiteralPath (Join-Path $AudioDecoder 'vgmstream-cli.exe'))) { throw 'AudioDecoder needs the vgmstream r2117 x64 decoder and its DLLs.' }
 $revision = (& git -C $SkateEngine rev-parse --short HEAD).Trim()
 if ($revision -ne 'cb79689') { Write-Warning "skate engine checkout is at $revision, skate/crates came from cb79689" }
 
-$work = Join-Path ([IO.Path]::GetTempPath()) "iw4l-skate-convert-build"
-Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
+$work = Join-Path ([IO.Path]::GetTempPath()) ('iw4l-skate-convert-build-' + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force "$work/tools" | Out-Null
+New-Item -ItemType Directory -Force "$work/audio-decoder" | Out-Null
+foreach ($source in Get-ChildItem -LiteralPath $AudioDecoder -File) {
+    if ($source.Extension -in '.exe','.dll','.md' -or $source.Name -eq 'COPYING') { Copy-Item -LiteralPath $source.FullName -Destination "$work/audio-decoder" }
+}
+if (Test-Path -LiteralPath (Join-Path $AudioDecoder 'licenses')) { Copy-Item -LiteralPath (Join-Path $AudioDecoder 'licenses') -Destination "$work/audio-decoder/licenses" -Recurse }
 
 & rustc --edition 2024 --crate-type cdylib -C opt-level=3 -C panic=abort -C target-feature=+crt-static `
     "$SkateEngine/tools/asset_pipeline/refpack_native.rs" -o "$work/refpack.dll"
@@ -37,9 +44,14 @@ foreach ($source in Get-ChildItem -LiteralPath $tools -File -Recurse) {
 
 & python -m PyInstaller --noconfirm --clean --onefile --console --name iw4l-skate-convert `
     --paths $SkateEngine `
-    --hidden-import numpy --hidden-import PIL.Image `
+    --hidden-import numpy --hidden-import PIL.Image --hidden-import wave `
     --add-binary "$work/refpack.dll;tools/asset_pipeline" `
     --add-data "$work/tools;tools" `
+    --add-data "$(Join-Path $PSScriptRoot '../../scripts/prepare-characters.py');." `
+    --add-data "$(Join-Path $PSScriptRoot '../../scripts/prepare-creator-assets.py');." `
+    --add-data "$(Join-Path $PSScriptRoot '../../scripts/prepare-hall-of-meat.py');." `
+    --add-data "$(Join-Path $PSScriptRoot '../../scripts/prepare-skate-audio.py');." `
+    --add-data "$work/audio-decoder;audio-decoder" `
     --exclude-module bpy --exclude-module mathutils --exclude-module tkinter `
     --copy-metadata numpy --copy-metadata Pillow `
     --distpath $Out --workpath "$work/build" --specpath "$work" `

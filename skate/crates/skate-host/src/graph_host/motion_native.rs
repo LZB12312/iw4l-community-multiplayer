@@ -4,12 +4,9 @@ use skate_data::state_graph::attributes::Attributes;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Physical {
-    /// PhysOutSystemReckoning16 and96, original StoreLandingData82BAFFF0.
     pub centre_of_mass_velocity: [f32; 4],
     pub system_up: [f32; 4],
-    /// PhysOutGround32 (Reckoning752 Z), original slide helper82595930.
     pub board_reckoning_z: [f32; 4],
-    /// Complete PhysOutGround0/16/32/48 from Reckoning752, for82BB31B0.
     pub board_reckoning: [[f32; 4]; 4],
 }
 
@@ -35,7 +32,6 @@ impl Operation {
             "StoreLandingData" => Self::StoreLandingData,
             "EndShimmy" => Self::EndShimmy(f32::from_bits(a.float_bits("blendtime", 0x3e4ccccd))),
             "SetScoreAugmentation" => {
-                //82BBFB28's source enum; absent mirrorAugment inherits augment.
                 let decode = |name: &str| {
                     [
                         "FSPowerslide",
@@ -56,9 +52,6 @@ impl Operation {
                 };
                 let regular = decode(a.text("augment").unwrap_or(""))?;
                 let mirrored = match a.text("mirrorAugment") {
-                    //Original82BBFE98 writes the regular slot for this name,
-                    //leaving the mirror slot uninitialized. No authored stock
-                    //riding node uses it; do not invent a deterministic value.
                     Some("Switching") => {
                         return Err(
                             "Native mirrorAugment=Switching has no initialized mirrored value"
@@ -75,13 +68,16 @@ impl Operation {
     }
 }
 
-/// Meaningful graph outputs are retained even though a scoring UI is outside
-/// this game.82595D08 sets a name and ORs a bit in the graph's score packet.
 #[derive(Default)]
 pub struct ScorePacket {
-    pub handplant: Option<(skate_core::animation::output::attributes::AttributeName, [f32; 2])>,
-    /// ScoringGrabs 82BBEF60: selected authored name and tweak vector.
-    pub grab: Option<(skate_core::animation::output::attributes::AttributeName, [f32; 2])>,
+    pub handplant: Option<(
+        skate_core::animation::output::attributes::AttributeName,
+        [f32; 2],
+    )>,
+    pub grab: Option<(
+        skate_core::animation::output::attributes::AttributeName,
+        [f32; 2],
+    )>,
     pub trick_names: super::motion_scoring_trick::Names,
     pub name: Option<u32>,
     pub flags: u32,
@@ -108,7 +104,6 @@ impl ScorePacket {
     }
 }
 
-///CreateInstance82BBAA98 seeds velocity0 and prior-air false.
 #[derive(Default)]
 pub struct LandingData {
     previous_velocity: f32,
@@ -132,7 +127,6 @@ impl LandingData {
     }
 }
 pub fn end_shimmy(animation: &mut MotionAnimation, seconds: f32) {
-    //82BBCC58; virtual40 uses EndChannelWithTime, not instantaneous removal.
     for name in [
         "SKCH_2H_SHIMMY_LEFT_CHANNEL",
         "SKCH_2H_SHIMMY_RIGHT_CHANNEL",

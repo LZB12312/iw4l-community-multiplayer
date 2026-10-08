@@ -1,4 +1,3 @@
-//! Ordered UpdateSkateboard82D3A900: steering, manual, wall launch or Slide forces.
 use super::*;
 use crate::physics::ground_runtime::GroundInputObservations;
 use skate_core::{
@@ -15,8 +14,6 @@ use skate_core::{
     },
 };
 pub(super) fn board(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
-    // The preceding Skeleton call captured the actual unblended board target.
-    // Re-capture at Slide's own82D3A924 call; no tick elapses between these writes.
     let target = skater.animated_skeleton.board_frames.animation_target;
     skater
         .skeleton_air
@@ -125,7 +122,6 @@ pub(super) fn board(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Re
         skater
             .trajectory
             .update(input, &physics.world, grind_context)?;
-        //82D3AB10 branches directly to the epilogue. No ordinary force tail.
         return Ok(());
     }
     let slide = SlideInput {
@@ -153,7 +149,6 @@ pub(super) fn board(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Re
         .apply_angular_displacement(&mut physics.board, manual);
     let f = &input.ground_force;
     let balance = f.balance_2720;
-    //82D3AEC0..AF10 preserves the strict scalar branches and fsel signs.
     let front_factor = if balance > 0.0 {
         0.0
     } else {

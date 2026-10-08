@@ -16,9 +16,11 @@ use skate_data::state_graph::{
 pub enum MotionOperation {
     Grind(super::motion_grind::Operation),
     Trick(super::motion_tricks::Operation),
-    SetDeckPitchAndYaw { yaw: AttributeName, pitch: AttributeName },
+    SetDeckPitchAndYaw {
+        yaw: AttributeName,
+        pitch: AttributeName,
+    },
     Play(PlayAnimation),
-    ///TU3 vtable82309664: Begin/Update/End all point to the empty82B61BB8.
     PrintText2D,
     ToggleBoard,
     Runout(super::motion_runout::Operation),
@@ -46,7 +48,10 @@ pub enum MotionOperation {
     AirLeg(super::motion_air_leg::Operation),
     ClearTrickAttr,
     ScoringTrick(super::motion_scoring_trick::Operation),
-    SetBumpCoefficients { x: AttributeName, y: AttributeName },
+    SetBumpCoefficients {
+        x: AttributeName,
+        y: AttributeName,
+    },
     Landing(super::motion_landing::Operation),
     Wipeout(super::motion_wipeout::Operation),
     TwistLean(super::motion_twist_lean::Operation),
@@ -116,13 +121,15 @@ impl OperationFactory for MotionFactory {
             } else {
                 match name {
                     "SetDeckPitchAndYaw" => Some(MotionOperation::SetDeckPitchAndYaw {
-                        // Native constructor82BC7B20 retains authored FastStrings.
                         yaw: encode(a.text("skateyaw").unwrap_or("skateyaw").as_bytes()),
                         pitch: encode(a.text("skatepitch").unwrap_or("skatepitch").as_bytes()),
                     }),
-                    "ResetSkaterAnimation" | "ResetToGivenStance" => Some(MotionOperation::ResetAnimation(
-                        super::motion_reset::Operation::parse(a).ok_or("Invalid reset operation")?,
-                    )),
+                    "ResetSkaterAnimation" | "ResetToGivenStance" => {
+                        Some(MotionOperation::ResetAnimation(
+                            super::motion_reset::Operation::parse(a)
+                                .ok_or("Invalid reset operation")?,
+                        ))
+                    }
                     "MatchTwistAndLean" => Some(MotionOperation::TwistLean(
                         super::motion_twist_lean::Operation::parse(a),
                     )),
@@ -136,8 +143,9 @@ impl OperationFactory for MotionFactory {
                         super::motion_intent_filter::Operation::parse(a),
                     )),
                     "ToggleBoard" => Some(MotionOperation::ToggleBoard),
-                    "AddRunoutAttribs" => super::motion_runout::Operation::parse(a)
-                        .map(MotionOperation::Runout),
+                    "AddRunoutAttribs" => {
+                        super::motion_runout::Operation::parse(a).map(MotionOperation::Runout)
+                    }
                     "PlayAnimation" => Some(MotionOperation::Play(play(a))),
                     "PrintText2D" => Some(MotionOperation::PrintText2D),
                     "ApplyingBodyTilt" => Some(MotionOperation::ApplyingBodyTilt),
@@ -197,19 +205,16 @@ impl OperationFactory for MotionFactory {
                             ),
                         },
                     )),
-                    name if super::motion_stock_gameplay::Operation::recognizes(name) => Some(
-                        MotionOperation::StockGameplay(
+                    name if super::motion_stock_gameplay::Operation::recognizes(name) => {
+                        Some(MotionOperation::StockGameplay(
                             super::motion_stock_gameplay::Operation::parse(a),
-                        ),
-                    ),
-                    // Factory82BC6D40 defaults both identifiers to the string0.
+                        ))
+                    }
                     "AttachIntent" => Some(MotionOperation::AttachIntent {
                         intent: a.text("intent").unwrap_or("0").into(),
                         attribute: encode(a.text("attr").unwrap_or("0").as_bytes()),
                         set: a.boolean_byte("set", 0) != 0,
                     }),
-                    // Ctor82BB36D8; layout88 is holding and108 is speed, but
-                    // Update emits speed before holding.
                     "SetTurning" => Some(MotionOperation::SetTurning([
                         key(a, "angleName", "angle"),
                         key(a, "dirName", "dir"),
@@ -238,7 +243,6 @@ impl OperationFactory for MotionFactory {
         a: &Attributes<'_>,
     ) -> Result<(), String> {
         if let MotionOperation::Play(play) = instance {
-            //82BB56B8: all unrecognized from strings take filteredIntent.
             let source = match a.text("from").unwrap_or("") {
                 "intent" => ParameterSource::MotionIntent(a.text("intent").unwrap_or("").into()),
                 "lastAnim" => ParameterSource::LastAnimation(key(a, "attribute", "")),
@@ -283,7 +287,6 @@ pub(super) fn transition(a: &Attributes<'_>) -> TransitionSettings {
             "channelblend" => 3,
             _ => 2,
         },
-        // Source literal82099280, not a fitted visual blend duration.
         seconds: f32::from_bits(a.float_bits("time", 0x3e4c_cccd)),
         under: u32::from(a.boolean_byte("transitionUnder", 0) != 0),
         matching: if a.boolean_byte("blendWithCurrentFrame", 0) != 0 {

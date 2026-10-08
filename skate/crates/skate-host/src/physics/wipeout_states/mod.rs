@@ -26,7 +26,6 @@ pub(crate) struct WipeoutState {
 }
 impl WipeoutState {
     pub fn load(data: &Collections, assets: &Path, primary_bank_sha: &str) -> Result<Self, String> {
-        //Ctor82D3B1EC..B25C full64 handle hashes, verified against the stock keys.
         let names = [
             "free_fall",
             "cannon_ball",

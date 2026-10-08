@@ -54,7 +54,6 @@ impl Observations<'_> {
             world_to_animation: self.world_to_animation,
             closing_velocity: vector(b.closing_velocity),
             board_material_flags: b.collision_flags,
-            //82C08494/82C08640 publish the actual counts to868/869.
             board_contact: b.part_contact_count != 0,
             wheel_contact: b.wheel_contact_count != 0,
             board_contact_normal: vector(b.overall_normal),

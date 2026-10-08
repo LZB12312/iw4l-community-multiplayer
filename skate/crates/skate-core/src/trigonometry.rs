@@ -1,8 +1,3 @@
-//! Scalar lane of TU3 `XMVectorSinCos`, `0x82473A08`.
-//!
-//! Coefficients are the executable words at 0x822F97C0..0x822F9860.
-//! Arithmetic follows the recovered polynomial structure. Numerical agreement
-//! with the original game requires independent validation.
 pub fn sin_cos(angle: f32) -> (f32, f32) {
     let turns = (angle * f32::from_bits(0x3E22_F983)).round_ties_even();
     let x = (-f32::from_bits(0x40C9_0FDB)).mul_add(turns, angle);
@@ -55,9 +50,6 @@ pub fn sin_cos(angle: f32) -> (f32, f32) {
     (sin, cos)
 }
 
-/// Standalone TU3 cosine82473930. The even-power tree differs from SinCos;
-/// normal gameplay camera roll82BD35B8 calls this function independently.
-/// This is the retained readable polynomial also audited for SetTurning.
 pub fn cos(angle: f32) -> f32 {
     let turns = (angle * f32::from_bits(0x3e22_f983)).round_ties_even();
     let x = (-f32::from_bits(0x40c9_0fdb)).mul_add(turns, angle);
@@ -74,16 +66,22 @@ pub fn cos(angle: f32) -> f32 {
     let x20 = x10 * x10;
     let mut value = (-0.5_f32).mul_add(x2, 1.0);
     for (power, coefficient) in [
-        (x4, 0x3d2a_aaab), (x6, 0xbab6_0b61), (x8, 0x37d0_0d01),
-        (x10, 0xb493_f27e), (x12, 0x310f_76c8), (x14, 0xad49_cba5),
-        (x16, 0x2957_3f9f), (x18, 0xa534_13c3), (x20, 0x20f2_a15d),
+        (x4, 0x3d2a_aaab),
+        (x6, 0xbab6_0b61),
+        (x8, 0x37d0_0d01),
+        (x10, 0xb493_f27e),
+        (x12, 0x310f_76c8),
+        (x14, 0xad49_cba5),
+        (x16, 0x2957_3f9f),
+        (x18, 0xa534_13c3),
+        (x20, 0x20f2_a15d),
         (x22, 0x9c86_71cb),
-    ] { value = f32::from_bits(coefficient).mul_add(power, value); }
+    ] {
+        value = f32::from_bits(coefficient).mul_add(power, value);
+    }
     value
 }
 
-/// TU3 vector sine 824531C8. Its sequential odd powers differ from SinCos's
-/// multiplication tree, so callers of the standalone sine must use this path.
 pub fn sin(angle: f32) -> f32 {
     let turns = (angle * f32::from_bits(0x3E22_F983)).round_ties_even();
     let x = (-f32::from_bits(0x40C9_0FDB)).mul_add(turns, angle);
@@ -109,15 +107,10 @@ pub fn sin(angle: f32) -> f32 {
     result
 }
 
-/// Scalar lane of TU3 vector acos 82453298. The native radicand constant is
-/// 0x3f800001, and its reciprocal square root receives one refinement.
 pub fn acos(value: f32) -> f32 {
     (f32::from_bits(0x4049_0FDB) * 0.5) - asin(value)
 }
 
-/// Shared inverse-sine polynomial, also inlined by DisablePushBrake82BA5150.
-/// Keep this intermediate separate: that caller subtracts degrees from90,
-/// whereas vector acos subtracts radians from half pi.
 pub fn asin(value: f32) -> f32 {
     let a = value.abs();
     let cube = (value * value) * a;

@@ -1,4 +1,3 @@
-//! PostWipeoutCheck's feet82BF0680, hands82BF0C28 and external82BEDC10.
 use super::{
     drive::Geometry,
     physical_solve,

@@ -1,6 +1,3 @@
-//! The production Skeleton::ProcessData82BD8918 boundary. All borrows point
-//! at the same owners subsequently used by Ground, the solve and pose output.
-//! GeneralUpdate belongs to the later movement-state phase, not PlayerInput.
 #[path = "skeleton_input_general.rs"]
 mod general;
 #[path = "skeleton_input_teleport.rs"]
@@ -69,14 +66,9 @@ pub(crate) struct SkeletonInputRuntime {
     pub reenable_requested: bool,
     pub invalid_target_reset: bool,
     pub teleporting: bool,
-    ///Skeleton16420, changed by graph force-mode requests and reset82BE3508.
     pub force_mode: u32,
-    ///HeadTracking32..144 and160. Reset82BE3550..35A4 preserves its settings.
     pub head_tracking_history: [[f32; 4]; 8],
     pub head_tracking_active: bool,
-    ///GrindAirAdjust ctor82D7116C initializes activated289=false.
-    ///Only KnownAir Update82D35D30/Exit82D3597C subsequently write this flag.
-    ///288, ctor82D71160; activated289 is a separate retained flag.
     pub grind_air_started: bool,
     pub grind_air_active: bool,
     pub grind_air_adjusting: bool,
@@ -86,8 +78,6 @@ pub(crate) struct SkeletonInputRuntime {
 
 impl Default for SkeletonInputRuntime {
     fn default() -> Self {
-        //Original Skeleton ctor82BD78xx/79xx zeroes these vector histories;
-        //82BD7A78/84/8C clear16504/16506/16508. Frames are native identity.
         Self {
             deck_velocity: [0.; 4],
             root_velocity: [0.; 4],
@@ -134,8 +124,6 @@ impl SkeletonInputRuntime {
     ) -> Result<(), String> {
         let velocity = board.bodies()[BodyId::Deck.index()].rates.linear_velocity;
         self.deck_velocity = [velocity.x, velocity.y, velocity.z, 0.];
-        //82ADF7B8: wake sleeping state2, preserving bit3, and clear cooldown
-        //even for already active parts. Pool/list ownership is our engine's.
         for body in owners.body.bodies_mut() {
             if body.state_flags & 7 == 2 {
                 body.state_flags = (body.state_flags & 8) | 4;
@@ -166,8 +154,6 @@ impl SkeletonInputRuntime {
         let reparented_hands = owners.animated.reparented_hand_indices();
         super::offboard::pose_adjust::update(owners.animated, pose.globals, reparented_hands, p)?;
         if p.flags_2476 & 0x100 == 0 {
-            //82D712E0 clears result48/49 first and always writes adjusting290.
-            //Inactive Ground leaves retained total offset/angle untouched.
             self.grind_air_adjusting = false;
             if self.grind_air_active {
                 let settings = self

@@ -1,10 +1,6 @@
-//! BinaryAttributeMap keys (82B92B98) and lookup/insert semantics.
-//! This is the graph's 32-bit hash, not Attribulator's 64-bit field hash.
 use super::GraphAttribute;
 use std::collections::BTreeMap;
 
-/// Attribute/tag callers use zero for missing or empty strings. The underlying
-/// 82B92B98 byte hash has a different, nonzero result for a zero-length buffer.
 pub fn key_hash(text: &str) -> u32 {
     if text.is_empty() {
         0
@@ -13,7 +9,6 @@ pub fn key_hash(text: &str) -> u32 {
     }
 }
 
-/// Complete 82B92B98, including each tail length and wrapping 32-bit arithmetic.
 pub fn byte_hash(bytes: &[u8]) -> u32 {
     let mut a = 0x9e37_79b9_u32;
     let mut b = a;
@@ -49,9 +44,6 @@ fn mix(a: &mut u32, b: &mut u32, c: &mut u32) {
     *c = c.wrapping_sub(*a).wrapping_sub(*b) ^ (*b >> 15);
 }
 
-/// Native 82C19BB0 is unique insertion by the hashed key: the first record wins
-/// for duplicate keys, including collisions between differently spelled keys.
-/// Original record order and all encodings remain available in GraphElement.
 pub struct Attributes<'a> {
     entries: BTreeMap<u32, &'a GraphAttribute>,
 }
@@ -69,15 +61,12 @@ impl<'a> Attributes<'a> {
     pub fn get(&self, name: &str) -> Option<&'a GraphAttribute> {
         self.entries.get(&key_hash(name)).copied()
     }
-    /// 82C14E10. A present empty string is not the default.
     pub fn text(&self, name: &str) -> Option<&'a str> {
         self.get(name).map(|v| v.text.as_str())
     }
-    /// 82C151B0 returns the stored byte without boolean normalization.
     pub fn boolean_byte(&self, name: &str, default: u8) -> u8 {
         self.get(name).map_or(default, |v| v.boolean_byte)
     }
-    /// 82C15308; callers of 82C15258 supply the native zero default.
     pub fn float_bits(&self, name: &str, default: u32) -> u32 {
         self.get(name).map_or(default, |v| v.float_bits)
     }

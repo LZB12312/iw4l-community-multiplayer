@@ -43,11 +43,21 @@ pub const MAX_COMMANDS_PER_PEER_PER_FRAME: usize = 32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InputBacklogFault {
-    QueueCount { queued: usize },
+    QueueCount {
+        queued: usize,
+    },
 
-    QueueDuration { queued_ms: i32 },
+    QueueDuration {
+        queued_ms: i32,
+    },
 
-    NoProgress { stalled_ms: i32 },
+    NoProgress {
+        stalled_ms: i32,
+        expected: CmdSeq,
+        head: CmdSeq,
+        command_time: i32,
+        authority_time: i32,
+    },
 }
 
 impl core::fmt::Display for InputBacklogFault {
@@ -63,10 +73,18 @@ impl core::fmt::Display for InputBacklogFault {
                 "InputBacklogExceeded: {queued_ms} ms of command time queued (max \
                  {MAX_QUEUED_COMMAND_MS})"
             ),
-            Self::NoProgress { stalled_ms } => write!(
+            Self::NoProgress {
+                stalled_ms,
+                expected,
+                head,
+                command_time,
+                authority_time,
+            } => write!(
                 f,
                 "InputBacklogExceeded: command queue made no progress for {stalled_ms} ms (max \
-                 {MAX_COMMAND_STALL_MS})"
+                 {MAX_COMMAND_STALL_MS}); expected sequence {}, received {}, command time \
+                 {command_time}, authority time {authority_time}",
+                expected.0, head.0
             ),
         }
     }
@@ -107,7 +125,7 @@ pub struct ClientCommandInbox {
 
     last_acked_seq: HashMap<ClientId, u32>,
 
-    blocked_head: HashMap<ClientId, (CmdSeq, i32)>,
+    blocked_head: HashMap<ClientId, (CmdSeq, std::time::Instant)>,
 }
 
 impl ClientCommandInbox {
@@ -210,14 +228,33 @@ impl ClientCommandInbox {
         if queued_ms > MAX_QUEUED_COMMAND_MS {
             return Some(InputBacklogFault::QueueDuration { queued_ms });
         }
-        let head = queue.iter().find_map(|(seq, _, _)| *seq)?;
-        let blocked = self.blocked_head.entry(id).or_insert((head, time_ms));
+        let (head, command_time) = queue
+            .iter()
+            .find_map(|(seq, cmd, _)| seq.map(|seq| (seq, cmd.server_time)))?;
+        let blocked = self
+            .blocked_head
+            .entry(id)
+            .or_insert_with(|| (head, std::time::Instant::now()));
         if blocked.0 != head {
-            *blocked = (head, time_ms);
+            *blocked = (head, std::time::Instant::now());
         }
-        let stalled_ms = time_ms.saturating_sub(blocked.1);
+        // Catch-up ticks can run in one frame. Allow retransmission a real
+        // second to recover a gap rather than spending it in simulation time.
+        let stalled_ms = blocked.1.elapsed().as_millis().min(i32::MAX as u128) as i32;
         if stalled_ms > MAX_COMMAND_STALL_MS {
-            return Some(InputBacklogFault::NoProgress { stalled_ms });
+            return Some(InputBacklogFault::NoProgress {
+                stalled_ms,
+                expected: CmdSeq(
+                    self.last_acked_seq
+                        .get(&id)
+                        .copied()
+                        .unwrap_or(0)
+                        .wrapping_add(1),
+                ),
+                head,
+                command_time,
+                authority_time: time_ms,
+            });
         }
         None
     }
@@ -245,11 +282,10 @@ impl ClientCommandInbox {
     pub fn take_for_tick(&mut self, time_ms: i32) -> GatheredCommands {
         let mut out = GatheredCommands::default();
         for id in self.known_clients() {
-            // A datagram burst can contain more than one frame of runnable work.
-            // Consume the bounded frame budget before measuring remaining debt.
-            // Count and blocked-head limits still apply before any simulation.
+            // Limit ingress size first; evaluate stalled work after consuming
+            // commands that became runnable at this tick's server time.
             if let Some(fault) = self.backlog_fault(id, time_ms)
-                && !matches!(fault, InputBacklogFault::QueueDuration { .. })
+                && matches!(fault, InputBacklogFault::QueueCount { .. })
             {
                 out.backlog_faults.push((id, fault));
                 continue;
@@ -429,10 +465,12 @@ impl ClientActionInbox {
         self.overflowed.drain()
     }
 
-    pub fn timed_out(&self) -> bool {
+    pub fn timed_out_action(&self) -> Option<(ClientId, sim::ActionRequestId)> {
         self.started
-            .values()
-            .any(|at| at.elapsed() > std::time::Duration::from_secs(8))
+            .iter()
+            .filter(|(_, at)| at.elapsed() > std::time::Duration::from_secs(8))
+            .map(|(key, _)| *key)
+            .min_by_key(|(client, request)| (client.0, *request))
     }
 
     pub fn pending_len(&self) -> usize {

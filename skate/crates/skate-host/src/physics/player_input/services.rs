@@ -1,6 +1,3 @@
-//! Host ownership for the original 82DB4048 input phase. Every numerical
-//! preparation is performed here; the two callbacks address the shared
-//! skeleton/whole-player owners that cannot be borrowed twice by the host.
 use super::{
     grind::{GrindInputState, Pending},
     pre_input::PreInputManager,
@@ -49,8 +46,6 @@ pub(crate) trait PlayerInputCallbacks {
         processed: &mut ProcessedPhysicsInput,
     ) -> Result<(), String>;
 
-    /// Complete 82DB8998 reset including board, skeleton, Reckoning, current
-    /// physical outputs and Ground entry. Returning an error retains the request.
     fn teleport(
         &mut self,
         board: &mut BoardRuntime,
@@ -161,7 +156,6 @@ impl<C: PlayerInputCallbacks> InputPhaseServices for Services<'_, C> {
         output: &mut ProcessedPhysicsInput,
     ) -> Result<(), String> {
         let toolkit = self.ground.prepare_toolkit(self.board, output);
-        //82C01744 publishes this during toolkit preparation, not PhysOut fill.
         output.scalar_2616 = toolkit.absolute_speed;
         *self.toolkit = Some(toolkit);
         Ok(())

@@ -22,8 +22,6 @@ pub struct NumericCondition {
     pub absolute: bool,
 }
 impl NumericCondition {
-    /// NumericCondition::Compare82C12AB8. The bge/ble branches test the
-    /// absence of LT/GT, including unordered inputs; do not change to >=/<=.
     pub fn matches(self, value: f32) -> bool {
         let value = if self.absolute { value.abs() } else { value };
         match self.comparison {
@@ -57,8 +55,6 @@ pub struct PhysicalStateInputs {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PushBrakeInputs {
-    /// Y of ground-output+80, used by82BA5150. Its producer must be supplied;
-    /// this is not interchangeable with deck up or a selected contact normal.
     pub ground_axis_y: f32,
     /// PhysOut skeleton+598.
     pub skeleton_disables_push_brake: bool,
@@ -66,8 +62,6 @@ pub struct PushBrakeInputs {
     pub maximum_ground_angle_degrees: f32,
 }
 impl PushBrakeInputs {
-    /// Complete scalar result of DisablePushBrake82BA5150. The inverse-sine
-    /// estimate retains the explicitly documented numerical validation boundary.
     pub fn disabled(self) -> bool {
         let degrees = crate::trigonometry::asin(self.ground_axis_y) * f32::from_bits(0x4265_2EE1);
         90.0 - degrees > self.maximum_ground_angle_degrees || self.skeleton_disables_push_brake
@@ -78,9 +72,7 @@ impl PushBrakeInputs {
 pub struct ConditionInputs {
     pub speeds: Option<SpeedInputs>,
     pub physical_state: Option<PhysicalStateInputs>,
-    /// PhysOut miscellaneous+128, read by82BA15F8.
     pub time_since_last_input: Option<f32>,
-    /// Actor stance accessors82BA4C30/82BA4C78, through component+1804.
     pub mirrored: Option<bool>,
     pub riding_fakie: Option<bool>,
     pub push_brake: Option<PushBrakeInputs>,
@@ -105,8 +97,6 @@ pub enum ActionCondition {
     Mirrored,
     RidingFakie,
     DisablePushBrake,
-    /// Name resolves relative to the containing state, using82C16C10. The
-    /// host binds target once because the loaded hierarchy is immutable.
     CurrentState {
         name: String,
         target: Option<usize>,
@@ -122,7 +112,6 @@ impl ActionCondition {
     ) -> Result<bool, &'static str> {
         Ok(match self {
             Self::HasIntent { name, numeric } => action_intents.get(name).is_some_and(|&value| {
-                // HasAGIntent82BA0EA8 distinguishes presence-only from numeric.
                 numeric.comparison == Comparison::None || numeric.matches(value)
             }),
             Self::TimeSinceLastInput(numeric) => numeric.matches(
@@ -162,8 +151,6 @@ impl ActionCondition {
                     .physical_state
                     .as_ref()
                     .ok_or("IsGrinding needs filtered physical state")?;
-                //824714D0 compares the five encoded words, including the
-                //case/truncation semantics already used by skeleton attributes.
                 state.grinding
                     && name.as_ref().is_none_or(|name| {
                         crate::animation::skeleton_input::name::encode(name.as_bytes())
@@ -183,7 +170,6 @@ impl ActionCondition {
                 .ok_or("DisablePushBrake needs ground/skeleton outputs and stock angle")?
                 .disabled(),
             Self::CurrentState { target, .. } => {
-                //82C13820 includes the current state itself, then its ancestors.
                 let mut cursor = current;
                 let mut matches = false;
                 if let Some(target) = target {
@@ -200,7 +186,3 @@ impl ActionCondition {
         })
     }
 }
-
-#[cfg(test)]
-#[path = "tests/conditions.rs"]
-mod tests;

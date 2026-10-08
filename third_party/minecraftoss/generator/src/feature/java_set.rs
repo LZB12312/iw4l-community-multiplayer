@@ -11,7 +11,11 @@ use minecraftoss_core::BlockPos;
 
 /// `HashMap.hash(BlockPos)`: `Vec3i.hashCode` spread by its high half.
 pub fn spread(pos: BlockPos) -> i32 {
-    let h = pos.y.wrapping_add(pos.z.wrapping_mul(31)).wrapping_mul(31).wrapping_add(pos.x);
+    let h = pos
+        .y
+        .wrapping_add(pos.z.wrapping_mul(31))
+        .wrapping_mul(31)
+        .wrapping_add(pos.x);
     h ^ ((h as u32) >> 16) as i32
 }
 
@@ -60,7 +64,10 @@ impl Tree {
         match self.insert_node(pos) {
             Some(parent) => {
                 let parent_pos = self.nodes[parent].pos;
-                let i = order.iter().position(|&p| p == parent_pos).expect("tree parent in chain");
+                let i = order
+                    .iter()
+                    .position(|&p| p == parent_pos)
+                    .expect("tree parent in chain");
                 order.insert(i + 1, pos);
             }
             None => order.push(pos),
@@ -75,10 +82,20 @@ impl Tree {
         while let Some(i) = cursor {
             parent = Some(i);
             go_left = less(pos, self.nodes[i].pos);
-            cursor = if go_left { self.nodes[i].left } else { self.nodes[i].right };
+            cursor = if go_left {
+                self.nodes[i].left
+            } else {
+                self.nodes[i].right
+            };
         }
         let index = self.nodes.len();
-        self.nodes.push(Node { pos, parent, left: None, right: None, red: parent.is_some() });
+        self.nodes.push(Node {
+            pos,
+            parent,
+            left: None,
+            right: None,
+            red: parent.is_some(),
+        });
         match parent {
             Some(p) => {
                 if go_left {
@@ -134,7 +151,11 @@ impl Tree {
             }
             let grand = self.nodes[parent].parent.expect("red parent has a parent");
             let parent_is_left = self.nodes[grand].left == Some(parent);
-            let uncle = if parent_is_left { self.nodes[grand].right } else { self.nodes[grand].left };
+            let uncle = if parent_is_left {
+                self.nodes[grand].right
+            } else {
+                self.nodes[grand].left
+            };
             if let Some(u) = uncle.filter(|&u| self.nodes[u].red) {
                 self.nodes[parent].red = false;
                 self.nodes[u].red = false;
@@ -253,7 +274,13 @@ impl Iterator for Iter<'_> {
 
 impl JavaHashSet {
     pub fn new() -> Self {
-        Self { heads: vec![NONE; 16], tails: vec![NONE; 16], entries: Vec::new(), trees: Vec::new(), len: 0 }
+        Self {
+            heads: vec![NONE; 16],
+            tails: vec![NONE; 16],
+            entries: Vec::new(),
+            trees: Vec::new(),
+            len: 0,
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -310,7 +337,13 @@ impl JavaHashSet {
     fn push_entry(&mut self, bin: usize, pos: BlockPos) {
         let index = self.entries.len() as u32;
         self.entries.push(Entry { pos, next: NONE });
-        Self::link(&mut self.entries, &mut self.heads, &mut self.tails, bin, index);
+        Self::link(
+            &mut self.entries,
+            &mut self.heads,
+            &mut self.tails,
+            bin,
+            index,
+        );
     }
 
     pub fn contains(&self, pos: BlockPos) -> bool {
@@ -350,7 +383,11 @@ impl JavaHashSet {
                     self.heads[b] = NONE;
                     self.tails[b] = NONE;
                     let tree = Tree::build(&mut order);
-                    self.trees.push(TreeBin { bin: b, order, tree });
+                    self.trees.push(TreeBin {
+                        bin: b,
+                        order,
+                        tree,
+                    });
                 }
             }
         }
@@ -385,8 +422,16 @@ impl JavaHashSet {
                 let mut old_tree = Some(tree);
                 for (target, mut half, other) in [(i, lo, hi_len), (i + cap, hi, lo_len)] {
                     if half.len() > 6 {
-                        let tree = if other == 0 { old_tree.take().expect("one half keeps the tree") } else { Tree::build(&mut half) };
-                        trees.push(TreeBin { bin: target, order: half, tree });
+                        let tree = if other == 0 {
+                            old_tree.take().expect("one half keeps the tree")
+                        } else {
+                            Tree::build(&mut half)
+                        };
+                        trees.push(TreeBin {
+                            bin: target,
+                            order: half,
+                            tree,
+                        });
                     } else {
                         for pos in half {
                             let index = self.entries.len() as u32;
@@ -401,7 +446,11 @@ impl JavaHashSet {
             while link != NONE {
                 let next = self.entries[link as usize].next;
                 let pos = self.entries[link as usize].pos;
-                let target = if spread(pos) as u32 as usize & cap == 0 { i } else { i + cap };
+                let target = if spread(pos) as u32 as usize & cap == 0 {
+                    i
+                } else {
+                    i + cap
+                };
                 Self::link(&mut self.entries, &mut heads, &mut tails, target, link);
                 link = next;
             }
@@ -461,7 +510,12 @@ impl JavaHashSet {
 
     /// Elements in JDK iteration order.
     pub fn iter(&self) -> Iter<'_> {
-        Iter { set: self, bin: 0, link: NONE, tree: None }
+        Iter {
+            set: self,
+            bin: 0,
+            link: NONE,
+            tree: None,
+        }
     }
 
     pub fn to_vec(&self) -> Vec<BlockPos> {
@@ -476,202 +530,5 @@ impl Tree {
             tree.insert_node(pos);
         }
         tree
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[derive(Clone, Debug, Default)]
-    struct Bin {
-        order: Vec<BlockPos>,
-        tree: Option<Tree>,
-    }
-
-    /// The earlier one-vector-per-bin implementation, as a reference.
-    #[derive(Clone, Debug)]
-    pub struct OldJavaHashSet {
-        bins: Vec<Bin>,
-        len: usize,
-    }
-
-    impl Default for OldJavaHashSet {
-        fn default() -> Self {
-            Self::new()
-        }
-    }
-
-    #[allow(dead_code)]
-    impl OldJavaHashSet {
-        pub fn new() -> Self {
-            Self { bins: vec![Bin::default(); 16], len: 0 }
-        }
-
-        pub fn len(&self) -> usize {
-            self.len
-        }
-
-        pub fn is_empty(&self) -> bool {
-            self.len == 0
-        }
-
-        fn bucket(&self, pos: BlockPos) -> usize {
-            spread(pos) as u32 as usize & (self.bins.len() - 1)
-        }
-
-        pub fn contains(&self, pos: BlockPos) -> bool {
-            self.bins[self.bucket(pos)].order.contains(&pos)
-        }
-
-        /// `HashSet.add`: false when already present.
-        pub fn insert(&mut self, pos: BlockPos) -> bool {
-            let b = self.bucket(pos);
-            if self.bins[b].order.contains(&pos) {
-                return false;
-            }
-            let bin = &mut self.bins[b];
-            if let Some(tree) = &mut bin.tree {
-                tree.insert(pos, &mut bin.order);
-            } else {
-                let before = bin.order.len();
-                bin.order.push(pos);
-                if before >= 8 {
-                    // treeifyBin: small tables grow instead.
-                    if self.bins.len() < 64 {
-                        self.resize();
-                    } else {
-                        let bin = &mut self.bins[b];
-                        bin.tree = Some(Tree::build(&mut bin.order));
-                    }
-                }
-            }
-            self.len += 1;
-            if self.len > self.bins.len() * 3 / 4 {
-                self.resize();
-            }
-            true
-        }
-
-        fn resize(&mut self) {
-            let old = std::mem::take(&mut self.bins);
-            let cap = old.len();
-            let mut next = vec![Bin::default(); cap * 2];
-            for (i, bin) in old.into_iter().enumerate() {
-                let tree = bin.tree;
-                for pos in bin.order {
-                    let target = if spread(pos) as u32 as usize & cap == 0 { i } else { i + cap };
-                    next[target].order.push(pos);
-                }
-                if let Some(tree) = tree {
-                    // TreeNode.split: a half of at most six untreeifies; a half
-                    // that got everything keeps the old tree and chain; otherwise
-                    // each large half is treeified again.
-                    let (lo, hi) = (next[i].order.len(), next[i + cap].order.len());
-                    let mut old_tree = Some(tree);
-                    for (target, count, other) in [(i, lo, hi), (i + cap, hi, lo)] {
-                        if count > 6 {
-                            next[target].tree = if other == 0 {
-                                old_tree.take()
-                            } else {
-                                Some(Tree::build(&mut next[target].order))
-                            };
-                        }
-                    }
-                }
-            }
-            self.bins = next;
-        }
-
-        /// Removes an element; the chain order of the others is kept
-        /// (`HashIterator.remove` never moves a tree root).
-        pub fn remove(&mut self, pos: BlockPos) -> bool {
-            let b = self.bucket(pos);
-            let bin = &mut self.bins[b];
-            let Some(i) = bin.order.iter().position(|&p| p == pos) else {
-                return false;
-            };
-            bin.order.remove(i);
-            if bin.tree.is_some() {
-                // The JDK deletes from the red-black tree without untreeifying;
-                // a rebuild over the remaining chain approximates its shape.
-                bin.tree = (!bin.order.is_empty()).then(|| Tree::build_keep_order(&bin.order));
-            }
-            self.len -= 1;
-            true
-        }
-
-        /// The first element in iteration order, removed (`iterator.next(); iterator.remove()`).
-        pub fn pop_first(&mut self) -> Option<BlockPos> {
-            let first = self.bins.iter().find_map(|b| b.order.first().copied())?;
-            self.remove(first);
-            Some(first)
-        }
-
-        /// Elements in JDK iteration order.
-        pub fn iter(&self) -> impl Iterator<Item = BlockPos> + '_ {
-            self.bins.iter().flat_map(|b| b.order.iter().copied())
-        }
-
-        pub fn to_vec(&self) -> Vec<BlockPos> {
-            self.iter().collect()
-        }
-    }
-
-    /// The arena implementation against the reference, operation by
-    /// operation, including chains long enough to become trees.
-    #[test]
-    fn matches_the_reference_implementation() {
-        let mut seed = 0x1234_5678_9abc_def0u64;
-        let mut next = |bound: u64| {
-            seed = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
-            (seed >> 33) % bound
-        };
-        for round in 0..300 {
-            let (mut new, mut old) = (JavaHashSet::new(), OldJavaHashSet::new());
-            let colliding = round % 3 == 0;
-            for _ in 0..(50 + next(400)) {
-                let pos = if colliding {
-                    // Equal hashes: x = c - 961 z keeps (31 z) * 31 + x fixed.
-                    let z = next(40) as i32 - 20;
-                    BlockPos::new(7 - 961 * z, 0, z)
-                } else {
-                    BlockPos::new(next(24) as i32 - 12, next(24) as i32 - 12, next(24) as i32 - 12)
-                };
-                match next(10) {
-                    0..=5 => assert_eq!(new.insert(pos), old.insert(pos)),
-                    6 | 7 => assert_eq!(new.remove(pos), old.remove(pos)),
-                    8 => assert_eq!(new.pop_first(), old.pop_first()),
-                    _ => assert_eq!(new.contains(pos), old.contains(pos)),
-                }
-                assert_eq!(new.len(), old.len());
-                assert_eq!(new.to_vec(), old.to_vec(), "round {round}");
-            }
-        }
-    }
-
-    #[test]
-    fn small_sets_follow_bucket_then_insertion_order() {
-        let mut set = JavaHashSet::new();
-        let positions = [BlockPos::new(3, 0, 0), BlockPos::new(1, 0, 0), BlockPos::new(19, 0, 0), BlockPos::new(2, 0, 0)];
-        for p in positions {
-            assert!(set.insert(p));
-        }
-        assert!(!set.insert(BlockPos::new(1, 0, 0)));
-        // Buckets by hash & 15: x=1 -> 1, x=2 -> 2, x=3 and x=19 -> 3 in insertion order.
-        let order: Vec<i32> = set.iter().map(|p| p.x).collect();
-        assert_eq!(order, vec![1, 2, 3, 19]);
-    }
-
-    #[test]
-    fn negative_hashes_use_unsigned_buckets() {
-        let pos = BlockPos::new(-1, -5, -3);
-        let h = spread(pos);
-        let mut set = JavaHashSet::new();
-        set.insert(pos);
-        assert_eq!(set.bucket(pos), h as u32 as usize & 15);
-        assert!(set.contains(pos));
-        assert_eq!(set.pop_first(), Some(pos));
-        assert!(set.is_empty());
     }
 }

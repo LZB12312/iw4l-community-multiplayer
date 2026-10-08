@@ -1,4 +1,3 @@
-//! TU3 82D848D0: slope classification and retained three-sample acceptance.
 use super::analyzer_math::tangent;
 use super::{ContactPrefix, Vector, length};
 
@@ -13,7 +12,6 @@ pub(super) struct History {
 impl History {
     pub fn classify(&mut self, prefix: &mut ContactPrefix, direction: Vector) {
         let horizontal = length([direction[0], 0., direction[2], 0.]);
-        // 82D84994 uses scalar division, not the vector reciprocal helper.
         let inverse = 1.
             / if 0.001 - horizontal >= 0. {
                 0.001
@@ -22,7 +20,6 @@ impl History {
             };
         let slope = inverse * direction[1];
         prefix.scalar_160 = slope;
-        // Stock globals 822F8FCC/822F8FD0; arguments are radians.
         let low = tangent(f32::from_bits(0x3dd67750));
         let high = tangent(f32::from_bits(0x3f0efa35));
         let magnitude = slope.abs();

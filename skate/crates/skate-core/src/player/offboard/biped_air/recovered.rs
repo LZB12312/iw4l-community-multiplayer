@@ -93,7 +93,6 @@ pub struct EnterInput {
 }
 
 impl State {
-    ///82D2EDD8, including selective result reset and byte548=true.
     pub fn reset(&mut self) {
         self.flags_544_550 = [false, false, false, false, true, false, false];
         self.height_432 = 0.;
@@ -110,8 +109,6 @@ impl State {
         self.restart_normal_528 = [0., 0., 1., 0.];
     }
 
-    ///State-local82D2E5C0. Caller performs manager/feet reset and conditional
-    ///launch, then Biped.place between these two explicit entry stages.
     pub fn begin_enter(&mut self, input: EnterInput) {
         self.reset();
         self.begin_enter_after_reset(input);
@@ -144,13 +141,10 @@ impl State {
         turn: &crate::point_graph::PointGraph<8>,
         settings: air_launch::Settings,
     ) -> Result<air_launch::Packet, &'static str> {
-        //82D7BA78 overwrites104 unconditionally, so the initializer's
-        //unwritten104 cannot escape the producer. No retained gameplay value.
         let mut packet = air_launch::Packet::initialized(0.);
         air_launch::produce(&mut packet, biped, turn, settings, input, false)?;
         Ok(packet)
     }
-    ///82D2EF20 clears the shared selector, not the landing manager or result.
     pub fn exit(&mut self, selector: &mut sampling::SelectorState) {
         selector.pending_8492 = false;
         selector.preinitialized_8494 = false;
@@ -160,7 +154,6 @@ impl State {
         self.frame_452 = self.frame_452.wrapping_add(1);
         self.frame_452
     }
-    ///82D2F170..434, after frame sampling and first-valid orientation setup.
     pub fn update_times(&mut self) {
         let duration = self.result.duration_388;
         self.duration_448 = select(duration - DT, duration, DT);
@@ -175,7 +168,6 @@ impl State {
             self.duration_448 = 10.;
         }
     }
-    ///82D2F564..650. Receives the SAME Biped cadence used while walking.
     pub fn update_cadence(
         &mut self,
         biped: &mut super::super::controller::State,

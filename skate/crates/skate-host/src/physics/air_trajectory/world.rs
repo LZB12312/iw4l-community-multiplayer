@@ -1,6 +1,3 @@
-//! Original trajectory collision leaf82771D08 and nearby triangle collector
-//!82772028, across the host's world-format boundary. BoardWorld stores static
-//!world-space triangles, so their source geometry transform is identity.
 use skate_core::{
     air::trajectory::{SurfaceHit, WorldWithoutGrindEdges},
     math::Vector3,
@@ -87,8 +84,6 @@ pub(super) fn nearby(
     }
     Ok(triangles)
 }
-///82761698 full separating-axis triangle/AABB predicate: nine edge-axis
-///crosses, three box axes and the face plane. No broadphase-only substitution.
 fn triangle_box(vertices: [Vector; 3], minimum: Vector, maximum: Vector) -> bool {
     let center: Vector = std::array::from_fn(|i| (minimum[i] + maximum[i]) * 0.5);
     let half: Vector = std::array::from_fn(|i| (maximum[i] - minimum[i]) * 0.5);

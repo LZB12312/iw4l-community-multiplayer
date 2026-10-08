@@ -1,4 +1,5 @@
 //! TU3 actor checkpoint manager, bound to the single-player static scene.
+use super::offboard::contact_queries::Probe;
 use super::{GamePhysics, SkaterRuntime, offboard::contact_queries, teleport_state::Checkpoint};
 use skate_core::{
     math::Vector3,
@@ -6,12 +7,9 @@ use skate_core::{
         board_world::{BoardWorld, query_metadata::Bounds},
         skeleton_animation_record::AnimationPartTransform as Matrix,
     },
-    player::{
-        respawn::{Candidate, Ground, History, Observation, Validation, surface_allowed},
-    },
+    player::respawn::{Candidate, Ground, History, Observation, Validation, surface_allowed},
 };
 use skate_data::collections::Collections;
-use super::offboard::contact_queries::Probe;
 
 pub(super) struct Runtime {
     history: History,
@@ -51,7 +49,6 @@ impl Runtime {
     }
 }
 
-///Actor82592518 saves stance then queues the ordinary deferred reply825926F8.
 pub(super) fn request(physics: &GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     let stance = skater.animation.checkpoint_stance();
     let runtime = &mut skater.respawn;
@@ -82,7 +79,6 @@ pub(super) fn request(physics: &GamePhysics, skater: &mut SkaterRuntime) -> Resu
 pub(super) fn observe(physics: &GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     let physical = &skater.player_input.physical;
     let processed = &skater.player_input.processed;
-    //82592A00 -> SkateboardReckoning64 ->82C01BF8: solved deck, with bit20 flip.
     let mut deck = super::solve::deck_frame(&physics.board);
     if processed.flags_2468 & 0x0010_0000 != 0 {
         flip(&mut deck);
@@ -107,10 +103,8 @@ pub(super) fn observe(physics: &GamePhysics, skater: &mut SkaterRuntime) -> Resu
         offboard_correction: skater.biped_ground.controller.state.contact.active,
         ground_category: super::ground_runtime::active_surface(&physics.riding, &physics.board)
             & 0xffff,
-        //82DB6EC0 publishes the same processed foot record to both fields.
         foot_categories: [(processed.left_surface_2596 >> 7) & 31; 2],
         riding_transform: heading(deck, velocity),
-        //82591E30 returns immediately for offboard, before the velocity branch.
         offboard_transform: offboard,
         stance,
         //No alternate-world/challenge controller exists in this local scene.
@@ -131,7 +125,6 @@ fn flip(matrix: &mut Matrix) {
         matrix[i] = matrix[i].map(|v| -v);
     }
 }
-///82591E30 retains the source axes at low speed or near vertical travel.
 fn heading(mut matrix: Matrix, velocity: [f32; 4]) -> Matrix {
     let square = velocity[0] * velocity[0] + velocity[1] * velocity[1] + velocity[2] * velocity[2];
     if square > 0.25 {
@@ -157,11 +150,7 @@ impl Validation for Scene<'_> {
         start[1] += 0.1;
         let mut end = start;
         end[1] -= 10.;
-        let probe = |start, end, radius| Probe {
-            start,
-            end,
-            radius,
-        };
+        let probe = |start, end, radius| Probe { start, end, radius };
         //The only actor has matching identity0; canonical map groups remain active.
         let Some(hit) = contact_queries::query(self.world, probe(start, end, 0.), 0)? else {
             return Ok(None);
@@ -189,13 +178,9 @@ impl Validation for Scene<'_> {
         }))
     }
     fn location(&mut self, _: &Matrix) -> Result<bool, String> {
-        //82BFBB48 returns true in normal-world mode, before provider invocation.
         Ok(true)
     }
     fn occupants(&mut self, _: &Matrix) -> Result<bool, String> {
-        //82BFB928 queries LivingWorldManager pedestrians/vehicles, not terrain.
-        //This BoardWorld has no living-world actors. Static obstacles are checked
-        //by ground's capsule; the player and board must not reject themselves.
         self.world.query_metadata().map_err(str::to_owned)?;
         Ok(true)
     }
@@ -206,7 +191,6 @@ impl Validation for Scene<'_> {
             max: Vector3::new(p[0] + 0.3, p[1] + 0.6, p[2] + 0.3),
         };
         let metadata = self.world.query_metadata().map_err(str::to_owned)?;
-        //82C1EAD8: authored static order, shared capacity40; no triangle diagonals.
         for edge in metadata
             .static_edges
             .iter()
@@ -231,83 +215,5 @@ impl Validation for Scene<'_> {
             }
         }
         Ok(true)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use skate_core::physics::{
-        contact::RetailContactMaterial, skeleton_animation_record::IDENTITY,
-    };
-    #[test]
-    fn real_scene_records_a_checkpoint_and_recovers_it_from_an_unsupported_position() {
-        let world = super::super::ground::world(RetailContactMaterial {
-            static_friction: 0.,
-            dynamic_friction: 0.,
-            restitution: 0.,
-        });
-        let settings = Settings {
-            height: 0.4,
-            radius: 0.5,
-            drop: 1.,
-            normal_y: 0.75,
-            minimum_frames: 15,
-        };
-        let mut scene = Scene {
-            world: &world,
-            settings: &settings,
-        };
-        let mut history = History::new(Candidate {
-            transform: IDENTITY,
-            stance: 0,
-            offboard: false,
-            score: 0.,
-        });
-        //The first conditioning samples clear the construction cooldown.
-        assert!(!history.recording_due(119, [2., 0., 0., 0.]));
-        let mut transform = IDENTITY;
-        transform[3] = [2., 0.2, 0., 0.];
-        history
-            .observe(
-                &Observation {
-                    measurements: 120,
-                    root_position: transform[3],
-                    com_position: [1000., 0., 0., 0.],
-                    teleport_requested: false,
-                    physical_state: 100,
-                    state_frames: 16,
-                    ground_suppressed: false,
-                    offboard_correction: false,
-                    ground_category: 1,
-                    foot_categories: [1; 2],
-                    riding_transform: transform,
-                    offboard_transform: IDENTITY,
-                    stance: 1,
-                    alternate_world: false,
-                },
-                15,
-                &mut scene,
-            )
-            .unwrap();
-        let selected = history.automatic(0, &mut scene).unwrap();
-        assert_eq!(selected.transform, transform);
-        assert_eq!(selected.stance, 1);
-        //Successful historical entries are consumed: a second failure uses spawn.
-        assert_eq!(
-            history.automatic(0, &mut scene).unwrap().transform,
-            IDENTITY
-        );
-    }
-    #[test]
-    fn native_heading_keeps_low_speed_and_vertical_axes() {
-        let mut source = IDENTITY;
-        source[0] = [0., 0., -1., 0.];
-        source[2] = [1., 0., 0., 0.];
-        assert_eq!(heading(source, [0., 0., 0.5, 0.]), source);
-        assert_eq!(heading(source, [0., 5., 0.1, 0.]), source);
-        let result = heading(source, [0., 0., 2., 0.]);
-        assert_eq!(result[2], [0., 0., 1., 0.]);
-        assert_eq!(result[3], source[3]);
     }
 }

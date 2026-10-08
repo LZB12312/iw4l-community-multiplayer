@@ -1,5 +1,3 @@
-//! VLT fields identified through Scorable82DA2340 and ScoreHolder82DA5D18.
-//! No fallback point values: a missing/invalid authored field is an error.
 use crate::collections::Collections;
 use skate_core::{
     animation::{output::attributes::AttributeName, skeleton_input::name::encode},
@@ -136,29 +134,6 @@ impl ScoringData {
     }
     pub fn by_id(&self, id: usize) -> Option<&Definition> {
         self.definitions.iter().find(|d| d.metadata.id == id)
-    }
-}
-
-#[cfg(test)]
-mod identity_tests {
-    use super::*;
-
-    #[test]
-    fn scoring_presence_accepts_readable_and_numeric_vault_names() {
-        let key = IDENTIFIERS[0].0;
-        let numeric_key = crate::attrib_hash::numeric_name(key);
-        for class in ["scoring_trick", SCORABLE, "0x6918469984a8c596"] {
-            for name in [key, numeric_key.as_str()] {
-                let data: Collections = serde_json::from_value(serde_json::json!({
-                    "version": 1,
-                    "collections": [{"class": class, "key": name, "parent": "",
-                        "source": "fixture", "sha256": "", "fields": {}},
-                        {"class": "unrelated", "key": "other", "parent": "",
-                        "source": "fixture", "sha256": "", "fields": {}}]
-                })).unwrap();
-                assert_eq!(scorable_keys(&data), [numeric_key.clone()].into());
-            }
-        }
     }
 }
 

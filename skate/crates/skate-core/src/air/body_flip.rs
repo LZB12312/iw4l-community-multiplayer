@@ -1,5 +1,3 @@
-//! TU3 Reckoning::UpdateBodyFlip 82D8EC70, with explicit attribute-read inputs.
-//! Full scalar gates, spin matrix and conditional combined-matrix publication.
 use crate::trigonometry::sin_cos;
 
 pub type Matrix = [[f32; 4]; 4];
@@ -15,8 +13,6 @@ pub struct BodyFlipState {
     pub combined_transform: Matrix,
 }
 
-/// Actual Attrib::GetAttributePointer results (82B72420), not guessed settings.
-/// Missing collection/attribute resolves to the supplied live 830D0850 value.
 pub struct BodyFlipSettings {
     /// Hash 26E7322CCDC3FE23.
     pub smoothing: Option<f32>,
@@ -96,8 +92,6 @@ fn rotation(axis: [f32; 4], angle: f32) -> Matrix {
     let xx = tx.mul_add(x, c);
     let yx = ty * x - sz;
     let zx = tz.mul_add(x, sy);
-    // The native 822FB890 permute repeats column.x into lane w. It does not
-    // create a renderer-style affine matrix with zero w basis lanes.
     [
         [xx, tx.mul_add(y, sz), tx * z - sy, xx],
         [yx, ty.mul_add(y, c), ty.mul_add(z, sx), yx],

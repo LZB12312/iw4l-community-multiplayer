@@ -1,12 +1,8 @@
-//! Native terrain drop prediction82DF84F8/89B0/8BC0/8740.
-//! Retains one update of query history: a new batch is submitted only after the
-//! previous batch has been consumed. Host execution may be synchronous.
 use super::vector_tracker::length;
 use super::{FatLine, FatLineResult};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DropSettings {
-    /// camera_droppredictor/default fields bound8252EF84..8252EFA4.
     pub minimum_test_distance: f32,
     pub total_test_time: f32,
     pub maximum_test_distance: f32,
@@ -64,8 +60,6 @@ impl DropPredictor {
         }
     }
 
-    /// Reset82DF8440 preserves the five probe records and cancels their pending
-    /// query. The following disabled/reset update clears probe valid/depth.
     pub fn reset(&mut self) {
         self.horizontal_velocity = [0.0; 4];
         self.steepest_normal = [0.0; 4];
@@ -78,7 +72,6 @@ impl DropPredictor {
         self.pending = None;
     }
 
-    /// Complete82E00B60 velocity selection, consuming the previous rig velocity.
     pub fn prediction_velocity(
         reset: bool,
         transform: [[f32; 4]; 4],
@@ -140,7 +133,6 @@ impl DropPredictor {
         Ok(())
     }
 
-    /// Native getter82DF8980.
     pub fn drop_depth(&self) -> f32 {
         let probe = self.probes[self.selected];
         if probe.valid { probe.depth } else { 0.0 }
@@ -206,8 +198,6 @@ impl DropPredictor {
         let mut angle = 0.0;
         if probe.valid {
             let distance = (self.selected + 1) as f32 * self.spacing;
-            // Native angle wrapper applies one reciprocal refinement here; the
-            // called82473B98 polynomial has its own independent reductions.
             let initial = crate::physics::native_arithmetic::reciprocal_estimate(distance);
             let inverse = initial.mul_add((-initial).mul_add(distance, 1.0), initial);
             angle = crate::input::angle::atan(probe.depth.mul_add(inverse, 0.0));

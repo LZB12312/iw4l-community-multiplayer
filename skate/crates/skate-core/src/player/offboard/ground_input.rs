@@ -1,11 +1,4 @@
-//! Original TU3 ground control input82D310F8; S3 SHA256
-//!431b8eba23565affdc10d137df19b06fe286244cefb3e1a13f32693e9600395a.
-//! Pure calculation: the existing BipedGround STATE owns the inputs and outputs.
-//! Stock curves must be present and validated at the data boundary.
-
 mod math;
-#[cfg(test)]
-mod tests;
 
 use crate::point_graph::PointGraph;
 use math::{cross, dot, inverse_frame, length, normalize, signed_angle};
@@ -33,8 +26,6 @@ pub struct GroundInputOutput {
     pub state_656: [f32; 4],
 }
 
-///82D310F8. Curve A key DF759B46440F16E9; curve B key2DD95B399BAE313E
-/// (TurnVsStickAngle). Leading PointNegGraphData8 bounds are not inputs here.
 pub fn calculate(
     input: &GroundInput,
     curve_a: &PointGraph<8>,

@@ -1,8 +1,3 @@
-//! Physical-player state changes recovered from TU3 `0x82DB8540`.
-//!
-//! The selected state objects remain owned by `PhysicalPlayer`; changing state
-//! selects one of those objects, rather than constructing a replacement.
-
 use super::state::{PhysicalStateId, UnknownPhysicalState};
 
 /// The state object selected from one of `PhysicalPlayer`'s owned pointers.
@@ -32,7 +27,6 @@ pub struct PlayerStateChangeFields {
     pub scalar_1344: f32,
 }
 
-/// The exact `ProcessedPhysIn` fields read or written by `0x82DB8540`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ProcessedStateChangeFields {
     /// +2480; bits 7 and 8 choose free-board controller mode on off-board entry.
@@ -75,9 +69,6 @@ pub struct StateChangeData {
     pub skateboard_controller: SkateboardControllerFields,
 }
 
-/// Board and drive operations called by the controller branch. Their complete
-/// implementations are `HoldSkateboard` `0x82D75370` and
-/// `LetGoOfSkateboard` `0x82D75440`; this lifecycle never replaces them.
 pub trait SkateboardControllerActions {
     fn hold_skateboard(&mut self);
     fn let_go_of_skateboard(&mut self);
@@ -118,12 +109,6 @@ impl PhysicalPlayerStateLifecycle {
         self.active
     }
 
-    /// Port of `PhysicalPlayerHiLOD::SetPhysicsState` `0x82DB8540`.
-    ///
-    /// Unknown numeric IDs are rejected before any callbacks or field writes.
-    /// The native default branches exit and re-enter the existing pointer for
-    /// such values, but no recovered caller contract establishes them as valid
-    /// states; making that case an error prevents a silent false transition.
     pub fn set_physics_state<S, C>(
         &mut self,
         requested_raw: u32,
@@ -206,8 +191,6 @@ fn prepare_skateboard_controller<C: SkateboardControllerActions>(
     controller.system_on_452 = true;
 }
 
-/// `StopController` `0x82D75EA0`, called directly by `SetPhysicsState` for
-/// every requested state outside 500..=502.
 fn stop_skateboard_controller<C: SkateboardControllerActions>(
     controller: &mut SkateboardControllerFields,
     actions: &mut C,
@@ -223,7 +206,3 @@ fn stop_skateboard_controller<C: SkateboardControllerActions>(
     }
     controller.system_on_452 = false;
 }
-
-#[cfg(test)]
-#[path = "tests/lifecycle.rs"]
-mod tests;

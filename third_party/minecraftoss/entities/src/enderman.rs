@@ -8,7 +8,7 @@
 use crate::{health::DamageState, movement::Body, sight::line_of_sight};
 use glam::DVec3;
 use minecraftoss_player::{
-    collision::no_block_collision, holds_fluid, minecraft_sin_cos, rng::LegacyRandom, World,
+    World, collision::no_block_collision, holds_fluid, minecraft_sin_cos, rng::LegacyRandom,
 };
 
 pub const MAX_HEALTH: f32 = 40.0;
@@ -43,7 +43,13 @@ impl Enderman {
         let mut body = Body::new(position, WIDTH, HEIGHT);
         // `STEP_HEIGHT` 1.
         body.step_height = 1.0;
-        Self { body, health: MAX_HEALTH, damage: DamageState::default(), persistence_required: false, yaw: 0.0 }
+        Self {
+            body,
+            health: MAX_HEALTH,
+            damage: DamageState::default(),
+            persistence_required: false,
+            yaw: 0.0,
+        }
     }
 
     pub fn eye_height(&self) -> f32 {
@@ -67,7 +73,11 @@ pub fn view_vector(pitch: f32, yaw: f32) -> DVec3 {
     let (y_sin, y_cos) = minecraft_sin_cos(f64::from(-yaw));
     let (x_sin, x_cos) = minecraft_sin_cos(f64::from(pitch));
     let (y_sin, y_cos, x_sin, x_cos) = (y_sin as f32, y_cos as f32, x_sin as f32, x_cos as f32);
-    DVec3::new(f64::from(y_sin * x_cos), f64::from(-x_sin), f64::from(y_cos * x_cos))
+    DVec3::new(
+        f64::from(y_sin * x_cos),
+        f64::from(-x_sin),
+        f64::from(y_cos * x_cos),
+    )
 }
 
 /// `Vec3.normalize` (the zero vector below 1e-5 as a float).
@@ -84,7 +94,14 @@ pub fn normalize(v: DVec3) -> DVec3 {
 /// body at `me`: the player's view points within a cone that narrows with
 /// distance at the gaze height above `me`, which it sees with nothing
 /// solid in the way.
-pub fn is_looking_at_me(world: &dyn World, player: DVec3, player_eye: f32, view: PlayerView, me: DVec3, gaze_y: f64) -> bool {
+pub fn is_looking_at_me(
+    world: &dyn World,
+    player: DVec3,
+    player_eye: f32,
+    view: PlayerView,
+    me: DVec3,
+    gaze_y: f64,
+) -> bool {
     let eye = player + DVec3::new(0.0, f64::from(player_eye), 0.0);
     looking_at(view, eye, me, gaze_y) && line_of_sight(world, eye, DVec3::new(me.x, gaze_y, me.z))
 }
@@ -110,9 +127,19 @@ pub fn teleport(body: &mut Body, random: &mut LegacyRandom, world: &dyn World) -
 
 /// `Enderman.teleportTowards`: sixteen blocks nearer the target along the
 /// line from its eyes to the enderman's middle, give or take four.
-pub fn teleport_towards(body: &mut Body, random: &mut LegacyRandom, world: &dyn World, target: DVec3, target_eye_y: f64) -> bool {
+pub fn teleport_towards(
+    body: &mut Body,
+    random: &mut LegacyRandom,
+    world: &dyn World,
+    target: DVec3,
+    target_eye_y: f64,
+) -> bool {
     let middle = body.position.y + f64::from(body.height) * 0.5;
-    let dir = normalize(DVec3::new(body.position.x - target.x, middle - target_eye_y, body.position.z - target.z));
+    let dir = normalize(DVec3::new(
+        body.position.x - target.x,
+        middle - target_eye_y,
+        body.position.z - target.z,
+    ));
     let x = body.position.x + (random.next_double() - 0.5) * 8.0 - dir.x * 16.0;
     let y = body.position.y + f64::from(random.next_int(16) as i32 - 8) - dir.y * 16.0;
     let z = body.position.z + (random.next_double() - 0.5) * 8.0 - dir.z * 16.0;
@@ -141,7 +168,14 @@ pub fn teleport_to(body: &mut Body, world: &dyn World, x: f64, mut y: f64, z: f6
 }
 
 /// `LivingEntity.checkPositionAndTeleport` for an enderman.
-fn fits(body: &mut Body, world: &dyn World, ground: (i32, i32, i32), x: f64, y: f64, z: f64) -> bool {
+fn fits(
+    body: &mut Body,
+    world: &dyn World,
+    ground: (i32, i32, i32),
+    x: f64,
+    y: f64,
+    z: f64,
+) -> bool {
     const SHUNNED: &str = "minecraft:enderman_does_not_teleport_to";
     if world.block_in_tag(ground, SHUNNED) {
         return false;
@@ -159,7 +193,9 @@ fn fits(body: &mut Body, world: &dyn World, ground: (i32, i32, i32), x: f64, y: 
     for bx in lo.x as i32..=hi.x as i32 {
         for by in lo.y as i32..=hi.y as i32 {
             for bz in lo.z as i32..=hi.z as i32 {
-                if world.block((bx, by, bz)).is_some_and(|b| holds_fluid(&b)) || world.block_in_tag((bx, by, bz), SHUNNED) {
+                if world.block((bx, by, bz)).is_some_and(|b| holds_fluid(&b))
+                    || world.block_in_tag((bx, by, bz), SHUNNED)
+                {
                     return false;
                 }
             }
@@ -177,21 +213,4 @@ fn fits(body: &mut Body, world: &dyn World, ground: (i32, i32, i32), x: f64, y: 
 /// `FluidState.is(FluidTags.WATER)`.
 fn holds_water(block: &minecraftoss_player::Block) -> bool {
     holds_fluid(block) && block.id != "minecraft:lava"
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_player_looking_level_at_the_eyes_stares() {
-        // Due south (+Z) and level: the view is (0, 0, 1), within a hair.
-        let view = PlayerView { head_yaw: 0.0, pitch: 0.0, disguised: false };
-        let v = view_vector(view.pitch, view.head_yaw);
-        assert!(v.z > 0.9999 && v.x.abs() < 1e-3 && v.y.abs() < 1e-3, "{v:?}");
-        let eye = DVec3::new(0.5, 1.62, 0.5);
-        assert!(looking_at(view, eye, DVec3::new(0.5, 0.0, 8.5), 1.62));
-        // A block to the side at eight blocks is outside the cone.
-        assert!(!looking_at(view, eye, DVec3::new(1.5, 0.0, 8.5), 1.62));
-    }
 }

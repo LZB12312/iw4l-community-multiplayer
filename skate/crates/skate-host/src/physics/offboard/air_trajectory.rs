@@ -4,7 +4,11 @@ use ground_query::GroundQueryScene;
 use skate_core::player::offboard::{
     air_completion, air_launch, air_prediction, air_queries, ground_query,
 };
-pub(crate) fn prepare(skater: &SkaterRuntime, current: bool, height_multiplier: f32) -> Result<air_launch::Launch, String> {
+pub(crate) fn prepare(
+    skater: &SkaterRuntime,
+    current: bool,
+    height_multiplier: f32,
+) -> Result<air_launch::Launch, String> {
     let p = &skater.player_input.processed;
     let toolkit = skater
         .player_input
@@ -89,7 +93,6 @@ pub(crate) fn launch(
             if !candidate.result.valid() || candidate.result.contact_frame < 16 {
                 return Ok(false);
             }
-            //82D6D4D0 queries the real edge AABB before entering its ledge adjustment loop.
             let position = candidate
                 .candidate
                 .trajectory

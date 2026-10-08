@@ -1,9 +1,3 @@
-//! Owned host execution for the recovered SetData worker.
-//!
-//! 828D7E08/828D7FD8 define batch boundaries and dependency collection; preparing
-//! a job is not submitting or completing it (828C88D8). This synchronous host
-//! adapter accepts only SetData jobs and already-materialized input buffers.
-//! It is not a replacement for the full ACS scheduler or its other engines.
 use super::{
     buffers::{BufferError, PoseBuffers},
     set_data::{self, SetDataCommand},

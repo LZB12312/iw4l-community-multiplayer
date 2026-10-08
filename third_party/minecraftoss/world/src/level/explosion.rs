@@ -10,10 +10,12 @@
 //! 16-item stack collectors, containers spill their contents and TNT hit by
 //! the blast is primed with a short fuse.
 
+const WORLD_COORD_LIMIT: i32 = 30_000_000;
+
 use super::container::Stack;
 use super::entity::{Entity, EntityKind, TntData};
 use super::physics::{Aabb, ClipBlocks};
-use super::{update, Level};
+use super::{Level, update};
 use minecraftoss_core::loot::LootParams;
 use minecraftoss_core::random::RandomSource;
 use minecraftoss_core::{BlockPos, BlockStateId};
@@ -50,7 +52,11 @@ impl Level<'_> {
         if !self.tnt_explodes {
             return false;
         }
-        let tnt = self.new_primed_tnt([f64::from(pos.x) + 0.5, f64::from(pos.y), f64::from(pos.z) + 0.5]);
+        let tnt = self.new_primed_tnt([
+            f64::from(pos.x) + 0.5,
+            f64::from(pos.y),
+            f64::from(pos.z) + 0.5,
+        ]);
         self.add_entity(tnt);
         // The priming sound's seed comes from the sound seed generator.
         true
@@ -60,7 +66,14 @@ impl Level<'_> {
     pub(super) fn new_primed_tnt(&mut self, pos: [f64; 3]) -> Entity {
         let rot = self.random.next_f64() * f64::from(std::f32::consts::TAU);
         let delta = [-rot.sin() * 0.02, f64::from(0.2f32), -rot.cos() * 0.02];
-        Entity::primed_tnt(pos, delta, TntData { fuse: 80, power: 4.0 })
+        Entity::primed_tnt(
+            pos,
+            delta,
+            TntData {
+                fuse: 80,
+                power: 4.0,
+            },
+        )
     }
 
     /// `TntBlock.onPlace` / `neighborChanged`.
@@ -84,7 +97,9 @@ impl Level<'_> {
         if e.on_ground {
             e.delta = [e.delta[0] * 0.7, e.delta[1] * -0.5, e.delta[2] * 0.7];
         }
-        let EntityKind::PrimedTnt(data) = &mut e.kind else { return };
+        let EntityKind::PrimedTnt(data) = &mut e.kind else {
+            return;
+        };
         data.fuse -= 1;
         if data.fuse <= 0 {
             let power = data.power;
@@ -92,8 +107,18 @@ impl Level<'_> {
             if self.tnt_explodes {
                 // `getY(0.0625)`: a sixteenth of the way up the box.
                 let y = e.pos[1] + f64::from(e.height) * 0.0625;
-                let interaction = if self.tnt_explosion_drop_decay { BlockInteraction::DestroyWithDecay } else { BlockInteraction::Destroy };
-                self.explode(Explosion { center: [e.pos[0], y, e.pos[2]], radius: power, fire: false, interaction, source: Some(e.id) });
+                let interaction = if self.tnt_explosion_drop_decay {
+                    BlockInteraction::DestroyWithDecay
+                } else {
+                    BlockInteraction::Destroy
+                };
+                self.explode(Explosion {
+                    center: [e.pos[0], y, e.pos[2]],
+                    radius: power,
+                    fire: false,
+                    interaction,
+                    source: Some(e.id),
+                });
             }
         } else {
             self.entity_update_fluid_interaction(e);
@@ -122,7 +147,12 @@ impl Level<'_> {
         }
         // Water and lava both resist with 100.
         let fluid_resistance = if fluid.is_some() { 100.0f32 } else { 0.0 };
-        Some(blocks.state(state).explosion_resistance.max(fluid_resistance))
+        Some(
+            blocks
+                .state(state)
+                .explosion_resistance
+                .max(fluid_resistance),
+        )
     }
 
     /// `ServerExplosion.calculateExplodedPositions`, in the iteration order
@@ -146,9 +176,13 @@ impl Level<'_> {
                     let [mut xp, mut yp, mut zp] = ex.center;
                     let step = f64::from(0.3f32);
                     while remaining > 0.0 {
-                        let pos = BlockPos::new(xp.floor() as i32, yp.floor() as i32, zp.floor() as i32);
+                        let pos =
+                            BlockPos::new(xp.floor() as i32, yp.floor() as i32, zp.floor() as i32);
                         let state = self.block(pos);
-                        if self.outside(pos.y) || pos.x.abs() >= 30_000_000 || pos.z.abs() >= 30_000_000 {
+                        if self.outside(pos.y)
+                            || pos.x.abs() >= WORLD_COORD_LIMIT
+                            || pos.z.abs() >= WORLD_COORD_LIMIT
+                        {
                             break;
                         }
                         if let Some(resistance) = self.explosion_resistance(state) {
@@ -188,7 +222,12 @@ impl Level<'_> {
                     let x = lerp(xx, bb.min[0], bb.max[0]);
                     let y = lerp(yy, bb.min[1], bb.max[1]);
                     let z = lerp(zz, bb.min[2], bb.max[2]);
-                    if !self.clip_hits([x + x_offset, y, z + z_offset], center, ClipBlocks::Collider, false) {
+                    if !self.clip_hits(
+                        [x + x_offset, y, z + z_offset],
+                        center,
+                        ClipBlocks::Collider,
+                        false,
+                    ) {
                         hits += 1;
                     }
                     count += 1;
@@ -210,9 +249,21 @@ impl Level<'_> {
         let r = f64::from(double_radius);
         let lo = |c: f64| f64::from((c - r - 1.0).floor() as i32);
         let hi = |c: f64| f64::from((c + r + 1.0).floor() as i32);
-        let area = Aabb::new(lo(ex.center[0]), lo(ex.center[1]), lo(ex.center[2]), hi(ex.center[0]), hi(ex.center[1]), hi(ex.center[2]));
-        let targets: Vec<usize> =
-            (0..self.entities.len()).filter(|&i| !self.entities[i].removed && Some(self.entities[i].id) != ex.source && self.entities[i].bb.intersects(&area)).collect();
+        let area = Aabb::new(
+            lo(ex.center[0]),
+            lo(ex.center[1]),
+            lo(ex.center[2]),
+            hi(ex.center[0]),
+            hi(ex.center[1]),
+            hi(ex.center[2]),
+        );
+        let targets: Vec<usize> = (0..self.entities.len())
+            .filter(|&i| {
+                !self.entities[i].removed
+                    && Some(self.entities[i].id) != ex.source
+                    && self.entities[i].bb.intersects(&area)
+            })
+            .collect();
         for i in targets {
             let e = &self.entities[i];
             if matches!(e.kind, EntityKind::LightningBolt(_)) {
@@ -226,13 +277,19 @@ impl Level<'_> {
                 continue;
             }
             let origin = [e.pos[0], e.pos[1] + f64::from(e.eye_height()), e.pos[2]];
-            let direction = super::entity::normalize([origin[0] - ex.center[0], origin[1] - ex.center[1], origin[2] - ex.center[2]]);
+            let direction = super::entity::normalize([
+                origin[0] - ex.center[0],
+                origin[1] - ex.center[1],
+                origin[2] - ex.center[2],
+            ]);
             let exposure = self.seen_percent(ex.center, &self.entities[i].bb);
             // `getEntityDamageAmount`, then `hurtServer`.
             let pow = (1.0 - dist) * f64::from(exposure);
             let damage = ((pow * pow + pow) / 2.0 * 7.0 * r + 1.0) as f32;
             let knockback = (1.0 - dist) * f64::from(exposure) * f64::from(1.0f32) * (1.0 - 0.0);
-            let explosion_proof = self.entities[i].item_data().is_some_and(|d| self.explosion_proof_item(&d.stack));
+            let explosion_proof = self.entities[i]
+                .item_data()
+                .is_some_and(|d| self.explosion_proof_item(&d.stack));
             let e = &mut self.entities[i];
             if let EntityKind::Item(data) = &mut e.kind {
                 if !explosion_proof {
@@ -242,9 +299,17 @@ impl Level<'_> {
                     }
                 }
             }
-            let push = [direction[0] * knockback, direction[1] * knockback, direction[2] * knockback];
+            let push = [
+                direction[0] * knockback,
+                direction[1] * knockback,
+                direction[2] * knockback,
+            ];
             if push.iter().all(|v| v.is_finite()) {
-                e.delta = [e.delta[0] + push[0], e.delta[1] + push[1], e.delta[2] + push[2]];
+                e.delta = [
+                    e.delta[0] + push[0],
+                    e.delta[1] + push[1],
+                    e.delta[2] + push[2],
+                ];
             }
         }
     }
@@ -274,11 +339,24 @@ impl Level<'_> {
     }
 
     /// `BlockBehaviour.onExplosionHit` (and `TntBlock`'s `wasExploded`).
-    fn on_explosion_hit(&mut self, state: BlockStateId, pos: BlockPos, ex: &Explosion, stacks: &mut Vec<(BlockPos, Stack)>) {
-        if self.registries().blocks.is_air(state) || ex.interaction == BlockInteraction::TriggerBlock {
+    fn on_explosion_hit(
+        &mut self,
+        state: BlockStateId,
+        pos: BlockPos,
+        ex: &Explosion,
+        stacks: &mut Vec<(BlockPos, Stack)>,
+    ) {
+        if self.registries().blocks.is_air(state)
+            || ex.interaction == BlockInteraction::TriggerBlock
+        {
             return;
         }
-        for class in ["BeehiveBlock", "CreakingHeartBlock", "BellBlock", "AbstractCandleBlock"] {
+        for class in [
+            "BeehiveBlock",
+            "CreakingHeartBlock",
+            "BellBlock",
+            "AbstractCandleBlock",
+        ] {
             if self.is_a(state, class) {
                 self.unsupported.push(format!("explosion hitting {class}"));
             }
@@ -286,27 +364,44 @@ impl Level<'_> {
         let tnt = self.is_a(state, "TntBlock");
         if !tnt {
             let params = LootParams {
-                origin: Some([f64::from(pos.x) + 0.5, f64::from(pos.y) + 0.5, f64::from(pos.z) + 0.5]),
+                origin: Some([
+                    f64::from(pos.x) + 0.5,
+                    f64::from(pos.y) + 0.5,
+                    f64::from(pos.z) + 0.5,
+                ]),
                 tool: Some(Stack::empty()),
                 this_entity: ex.source.is_some(),
-                explosion_radius: (ex.interaction == BlockInteraction::DestroyWithDecay).then_some(ex.radius),
+                explosion_radius: (ex.interaction == BlockInteraction::DestroyWithDecay)
+                    .then_some(ex.radius),
                 ..LootParams::default()
             };
             // `spawnAfterBreak` without the player experience hack: no draws.
             let registries = self.lib.registries.clone();
-            match registries.loot.block_drops(&registries, state, &params, &mut self.random_sequences, &mut self.random) {
+            match registries.loot.block_drops(
+                &registries,
+                state,
+                &params,
+                &mut self.random_sequences,
+                &mut self.random,
+            ) {
                 Ok(drops) => {
                     for stack in drops {
                         add_or_append_stack(self, stacks, stack, pos);
                     }
                 }
-                Err(e) => self.unsupported.push(format!("drops of {}: {e}", self.name(state))),
+                Err(e) => self
+                    .unsupported
+                    .push(format!("drops of {}: {e}", self.name(state))),
             }
         }
         self.set_block(pos, BlockStateId::AIR, update::ALL, update::LIMIT);
         if tnt && self.tnt_explodes {
             // `wasExploded`: a primed TNT with a short random fuse.
-            let mut primed = self.new_primed_tnt([f64::from(pos.x) + 0.5, f64::from(pos.y), f64::from(pos.z) + 0.5]);
+            let mut primed = self.new_primed_tnt([
+                f64::from(pos.x) + 0.5,
+                f64::from(pos.y),
+                f64::from(pos.z) + 0.5,
+            ]);
             let fuse = self.random.next_i32_bound((80 / 4).max(1)) + 80 / 8;
             if let EntityKind::PrimedTnt(data) = &mut primed.kind {
                 data.fuse = fuse;
@@ -318,7 +413,12 @@ impl Level<'_> {
 
 /// `ServerExplosion.addOrAppendStack`: merge into earlier collectors up to
 /// 16 items each (`ItemEntity.areMergable`/`merge`).
-fn add_or_append_stack(level: &Level, stacks: &mut Vec<(BlockPos, Stack)>, mut stack: Stack, pos: BlockPos) {
+fn add_or_append_stack(
+    level: &Level,
+    stacks: &mut Vec<(BlockPos, Stack)>,
+    mut stack: Stack,
+    pos: BlockPos,
+) {
     for (_, collected) in stacks.iter_mut() {
         let max = level.lib.registries.items.max_stack(&stack.id);
         if collected.count + stack.count <= max && collected.same_item_same_components(&stack) {

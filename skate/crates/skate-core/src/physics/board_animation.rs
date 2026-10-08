@@ -1,6 +1,3 @@
-//! Original TU3 board error capture82C04368 and animation blend82C01878.
-//! PC arithmetic and the recovered refinements are used; this is not a claim
-//! of instruction-identical Xenon estimates or exceptional-lane execution.
 use super::{
     constraint_frames::{basis, reciprocal, reciprocal_sqrt},
     drive_frames::retail_quaternion_from_basis,
@@ -25,7 +22,6 @@ pub struct BoardAnimation {
 }
 impl Default for BoardAnimation {
     fn default() -> Self {
-        //Original constructor82C01100/1104.
         Self {
             rotation_error: [0.0, 0.0, 0.0, 1.0],
             blending: false,
@@ -33,15 +29,10 @@ impl Default for BoardAnimation {
     }
 }
 impl BoardAnimation {
-    ///82C0606C resets the quaternion. The source does not clear byte288.
     pub fn reset(&mut self) {
         self.rotation_error = [0.0, 0.0, 0.0, 1.0];
     }
 
-    ///82C04368: target inverse * actual DECK PART frame, reverse-axis
-    ///orthonormalization, quaternion conversion, and unconditional activation.
-    ///The scalar candidate conversion preserves the recovered comparisons and
-    ///refinements; exact VMX gather-register encoding remains separately audited.
     pub fn capture_physics_error(&mut self, target: &Transform, deck_part: &Transform) {
         let relative = orthonormalize(compose_affine(&inverse_rigid(target), deck_part));
         let q = retail_quaternion_from_basis(Basis3 {
@@ -51,8 +42,6 @@ impl BoardAnimation {
         self.blending = true;
     }
 
-    ///82C041C0 returns the target unchanged while inactive. Otherwise the
-    ///slow/fast graph is evaluated once per invocation, without a dt factor.
     pub fn apply(
         &mut self,
         target: &Transform,
@@ -99,8 +88,6 @@ impl BoardAnimation {
             std::array::from_fn(|lane| identity[lane].mul_add(weight_b, q[lane] * weight_a))
         };
         self.rotation_error = q;
-        //82C01B04..BE0 uses the same sqrt(2) / paired residual basis kernel
-        //independently present in82AE1CC4. No quaternion normalization here.
         let rotation = basis(RetailQuaternion {
             x: q[0],
             y: q[1],
@@ -115,8 +102,6 @@ impl BoardAnimation {
     }
 }
 
-///82C04270: target is compared with actual deck BODY COM, then all seven
-///board bodies receive this XYZ velocity, leaving their angular rates alone.
 pub fn target_velocity(target: [f32; 4], deck_body_position: [f32; 4], dt: f32) -> [f32; 4] {
     let inverse = 1.0 / dt;
     std::array::from_fn(|lane| (target[lane] - deck_body_position[lane]) * inverse)

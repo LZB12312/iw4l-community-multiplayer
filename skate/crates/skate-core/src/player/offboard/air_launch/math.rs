@@ -19,13 +19,15 @@ pub(in crate::player::offboard) fn magnitude(q: f32) -> f32 {
     let value = q * crate::physics::board_motion_output::inverse_length_squared(q, 2);
     if q == 0.0 { 0.0 } else { value }
 }
-///82E0A4E8: normalize axis safely, then separate multiplication/subtraction.
 pub(in crate::player::offboard) fn reject(v: Vector, axis: Vector) -> Vector {
     let axis = normalize_or(axis, ZERO);
     sub(v, scale(axis, dot(v, axis)))
 }
-///82BD3E78, including its strict angle comparison and raw quaternion W insert.
-pub(in crate::player::offboard) fn limit_angle(target: Vector, from: Vector, maximum: f32) -> Vector {
+pub(in crate::player::offboard) fn limit_angle(
+    target: Vector,
+    from: Vector,
+    maximum: f32,
+) -> Vector {
     let a = normalize_or(target, ZERO);
     let b = normalize_or(from, ZERO);
     let axis = cross(a, b);
@@ -42,9 +44,6 @@ pub(in crate::player::offboard) fn limit_angle(target: Vector, from: Vector, max
     let middle = madd(from, c, first);
     scale(madd(cross(q, middle), 2.0, from), length(target))
 }
-///82D7C724..C7F4 XYZ Rodrigues rotation. Host representation adaptation:
-///native permutation scratch lanes are not a fourth spatial velocity component.
-///Keep the geometric vector W=0 at this producer, before trajectory feedback.
 pub(in crate::player::offboard) fn rotate(v: Vector, axis: Vector, angle: f32) -> Vector {
     let [x, y, z, _] = axis;
     let (s, c) = crate::trigonometry::sin_cos(angle);

@@ -10,15 +10,9 @@ impl MotionAnimation {
         match tree {
             PlaybackTree::SelectionSpace(space) => {
                 space.select(attributes)?;
-                //82D26F88 calls IAnimatable+76, not SkaterAnim::GetAnimTree.
-                //TU3 vtable8231E050+76 ->82E32328 ->82D19648 constructs a
-                //raw child. The enclosing main/channel tree already owns its
-                //bind pose and mirroring; applying those here doubles bone
-                //translations and rotations (visible on offboard jump clips).
                 self.prepare_selection_spaces(space.current_mut().unwrap(), attributes)?;
             }
             PlaybackTree::BlendSpace(space) => {
-                // Type6 SetAttributes82D24078 consumes its own parameters only.
                 let _ = space;
             }
             PlaybackTree::PhaseBlend(space) => {

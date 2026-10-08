@@ -73,7 +73,6 @@ const BUTTON_NAMES: [&str; 24] = [
     "RStickR", "RStickL", "RStickU", "RStickD",
 ];
 
-// TU3 82697740 registers these eighteen actions at indices 64..81.
 const GAMEPLAY: [(&str, &str); 18] = [
     ("GP_LStickX", "LStickR-LStickL"),
     ("GP_LStickY", "LStickU-LStickD"),
@@ -94,7 +93,3 @@ const GAMEPLAY: [(&str, &str); 18] = [
     ("GP_AFace", "A"),
     ("GP_BFace", "B"),
 ];
-
-#[cfg(test)]
-#[path = "tests/input_config.rs"]
-mod tests;

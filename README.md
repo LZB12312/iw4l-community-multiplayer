@@ -1,4 +1,14 @@
-# 2010 Rust Rewrite Mashup
+# IW4L Community Multiplayer
+
+Host and join friends through `Multiplayer.exe`, with independent matchmaking,
+UPnP hosting, authenticated invitations and in-launcher GitHub updates. The same
+portable package supports hosting and joining. Skater outfits stay synchronized
+while walking and skating; Hall of Meat responds to hard falls and MW2 damage,
+and board sounds use the nearest supported collision material.
+
+This builds on [2010 Rust Rewrite Mashup](https://github.com/chasmlol/2010-rust-rewrite-mashup).
+See [the multiplayer guide](docs/MULTIPLAYER.md) for setup, controls and the
+remaining original creator, Hall of Meat and audio limitations.
 
 Modern Warfare 2, Skate 3 and Minecraft in one game, all running on
 [IW4L](https://github.com/vladtrc/iw4L), a from-scratch Rust rewrite of MW2.
@@ -32,9 +42,11 @@ You don't need Minecraft installed. The first time the game starts, it downloads
 
 ## How to play
 
-1. Grab the zip from [Releases](../../releases/latest) and extract it somewhere you can write to (not Program Files), or build it yourself (see [docs/BUILD.md](docs/BUILD.md)).
-2. Double-click `iw4l.exe` and confirm your MW2 folder. It then asks whether you have Skate 3: choose **Yes** and select your `default.xex`, or **No** to play without skating.
-3. To play the Minecraft world, go to **Create Game** and pick the **Minecraft** tab in the map list. The map is called **overworld**.
+1. Grab **IW4L-Community-Multiplayer.zip** from [Releases](https://github.com/LZB12312/iw4l-community-multiplayer/releases) and extract it somewhere you can write to (not Program Files), or build it yourself (see [docs/BUILD.md](docs/BUILD.md)).
+2. Double-click `Multiplayer.exe` and select your Steam MW2 folder. Select your extracted Skate 3 `default.xex` to prepare skating, character and audio assets. Game content is supplied from your own copies.
+3. Use **Host Internet** and your chosen UDP port, then **Copy invitation**. Friends use **Join Internet** in the same package and paste the invitation, then select your lobby in **Find Lobbies**. Same-network invitations can connect over the LAN without NAT loopback. Use **Update mod** to install newer GitHub releases.
+4. Open **Character** in the game to choose your player and configure Hall of Meat. **J** switches walking/skating. The multiplayer guide describes the original creator controls currently implemented and those still in development.
+5. To play the Minecraft world, go to **Create Game** and pick the **Minecraft** tab in the map list. The map is called **overworld**.
 
    You can also double-click `Minecraft World.bat` in the release folder, start the game with `iw4l.exe map minecraft:overworld`, or open the console with the backtick key (`` ` ``, under Esc) and type `map minecraft:overworld`.
 

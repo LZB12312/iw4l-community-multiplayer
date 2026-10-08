@@ -2,9 +2,6 @@ use super::*;
 use skate_core::physics::grind_contact::admission::EntryKind;
 
 impl GrindInputState {
-    ///82D8AB08's meaningful order. Geometry consumes the pre-submitted hits;
-    /// material application has already happened. The complete snapshot is
-    /// copied only after balance, engagement, controls and jumper publication.
     pub fn post_update(
         &mut self,
         p: &mut ProcessedPhysicsInput,

@@ -1,6 +1,3 @@
-//! UpdateSkateboard82D38800 inputs from the actual processed packet, animation
-//! attributes, physical pose and source board toolkit. No raw button-to-force
-//! or guessed contact flags are introduced at this boundary.
 use super::super::{
     animated_skeleton::AnimatedSkeleton, animation_input::AnimationInput,
     riding_outputs::RidingOutputs,
@@ -39,7 +36,6 @@ use skate_core::{
 /// Only values owned by separate state producers, not derivable from a rigid
 /// body. The coordinator supplies the actual output of those producers.
 pub(crate) struct GroundInputObservations {
-    /// Reset82BF9EF0 writes0; preserve subsequent producer updates.
     pub manual_drag_2724: f32,
     /// Actual trajectory output, Processed1776.
     pub trajectory_state_bits: u32,

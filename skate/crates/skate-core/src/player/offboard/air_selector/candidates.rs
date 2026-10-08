@@ -1,4 +1,3 @@
-//!82D6BF90; S2 82DBB358 verifies packet/index-shift roles, not S3's new cone.
 use super::{Candidate, DT, MAX_CANDIDATES, Packet, Settings, Vector, math::*};
 use crate::air::trajectory::Trajectory;
 pub(super) fn prepare(
@@ -60,7 +59,6 @@ pub(super) fn prepare(
             (UP, scale(p.forward_64, -1.))
         };
         let vertical = cross(axis, right);
-        //8252D980 is tan; Biped launch already supplies radians.
         let tangents = [p.scalar_96.tan(), p.scalar_100.tan(), p.scalar_104.tan()];
         let base_speed = length(base);
         let mut minimum = length(flatten(p.velocity_0));
@@ -83,7 +81,6 @@ pub(super) fn prepare(
             };
             let increment = minimum.max(1.).min(4.) / (p.kind_112 + 1) as f32;
             let mut speed = 0.;
-            //Original822F9444=41A95811: fixed native secondary vertical seed.
             let square = f32::from_bits(0x41a95811);
             let vertical =
                 square * crate::physics::board_motion_output::inverse_length_squared(square, 2);

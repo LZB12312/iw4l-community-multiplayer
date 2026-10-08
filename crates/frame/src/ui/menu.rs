@@ -38,6 +38,31 @@ pub struct UiExecCommand {
     pub text: String,
 }
 
+pub const SKATE_CREATOR_MENU: &str = "skate_character_creator";
+
+#[derive(Resource, Default, Debug)]
+pub struct SkateCreatorState {
+    pub available: bool,
+    pub active: bool,
+}
+
+#[derive(Message, Clone, Debug)]
+pub struct UiCharacterInput {
+    pub key: UiMenuKey,
+}
+
+#[derive(Message, Clone, Debug)]
+pub struct UiCharacterEdit {
+    pub request_id: u64,
+    pub args: Vec<String>,
+}
+
+#[derive(Message, Clone, Debug)]
+pub struct UiCharacterEditResult {
+    pub request_id: u64,
+    pub result: Result<(), String>,
+}
+
 #[derive(Message, Clone, Debug, PartialEq, Eq)]
 pub enum UiMenuRequest {
     Toggle,

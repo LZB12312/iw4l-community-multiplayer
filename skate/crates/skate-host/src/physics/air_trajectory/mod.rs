@@ -23,7 +23,6 @@ pub struct AirTrajectoryRuntime {
     nearby_grinds: Vec<usize>,
 }
 impl AirTrajectoryRuntime {
-    ///Full82E099A0 query shared by trajectory and Footplant callers.
     pub fn query(world: &BoardWorld, request: QueryRequest) -> Result<QueryResult, String> {
         query_trajectory(
             request,

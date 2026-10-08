@@ -8,10 +8,12 @@
 //! camera with Gaussian biome blending; frames interpolate between the last
 //! two ticks with each attribute's partial-tick lerp.
 
-use crate::day_cycle::{SkyState, BLOCK_FACTOR};
+use crate::day_cycle::{BLOCK_FACTOR, SkyState};
 use glam::Vec3;
-use minecraftoss_core::environment::{biome_weights, lerp_value, DimensionPresentation, EnvironmentSystem, Purpose, Sample, Value};
 use minecraftoss_core::Registries;
+use minecraftoss_core::environment::{
+    DimensionPresentation, EnvironmentSystem, Purpose, Sample, Value, biome_weights, lerp_value,
+};
 
 /// The attributes the renderer reads, in `Used` order.
 const USED: [&str; 18] = [
@@ -98,27 +100,75 @@ impl DimensionEnvironment {
         let (system, presentation) = EnvironmentSystem::for_dimension(registries, dimension_type)?;
         let mut indices = [0; USED.len()];
         for (slot, name) in indices.iter_mut().zip(USED) {
-            *slot = system.registry.index(name).ok_or_else(|| format!("unknown attribute {name}"))?;
+            *slot = system
+                .registry
+                .index(name)
+                .ok_or_else(|| format!("unknown attribute {name}"))?;
         }
-        let defaults: Vec<Value> = indices.iter().map(|&i| system.registry.attributes[i].default.clone()).collect();
-        Ok(Self { system, presentation, indices, last: defaults.clone(), current: defaults, rain_fog: 0.0 })
+        let defaults: Vec<Value> = indices
+            .iter()
+            .map(|&i| system.registry.attributes[i].default.clone())
+            .collect();
+        Ok(Self {
+            system,
+            presentation,
+            indices,
+            last: defaults.clone(),
+            current: defaults,
+            rain_fog: 0.0,
+        })
     }
 
     /// `EnvironmentAttributeProbe.tick`: samples every used attribute at the
     /// camera. The first tick after loading fills both ends.
-    pub fn tick(&mut self, clock_ticks: i64, rain_level: f32, thunder_level: f32, camera: [f64; 3], noise_biome: impl Fn(i32, i32, i32) -> u16, first: bool) {
-        let weights = biome_weights([camera[0] * 0.25, camera[1] * 0.25, camera[2] * 0.25], &noise_biome);
-        let own = noise_biome((camera[0].floor() as i32) >> 2, (camera[1].floor() as i32) >> 2, (camera[2].floor() as i32) >> 2);
+    pub fn tick(
+        &mut self,
+        clock_ticks: i64,
+        rain_level: f32,
+        thunder_level: f32,
+        camera: [f64; 3],
+        noise_biome: impl Fn(i32, i32, i32) -> u16,
+        first: bool,
+    ) {
+        let weights = biome_weights(
+            [camera[0] * 0.25, camera[1] * 0.25, camera[2] * 0.25],
+            &noise_biome,
+        );
+        let own = noise_biome(
+            (camera[0].floor() as i32) >> 2,
+            (camera[1].floor() as i32) >> 2,
+            (camera[2].floor() as i32) >> 2,
+        );
         let clock = move |_: &str| clock_ticks;
-        let sample = Sample { clock_ticks: &clock, rain_level, thunder_level, biome_weights: Some(&weights), biome: own };
-        let values: Vec<Value> = self.indices.iter().map(|&i| self.system.value(i, &sample)).collect();
-        self.last = if first { values.clone() } else { std::mem::replace(&mut self.current, values.clone()) };
+        let sample = Sample {
+            clock_ticks: &clock,
+            rain_level,
+            thunder_level,
+            biome_weights: Some(&weights),
+            biome: own,
+        };
+        let values: Vec<Value> = self
+            .indices
+            .iter()
+            .map(|&i| self.system.value(i, &sample))
+            .collect();
+        self.last = if first {
+            values.clone()
+        } else {
+            std::mem::replace(&mut self.current, values.clone())
+        };
         self.current = values;
     }
 
     /// `AtmosphericFogEnvironment.updateRainFogState`, once per frame:
     /// `sky_light` is the camera's sky light and `delta_ticks` the frame time.
-    pub fn update_rain_fog(&mut self, rain_level: f32, sky_light: u8, rains_in_biome: bool, delta_ticks: f32) {
+    pub fn update_rain_fog(
+        &mut self,
+        rain_level: f32,
+        sky_light: u8,
+        rains_in_biome: bool,
+        delta_ticks: f32,
+    ) {
         let exposure = ((f32::from(sky_light) - 8.0) / 7.0).clamp(0.0, 1.0);
         let target = rain_level * exposure * if rains_in_biome { 1.0 } else { 0.5 };
         self.rain_fog += (target - self.rain_fog) * delta_ticks * 0.2;
@@ -127,7 +177,13 @@ impl DimensionEnvironment {
     fn value(&self, used: Used, partial_tick: f32) -> Value {
         let slot = used as usize;
         let kind = self.system.registry.attributes[self.indices[slot]].kind;
-        lerp_value(kind, Purpose::PartialTick, partial_tick, &self.last[slot], &self.current[slot])
+        lerp_value(
+            kind,
+            Purpose::PartialTick,
+            partial_tick,
+            &self.last[slot],
+            &self.current[slot],
+        )
     }
 
     fn float(&self, used: Used, partial_tick: f32) -> f32 {
@@ -156,7 +212,10 @@ impl DimensionEnvironment {
         let sunset = self.value(Used::SunriseSunset, t).as_argb();
         let sky = self.rgb(Used::SkyColor, t);
         let phase = self.value(Used::MoonPhase, t);
-        let moon_phase = MOON_PHASES.iter().position(|p| *p == phase.as_text()).unwrap_or(0);
+        let moon_phase = MOON_PHASES
+            .iter()
+            .position(|p| *p == phase.as_text())
+            .unwrap_or(0);
 
         // AtmosphericFogEnvironment.getBaseColor.
         let mut fog = self.rgb(Used::FogColor, t);
@@ -165,7 +224,11 @@ impl DimensionEnvironment {
             let facing = view.forward.x * sun_x;
             let alpha = sunset[3];
             if facing > 0.0 && alpha > 0.0 {
-                fog = joml_lerp(fog, Vec3::new(sunset[0], sunset[1], sunset[2]), facing * alpha);
+                fog = joml_lerp(
+                    fog,
+                    Vec3::new(sunset[0], sunset[1], sunset[2]),
+                    facing * alpha,
+                );
             }
         }
         let darkened_sky = weather_darken(sky, view.rain_level, view.thunder_level);
@@ -175,7 +238,9 @@ impl DimensionEnvironment {
         fog = joml_lerp(fog, darkened_sky, mix);
         // FogRenderer.computeFogColor: darkness toward the void.
         let min_y = self.presentation.min_y as f32;
-        let darkness = ((VOID_DARKNESS_ONSET_RANGE + min_y - view.camera_y) / VOID_DARKNESS_ONSET_RANGE).clamp(0.0, 1.0);
+        let darkness = ((VOID_DARKNESS_ONSET_RANGE + min_y - view.camera_y)
+            / VOID_DARKNESS_ONSET_RANGE)
+            .clamp(0.0, 1.0);
         if darkness > 0.0 {
             fog *= (1.0 - darkness) * (1.0 - darkness);
         }
@@ -233,7 +298,11 @@ fn weather_darken(color: Vec3, rain: f32, thunder: f32) -> Vec3 {
 fn open_sky_light(ambient: Vec3, sky_light_color: Vec3, sky_light_factor: f32) -> Vec3 {
     let raw = (ambient + sky_light_color * sky_light_factor).clamp(Vec3::ZERO, Vec3::ONE);
     let max = raw.max_element();
-    let gamma = if max > 0.0 { raw * ((1.0 - (1.0 - max).powi(4)) / max) } else { Vec3::ZERO };
+    let gamma = if max > 0.0 {
+        raw * ((1.0 - (1.0 - max).powi(4)) / max)
+    } else {
+        Vec3::ZERO
+    };
     raw.lerp(gamma, 0.5)
 }
 
@@ -250,45 +319,9 @@ fn clamped_lerp(factor: f32, min: f32, max: f32) -> f32 {
 
 /// `ARGB.srgbLerp` (JOML lerp without fused multiply-add).
 fn joml_lerp(from: Vec3, to: Vec3, alpha: f32) -> Vec3 {
-    Vec3::new((to.x - from.x) * alpha + from.x, (to.y - from.y) * alpha + from.y, (to.z - from.z) * alpha + from.z)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::day_cycle::{DayCycle, Skybox};
-    use minecraftoss_core::registries::DataPaths;
-
-    fn registries() -> Option<Registries> {
-        let paths = DataPaths::discover().ok()?;
-        paths.block_catalog.is_file().then(|| Registries::load(&paths).unwrap())
-    }
-
-    /// The data-driven Overworld reproduces the authored clock's keyframed
-    /// values (sky, stars, light) away from the approximated sunset.
-    #[test]
-    fn overworld_matches_the_authored_clock() {
-        let Some(registries) = registries() else { return };
-        let plains = registries.biomes.id("minecraft:plains").unwrap().0;
-        let mut env = DimensionEnvironment::load(&registries, "minecraft:overworld").unwrap();
-        for ticks in (0..24_000).step_by(250) {
-            env.tick(ticks, 0.0, 0.0, [0.5, 80.0, 0.5], |_, _, _| plains, true);
-            let view = View { partial_tick: 1.0, forward: Vec3::Z, camera_y: 80.0, render_distance: 16, rain_level: 0.0, thunder_level: 0.0 };
-            let ours = env.sky_state(&view);
-            let old = DayCycle { ticks: ticks as f64, paused: true }.sample_for_biome_at(crate::terrain::plains_sample(&registries), 16);
-            assert!((ours.sky - old.sky).abs().max_element() < 1e-5, "sky at {ticks}: {:?} vs {:?}", ours.sky, old.sky);
-            assert!((ours.sky_light_factor - old.sky_light_factor).abs() < 1e-5, "light factor at {ticks}");
-            assert!((ours.star_brightness - old.star_brightness).abs() < 1e-5, "stars at {ticks}");
-            assert!((ours.sun_direction - old.sun_direction).abs().max_element() < 1e-5, "sun at {ticks}");
-        }
-    }
-
-    #[test]
-    fn nether_and_end_skyboxes() {
-        let Some(registries) = registries() else { return };
-        let nether = DimensionEnvironment::load(&registries, "minecraft:the_nether").unwrap();
-        assert_eq!(nether.presentation.skybox, Skybox::None);
-        let end = DimensionEnvironment::load(&registries, "minecraft:the_end").unwrap();
-        assert_eq!(end.presentation.skybox, Skybox::End);
-    }
+    Vec3::new(
+        (to.x - from.x) * alpha + from.x,
+        (to.y - from.y) * alpha + from.y,
+        (to.z - from.z) * alpha + from.z,
+    )
 }

@@ -12,7 +12,10 @@
 //! outposts, fortresses), spawn costs and enchanted spawn equipment are not
 //! ported and are noted when reached.
 
-use super::{place, set, set_attribute_base, spawn_aabb, type_info, CreatureSpawns, Creatures, Group, RandomRef, Rules, SpawnLevel, SpawnerData, TypeInfo, Walk};
+use super::{
+    CreatureSpawns, Creatures, Group, RandomRef, Rules, SpawnLevel, SpawnerData, TypeInfo, Walk,
+    place, set, set_attribute_base, spawn_aabb, type_info,
+};
 use minecraftoss_core::block::flags;
 use minecraftoss_core::entity_data::finalize_mob;
 use minecraftoss_core::nbt::Tag;
@@ -96,11 +99,16 @@ impl MobCategory {
     /// `MISC` and types not listed.
     pub fn of_type(kind: &str) -> Option<Self> {
         Some(match kind.trim_start_matches("minecraft:") {
-            "zombie" | "zombie_villager" | "zombie_horse" | "skeleton" | "creeper" | "spider" | "enderman" | "witch" | "slime" | "husk" | "stray" | "drowned"
-            | "bogged" | "parched" | "camel_husk" | "cave_spider" | "silverfish" | "phantom" | "blaze" | "ghast" | "magma_cube" | "piglin" | "hoglin"
-            | "zombified_piglin" | "pillager" | "shulker" => Self::Monster,
-            "cow" | "pig" | "sheep" | "chicken" | "horse" | "donkey" | "mule" | "mooshroom" | "rabbit" | "wolf" | "fox" | "goat" | "llama" | "panda"
-            | "polar_bear" | "cat" | "ocelot" | "parrot" | "frog" | "camel" | "armadillo" | "turtle" | "strider" => Self::Creature,
+            "zombie" | "zombie_villager" | "zombie_horse" | "skeleton" | "creeper" | "spider"
+            | "enderman" | "witch" | "slime" | "husk" | "stray" | "drowned" | "bogged"
+            | "parched" | "camel_husk" | "cave_spider" | "silverfish" | "phantom" | "blaze"
+            | "ghast" | "magma_cube" | "piglin" | "hoglin" | "zombified_piglin" | "pillager"
+            | "shulker" => Self::Monster,
+            "cow" | "pig" | "sheep" | "chicken" | "horse" | "donkey" | "mule" | "mooshroom"
+            | "rabbit" | "wolf" | "fox" | "goat" | "llama" | "panda" | "polar_bear" | "cat"
+            | "ocelot" | "parrot" | "frog" | "camel" | "armadillo" | "turtle" | "strider" => {
+                Self::Creature
+            }
             "bat" => Self::Ambient,
             "axolotl" => Self::Axolotls,
             "glow_squid" => Self::UndergroundWaterCreature,
@@ -114,7 +122,8 @@ impl MobCategory {
 /// `EntityType.canSpawnFarFromPlayer`: creature (and misc) types, pillagers
 /// and shulkers.
 fn can_spawn_far_from_player(kind: &str) -> bool {
-    MobCategory::of_type(kind) == Some(MobCategory::Creature) || matches!(kind, "minecraft:pillager" | "minecraft:shulker")
+    MobCategory::of_type(kind) == Some(MobCategory::Creature)
+        || matches!(kind, "minecraft:pillager" | "minecraft:shulker")
 }
 
 /// `DifficultyInstance`.
@@ -127,22 +136,34 @@ pub struct DifficultyInstance {
 
 impl DifficultyInstance {
     /// `DifficultyInstance(base, totalGameTime, localGameTime, moonBrightness)`.
-    pub fn new(base: i32, total_game_time: i64, local_game_time: i64, moon_brightness: f32) -> Self {
+    pub fn new(
+        base: i32,
+        total_game_time: i64,
+        local_game_time: i64,
+        moon_brightness: f32,
+    ) -> Self {
         if base == 0 {
-            return Self { base, effective: 0.0 };
+            return Self {
+                base,
+                effective: 0.0,
+            };
         }
         let hard = base == 3;
         let mut scale = 0.75f32;
         let global = ((total_game_time as f32 + -72000.0) / 1_440_000.0).clamp(0.0, 1.0) * 0.25;
         scale += global;
         let mut local = 0.0f32;
-        local += (local_game_time as f32 / 3_600_000.0).clamp(0.0, 1.0) * if hard { 1.0 } else { 0.75 };
+        local +=
+            (local_game_time as f32 / 3_600_000.0).clamp(0.0, 1.0) * if hard { 1.0 } else { 0.75 };
         local += (moon_brightness * 0.25).clamp(0.0, global);
         if base == 1 {
             local *= 0.5;
         }
         scale += local;
-        Self { base, effective: base as f32 * scale }
+        Self {
+            base,
+            effective: base as f32 * scale,
+        }
     }
 
     /// `getSpecialMultiplier`.
@@ -209,11 +230,18 @@ impl SpawnCallbacks for Unlimited {}
 enum MonsterGroup {
     None,
     /// `Zombie.ZombieGroupData`.
-    Zombie { baby: bool, can_spawn_jockey: bool },
+    Zombie {
+        baby: bool,
+        can_spawn_jockey: bool,
+    },
     /// `Spider.SpiderEffectsGroupData` (no effect below Hard).
     Spider,
     /// `AgeableMobGroupData` (slimes, zombie horses).
-    Ageable { should_spawn_baby: bool, chance: f32, size: i32 },
+    Ageable {
+        should_spawn_baby: bool,
+        chance: f32,
+        size: i32,
+    },
 }
 
 fn byte(value: bool) -> Tag {
@@ -223,7 +251,9 @@ fn byte(value: bool) -> Tag {
 /// An equipment slot holding one item (`setItemSlot(slot, new ItemStack(item))`).
 pub(super) fn equip(tag: &mut Tag, slot: &str, item: &str) {
     let Tag::Compound(map) = tag else { return };
-    let equipment = map.entry("equipment".to_owned()).or_insert_with(|| Tag::Compound(BTreeMap::new()));
+    let equipment = map
+        .entry("equipment".to_owned())
+        .or_insert_with(|| Tag::Compound(BTreeMap::new()));
     if let Tag::Compound(slots) = equipment {
         let mut stack = BTreeMap::new();
         stack.insert("count".to_owned(), Tag::Int(1));
@@ -238,10 +268,22 @@ fn has_equipment(tag: &Tag, slot: &str) -> bool {
 
 /// `AttributeMap.getInstance`: the attribute's saved entry, created with
 /// the type's default base when first touched.
-pub(super) fn attribute<'t>(tag: &'t mut Tag, id: &str, default_base: f64) -> Option<&'t mut BTreeMap<String, Tag>> {
+pub(super) fn attribute<'t>(
+    tag: &'t mut Tag,
+    id: &str,
+    default_base: f64,
+) -> Option<&'t mut BTreeMap<String, Tag>> {
     let Tag::Compound(map) = tag else { return None };
-    let Tag::List(list) = map.entry("attributes".to_owned()).or_insert_with(|| Tag::List(Vec::new())) else { return None };
-    let index = match list.iter().position(|a| a.get("id").and_then(Tag::as_str) == Some(id)) {
+    let Tag::List(list) = map
+        .entry("attributes".to_owned())
+        .or_insert_with(|| Tag::List(Vec::new()))
+    else {
+        return None;
+    };
+    let index = match list
+        .iter()
+        .position(|a| a.get("id").and_then(Tag::as_str) == Some(id))
+    {
         Some(i) => i,
         None => {
             let mut entry = BTreeMap::new();
@@ -258,9 +300,23 @@ pub(super) fn attribute<'t>(tag: &'t mut Tag, id: &str, default_base: f64) -> Op
 }
 
 /// `addOrReplacePermanentModifier`.
-fn add_modifier(tag: &mut Tag, id: &str, default_base: f64, modifier_id: &str, amount: f64, operation: &str) {
-    let Some(entry) = attribute(tag, id, default_base) else { return };
-    let Tag::List(modifiers) = entry.entry("modifiers".to_owned()).or_insert_with(|| Tag::List(Vec::new())) else { return };
+fn add_modifier(
+    tag: &mut Tag,
+    id: &str,
+    default_base: f64,
+    modifier_id: &str,
+    amount: f64,
+    operation: &str,
+) {
+    let Some(entry) = attribute(tag, id, default_base) else {
+        return;
+    };
+    let Tag::List(modifiers) = entry
+        .entry("modifiers".to_owned())
+        .or_insert_with(|| Tag::List(Vec::new()))
+    else {
+        return;
+    };
     modifiers.retain(|m| m.get("id").and_then(Tag::as_str) != Some(modifier_id));
     let mut modifier = BTreeMap::new();
     modifier.insert("amount".to_owned(), Tag::Double(amount));
@@ -272,7 +328,10 @@ fn add_modifier(tag: &mut Tag, id: &str, default_base: f64, modifier_id: &str, a
 /// The follow range base a type's attribute supplier gives.
 fn follow_range_base(kind: &str) -> f64 {
     match kind {
-        "minecraft:zombie" | "minecraft:zombie_villager" | "minecraft:husk" | "minecraft:drowned" => 35.0,
+        "minecraft:zombie"
+        | "minecraft:zombie_villager"
+        | "minecraft:husk"
+        | "minecraft:drowned" => 35.0,
         "minecraft:enderman" => 64.0,
         _ => 16.0,
     }
@@ -280,17 +339,24 @@ fn follow_range_base(kind: &str) -> f64 {
 
 /// An entity's own random, seeded from its UUID (vanilla's is unseeded).
 fn entity_random(uuid: [i32; 4]) -> LegacyRandom {
-    let seed = uuid.iter().fold(0x5DEE_CE66_Du64, |h, &w| h.rotate_left(17) ^ u64::from(w as u32));
+    let seed = uuid.iter().fold(0x5DEE_CE66_Du64, |h, &w| {
+        h.rotate_left(17) ^ u64::from(w as u32)
+    });
     LegacyRandom::new(seed as i64)
 }
 
 /// `WorldgenRandom.seedSlimeChunk(x, z, seed, 987234911).nextInt(10) == 0`.
 pub fn is_slime_chunk(chunk: ChunkPos, seed: i64) -> bool {
+    const X_SQUARED_SEED_FACTOR: i32 = 4_987_142;
+    const X_SEED_FACTOR: i32 = 5_947_611;
+    const Z_SQUARED_SEED_FACTOR: i64 = 4_392_871;
     let (x, z) = (chunk.x, chunk.z);
     let mixed = seed
-        .wrapping_add(i64::from(x.wrapping_mul(x).wrapping_mul(4_987_142)))
-        .wrapping_add(i64::from(x.wrapping_mul(5_947_611)))
-        .wrapping_add(i64::from(z.wrapping_mul(z)).wrapping_mul(4_392_871))
+        .wrapping_add(i64::from(
+            x.wrapping_mul(x).wrapping_mul(X_SQUARED_SEED_FACTOR),
+        ))
+        .wrapping_add(i64::from(x.wrapping_mul(X_SEED_FACTOR)))
+        .wrapping_add(i64::from(z.wrapping_mul(z)).wrapping_mul(Z_SQUARED_SEED_FACTOR))
         .wrapping_add(i64::from(z.wrapping_mul(389_711)))
         ^ 987_234_911;
     LegacyRandom::new(mixed).next_i32_bound(10) == 0
@@ -302,10 +368,16 @@ fn villager_type(biome: &str) -> &'static str {
         "badlands" | "desert" | "eroded_badlands" | "wooded_badlands" => "minecraft:desert",
         "bamboo_jungle" | "jungle" | "sparse_jungle" => "minecraft:jungle",
         "savanna_plateau" | "savanna" | "windswept_savanna" => "minecraft:savanna",
-        "deep_frozen_ocean" | "frozen_ocean" | "frozen_river" | "ice_spikes" | "snowy_beach" | "snowy_taiga" | "snowy_plains" | "grove" | "snowy_slopes"
-        | "frozen_peaks" | "jagged_peaks" => "minecraft:snow",
+        "deep_frozen_ocean" | "frozen_ocean" | "frozen_river" | "ice_spikes" | "snowy_beach"
+        | "snowy_taiga" | "snowy_plains" | "grove" | "snowy_slopes" | "frozen_peaks"
+        | "jagged_peaks" => "minecraft:snow",
         "swamp" | "mangrove_swamp" => "minecraft:swamp",
-        "old_growth_spruce_taiga" | "old_growth_pine_taiga" | "windswept_gravelly_hills" | "windswept_hills" | "taiga" | "windswept_forest" => "minecraft:taiga",
+        "old_growth_spruce_taiga"
+        | "old_growth_pine_taiga"
+        | "windswept_gravelly_hills"
+        | "windswept_hills"
+        | "taiga"
+        | "windswept_forest" => "minecraft:taiga",
         _ => "minecraft:plains",
     }
 }
@@ -331,7 +403,15 @@ const PROFESSIONS: [&str; 15] = [
 
 /// `Mob.getEquipmentForSlot`: leather, copper, gold, chainmail, iron, diamond.
 fn equipment_for_slot(slot: &str, armor_type: i32) -> Option<String> {
-    let material = ["leather", "copper", "golden", "chainmail", "iron", "diamond"].get(usize::try_from(armor_type).ok()?)?;
+    let material = [
+        "leather",
+        "copper",
+        "golden",
+        "chainmail",
+        "iron",
+        "diamond",
+    ]
+    .get(usize::try_from(armor_type).ok()?)?;
     let piece = match slot {
         "head" => "helmet",
         "chest" => "chestplate",
@@ -353,7 +433,14 @@ pub(super) fn mob_box(tag: &Tag, info: &TypeInfo, at: [f64; 3]) -> [f64; 6] {
         (width, height) = (width * scale, height * scale);
     }
     let half = f64::from(width / 2.0);
-    [at[0] - half, at[1], at[2] - half, at[0] + half, at[1] + f64::from(height), at[2] + half]
+    [
+        at[0] - half,
+        at[1],
+        at[2] - half,
+        at[0] + half,
+        at[1] + f64::from(height),
+        at[2] + half,
+    ]
 }
 
 fn overlaps(a: &[f64; 6], b: &[f64; 6]) -> bool {
@@ -362,8 +449,15 @@ fn overlaps(a: &[f64; 6], b: &[f64; 6]) -> bool {
 
 impl CreatureSpawns {
     /// `MobSpawnSettings.getMobSpawnCost` of the biome at a position.
-    pub(super) fn cost_at(&self, level: &dyn SpawnLevel, kind: &str, pos: BlockPos) -> Option<(f64, f64)> {
-        self.costs[usize::from(level.biome(pos).0)].get(kind).copied()
+    pub(super) fn cost_at(
+        &self,
+        level: &dyn SpawnLevel,
+        kind: &str,
+        pos: BlockPos,
+    ) -> Option<(f64, f64)> {
+        self.costs[usize::from(level.biome(pos).0)]
+            .get(kind)
+            .copied()
     }
 
     /// A biome's spawn list for a category (`mobsAt` without structures).
@@ -385,7 +479,11 @@ impl CreatureSpawns {
         start: BlockPos,
     ) {
         let y_start = start.y;
-        if self.registries.blocks.is(level.block(start), flags::REDSTONE_CONDUCTOR) {
+        if self
+            .registries
+            .blocks
+            .is(level.block(start), flags::REDSTONE_CONDUCTOR)
+        {
             return;
         }
         let mut cluster_size = 0;
@@ -418,9 +516,15 @@ impl CreatureSpawns {
                     continue;
                 }
                 if current.is_none() {
-                    let Some(data) = self.random_spawn_mob_at(level, category, pos) else { break };
+                    let Some(data) = self.random_spawn_mob_at(level, category, pos) else {
+                        break;
+                    };
                     // `count.sample`: a constant draws nothing.
-                    max = if data.constant { data.min } else { level.random().next_i32_bound(data.max - data.min + 1) + data.min };
+                    max = if data.constant {
+                        data.min
+                    } else {
+                        level.random().next_i32_bound(data.max - data.min + 1) + data.min
+                    };
                     current = Some(data);
                 }
                 let data = current.clone().expect("drawn above");
@@ -436,10 +540,17 @@ impl CreatureSpawns {
                     continue;
                 }
                 // `getMobForSpawn`: types not allowed in peaceful are not created.
-                if context.difficulty == 0 && MobCategory::of_type(&data.kind) == Some(MobCategory::Monster) {
+                if context.difficulty == 0
+                    && MobCategory::of_type(&data.kind) == Some(MobCategory::Monster)
+                {
                     return;
                 }
-                let Some(mut tag) = self.registries.entities.as_ref().and_then(|c| c.default_tag(&data.kind)) else {
+                let Some(mut tag) = self
+                    .registries
+                    .entities
+                    .as_ref()
+                    .and_then(|c| c.default_tag(&data.kind))
+                else {
                     level.note_unsupported(&format!("creating {}", data.kind));
                     return;
                 };
@@ -447,7 +558,8 @@ impl CreatureSpawns {
                 let uuid = level.next_uuid();
                 let at = [xx, f64::from(y_start), zz];
                 place(&mut tag, at, y_rot, 0.0, uuid);
-                if !self.valid_position_for_mob(level, context, &data.kind, &info, pos, at, nearest) {
+                if !self.valid_position_for_mob(level, context, &data.kind, &info, pos, at, nearest)
+                {
                     continue;
                 }
                 let difficulty = Self::difficulty_at(level, context, pos);
@@ -455,7 +567,16 @@ impl CreatureSpawns {
                     self.finalize_spawn(level, &data.kind, &mut tag, pos, &mut animal_group);
                     tag
                 } else {
-                    self.finalize_monster(level, context, &data.kind, tag, pos, difficulty, &mut monster_group, true)
+                    self.finalize_monster(
+                        level,
+                        context,
+                        &data.kind,
+                        tag,
+                        pos,
+                        difficulty,
+                        &mut monster_group,
+                        true,
+                    )
                 };
                 cluster_size += 1;
                 let riding = root.get("Passengers").is_some();
@@ -479,14 +600,24 @@ impl CreatureSpawns {
     /// An entity tag and its passengers' tags, with their types.
     fn self_and_passengers(tag: &Tag) -> Vec<(&Tag, &str)> {
         let mut out = vec![(tag, tag.get("id").and_then(Tag::as_str).unwrap_or(""))];
-        for passenger in tag.get("Passengers").and_then(Tag::as_list).into_iter().flatten() {
+        for passenger in tag
+            .get("Passengers")
+            .and_then(Tag::as_list)
+            .into_iter()
+            .flatten()
+        {
             out.extend(Self::self_and_passengers(passenger));
         }
         out
     }
 
     /// `isRightDistanceToPlayerAndSpawnPoint`.
-    fn right_distance(context: &SpawnContext, chunk: ChunkPos, pos: BlockPos, nearest: f64) -> bool {
+    fn right_distance(
+        context: &SpawnContext,
+        chunk: ChunkPos,
+        pos: BlockPos,
+        nearest: f64,
+    ) -> bool {
         if nearest <= 576.0 {
             return false;
         }
@@ -506,10 +637,17 @@ impl CreatureSpawns {
     }
 
     /// `getRandomSpawnMobAt`.
-    fn random_spawn_mob_at(&self, level: &mut dyn SpawnLevel, category: MobCategory, pos: BlockPos) -> Option<SpawnerData> {
+    fn random_spawn_mob_at(
+        &self,
+        level: &mut dyn SpawnLevel,
+        category: MobCategory,
+        pos: BlockPos,
+    ) -> Option<SpawnerData> {
         let biome = level.biome(pos);
         if category == MobCategory::WaterAmbient
-            && self.reduced_water_ambient.is_some_and(|t| self.registries.biome_in_tag(biome, t))
+            && self
+                .reduced_water_ambient
+                .is_some_and(|t| self.registries.biome_in_tag(biome, t))
             && level.random().next_f32() < 0.98
         {
             return None;
@@ -528,14 +666,21 @@ impl CreatureSpawns {
         pos: BlockPos,
         nearest: f64,
     ) -> bool {
-        let Some(type_category) = MobCategory::of_type(&data.kind) else { return false };
+        let Some(type_category) = MobCategory::of_type(&data.kind) else {
+            return false;
+        };
         let despawn = f64::from(type_category.despawn_distance());
         if !can_spawn_far_from_player(&data.kind) && nearest > despawn * despawn {
             return false;
         }
         // `canSpawnMobAt`: the list here holds the same `SpawnerData`.
         let here = self.mobs_at(level, type_category, pos);
-        if !here.entries.iter().any(|e| e.kind == data.kind && e.min == data.min && e.max == data.max && e.constant == data.constant) {
+        if !here.entries.iter().any(|e| {
+            e.kind == data.kind
+                && e.min == data.min
+                && e.max == data.max
+                && e.constant == data.constant
+        }) {
             return false;
         }
         if !self.is_spawn_position_ok(level, &data.kind, info, pos) {
@@ -544,30 +689,67 @@ impl CreatureSpawns {
         if !self.natural_spawn_rules(level, context, &data.kind, info, pos) {
             return false;
         }
-        self.no_collision(level, spawn_aabb(info, f64::from(pos.x) + 0.5, f64::from(pos.y), f64::from(pos.z) + 0.5))
+        self.no_collision(
+            level,
+            spawn_aabb(
+                info,
+                f64::from(pos.x) + 0.5,
+                f64::from(pos.y),
+                f64::from(pos.z) + 0.5,
+            ),
+        )
     }
 
     /// `SpawnPlacements.checkSpawnRules` with reason `NATURAL`.
-    fn natural_spawn_rules(&self, level: &mut dyn SpawnLevel, context: &SpawnContext, kind: &str, info: &TypeInfo, pos: BlockPos) -> bool {
+    fn natural_spawn_rules(
+        &self,
+        level: &mut dyn SpawnLevel,
+        context: &SpawnContext,
+        kind: &str,
+        info: &TypeInfo,
+        pos: BlockPos,
+    ) -> bool {
         match info.rules {
             Rules::Animal | Rules::SpawnableOn(_) => self.check_spawn_rules(level, info, pos),
-            Rules::Monster => self.dark_enough(level, context, pos) && self.mob_spawn_rules(level, kind, info, pos),
+            Rules::Monster => {
+                self.dark_enough(level, context, pos)
+                    && self.mob_spawn_rules(level, kind, info, pos)
+            }
             // `canSeeSky`: full sky light, tested after the monster rules.
-            Rules::SurfaceMonster => self.dark_enough(level, context, pos) && self.mob_spawn_rules(level, kind, info, pos) && level.sky_brightness(pos) >= 15,
+            Rules::SurfaceMonster => {
+                self.dark_enough(level, context, pos)
+                    && self.mob_spawn_rules(level, kind, info, pos)
+                    && level.sky_brightness(pos) >= 15
+            }
             Rules::Stray => {
                 // The sky is seen from the top of any powder snow above.
                 let mut sky = pos.above();
-                while self.registries.blocks.block(self.registries.blocks.block_of(level.block(sky))).name.as_str() == "minecraft:powder_snow" {
+                while self
+                    .registries
+                    .blocks
+                    .block(self.registries.blocks.block_of(level.block(sky)))
+                    .name
+                    .as_str()
+                    == "minecraft:powder_snow"
+                {
                     sky = sky.above();
                 }
-                self.dark_enough(level, context, pos) && self.mob_spawn_rules(level, kind, info, pos) && level.sky_brightness(sky.below()) >= 15
+                self.dark_enough(level, context, pos)
+                    && self.mob_spawn_rules(level, kind, info, pos)
+                    && level.sky_brightness(sky.below()) >= 15
             }
             Rules::Slime => self.slime_spawn_rules(level, context, kind, info, pos),
             Rules::Bat => self.bat_spawn_rules(level, kind, info, pos),
             // `pos.y <= seaLevel - 33`, unlit, in water: no random draws.
             Rules::GlowSquid => {
                 let state = level.block(pos);
-                let water = self.registries.blocks.block(self.registries.blocks.block_of(state)).name.as_str() == "minecraft:water";
+                let water = self
+                    .registries
+                    .blocks
+                    .block(self.registries.blocks.block_of(state))
+                    .name
+                    .as_str()
+                    == "minecraft:water";
                 pos.y <= level.sea_level() - 33 && level.raw_brightness(pos, 0) == 0 && water
             }
             Rules::Other => {
@@ -578,22 +760,48 @@ impl CreatureSpawns {
     }
 
     /// `Monster.isDarkEnoughToSpawn`.
-    fn dark_enough(&self, level: &mut dyn SpawnLevel, context: &SpawnContext, pos: BlockPos) -> bool {
+    fn dark_enough(
+        &self,
+        level: &mut dyn SpawnLevel,
+        context: &SpawnContext,
+        pos: BlockPos,
+    ) -> bool {
         let sky = level.sky_brightness(pos);
         if sky > level.random().next_i32_bound(32) {
             return false;
         }
-        if self.monster_block_light_limit < 15 && level.block_brightness(pos) > self.monster_block_light_limit {
+        if self.monster_block_light_limit < 15
+            && level.block_brightness(pos) > self.monster_block_light_limit
+        {
             return false;
         }
-        let darkening = if context.thundering { 10 } else { level.sky_darken() };
+        let darkening = if context.thundering {
+            10
+        } else {
+            level.sky_darken()
+        };
         let brightness = level.raw_brightness(pos, darkening);
-        brightness <= level.random().next_i32_bound(self.monster_light_test_max + 1)
+        brightness
+            <= level
+                .random()
+                .next_i32_bound(self.monster_light_test_max + 1)
     }
 
     /// `Bat.checkBatSpawnRules`.
-    fn bat_spawn_rules(&self, level: &mut dyn SpawnLevel, kind: &str, info: &TypeInfo, pos: BlockPos) -> bool {
-        if pos.y >= level.height(minecraftoss_core::chunk::HeightmapKind::WorldSurface, pos.x, pos.z) {
+    fn bat_spawn_rules(
+        &self,
+        level: &mut dyn SpawnLevel,
+        kind: &str,
+        info: &TypeInfo,
+        pos: BlockPos,
+    ) -> bool {
+        if pos.y
+            >= level.height(
+                minecraftoss_core::chunk::HeightmapKind::WorldSurface,
+                pos.x,
+                pos.z,
+            )
+        {
             return false;
         }
         if level.random().next_bool() {
@@ -604,26 +812,44 @@ impl CreatureSpawns {
             return false;
         }
         let below = level.block(pos.below());
-        if !self.bats_spawnable_on.is_some_and(|t| self.registries.block_in_tag(below, t)) {
+        if !self
+            .bats_spawnable_on
+            .is_some_and(|t| self.registries.block_in_tag(below, t))
+        {
             return false;
         }
         self.mob_spawn_rules(level, kind, info, pos)
     }
 
     /// `Mob.checkMobSpawnRules`: a valid spawn block below.
-    fn mob_spawn_rules(&self, level: &mut dyn SpawnLevel, kind: &str, info: &TypeInfo, pos: BlockPos) -> bool {
+    fn mob_spawn_rules(
+        &self,
+        level: &mut dyn SpawnLevel,
+        kind: &str,
+        info: &TypeInfo,
+        pos: BlockPos,
+    ) -> bool {
         let below = level.block(pos.below());
         self.is_valid_spawn(&self.registries, below, kind, info)
     }
 
     /// `Slime.checkSlimeSpawnRules`: swamp surfaces by the moon, or slime
     /// chunks below 40.
-    fn slime_spawn_rules(&self, level: &mut dyn SpawnLevel, context: &SpawnContext, kind: &str, info: &TypeInfo, pos: BlockPos) -> bool {
+    fn slime_spawn_rules(
+        &self,
+        level: &mut dyn SpawnLevel,
+        context: &SpawnContext,
+        kind: &str,
+        info: &TypeInfo,
+        pos: BlockPos,
+    ) -> bool {
         if context.difficulty == 0 {
             return false;
         }
         let biome = level.biome(pos);
-        let surface = self.surface_slimes.is_some_and(|t| self.registries.biome_in_tag(biome, t));
+        let surface = self
+            .surface_slimes
+            .is_some_and(|t| self.registries.biome_in_tag(biome, t));
         if surface && pos.y > 50 && pos.y < 70 {
             let chance = (context.surface_slime_chance)(biome);
             if level.random().next_f32() < chance {
@@ -654,7 +880,8 @@ impl CreatureSpawns {
         at: [f64; 3],
         nearest: f64,
     ) -> bool {
-        let despawn = f64::from(MobCategory::of_type(kind).map_or(128, MobCategory::despawn_distance));
+        let despawn =
+            f64::from(MobCategory::of_type(kind).map_or(128, MobCategory::despawn_distance));
         if nearest > despawn * despawn && info.remove_far {
             return false;
         }
@@ -677,8 +904,21 @@ impl CreatureSpawns {
     /// command's NBT loaded over it, keeping the command's position; or,
     /// without NBT, `finalizeSpawn(COMMAND)` as the first of its group.
     #[allow(clippy::too_many_arguments)]
-    pub fn summon(&self, level: &mut dyn SpawnLevel, context: &mut SpawnContext, kind: &str, at: [f64; 3], nbt: Option<&Tag>, y_rot: f32) -> Result<Tag, String> {
-        let Some(mut tag) = self.registries.entities.as_ref().and_then(|c| c.default_tag(kind)) else {
+    pub fn summon(
+        &self,
+        level: &mut dyn SpawnLevel,
+        context: &mut SpawnContext,
+        kind: &str,
+        at: [f64; 3],
+        nbt: Option<&Tag>,
+        y_rot: f32,
+    ) -> Result<Tag, String> {
+        let Some(mut tag) = self
+            .registries
+            .entities
+            .as_ref()
+            .and_then(|c| c.default_tag(kind))
+        else {
             return Err(format!("Unable to summon {kind}"));
         };
         let uuid = level.next_uuid();
@@ -701,7 +941,11 @@ impl CreatureSpawns {
             }
             return Ok(tag);
         }
-        let pos = BlockPos::new(at[0].floor() as i32, at[1].floor() as i32, at[2].floor() as i32);
+        let pos = BlockPos::new(
+            at[0].floor() as i32,
+            at[1].floor() as i32,
+            at[2].floor() as i32,
+        );
         match type_info(kind) {
             Some(info) if info.rules.creature() => {
                 self.finalize_spawn(level, kind, &mut tag, pos, &mut Group::None);
@@ -709,7 +953,16 @@ impl CreatureSpawns {
             }
             Some(_) => {
                 let difficulty = Self::difficulty_at(level, context, pos);
-                Ok(self.finalize_monster(level, context, kind, tag, pos, difficulty, &mut MonsterGroup::None, false))
+                Ok(self.finalize_monster(
+                    level,
+                    context,
+                    kind,
+                    tag,
+                    pos,
+                    difficulty,
+                    &mut MonsterGroup::None,
+                    false,
+                ))
             }
             // Types without a spawn port come as their fresh tag.
             None => Ok(tag),
@@ -717,7 +970,11 @@ impl CreatureSpawns {
     }
 
     /// `ServerLevel.getCurrentDifficultyAt`.
-    fn difficulty_at(level: &dyn SpawnLevel, context: &SpawnContext, pos: BlockPos) -> DifficultyInstance {
+    fn difficulty_at(
+        level: &dyn SpawnLevel,
+        context: &SpawnContext,
+        pos: BlockPos,
+    ) -> DifficultyInstance {
         let (local, moon) = match level.inhabited_time(pos.chunk()) {
             Some(time) => (time, context.moon_brightness),
             None => (0, 0.0),
@@ -757,7 +1014,13 @@ impl CreatureSpawns {
     /// in `EquipmentSlot.VALUES` order.
     fn roll_enchantments(level: &mut dyn SpawnLevel, tag: &Tag, difficulty: DifficultyInstance) {
         let special = difficulty.special_multiplier();
-        for (slot, chance) in [("mainhand", 0.25f32), ("feet", 0.5), ("legs", 0.5), ("chest", 0.5), ("head", 0.5)] {
+        for (slot, chance) in [
+            ("mainhand", 0.25f32),
+            ("feet", 0.5),
+            ("legs", 0.5),
+            ("chest", 0.5),
+            ("head", 0.5),
+        ] {
             if has_equipment(tag, slot) && level.random().next_f32() < chance * special {
                 level.note_unsupported("enchanted spawn equipment");
             }
@@ -767,7 +1030,11 @@ impl CreatureSpawns {
     /// The Halloween pumpkin head of zombies and skeletons.
     fn halloween_head(level: &mut dyn SpawnLevel, context: &SpawnContext, tag: &mut Tag) {
         if !has_equipment(tag, "head") && context.halloween && level.random().next_f32() < 0.25 {
-            let item = if level.random().next_f32() < 0.1 { "minecraft:jack_o_lantern" } else { "minecraft:carved_pumpkin" };
+            let item = if level.random().next_f32() < 0.1 {
+                "minecraft:jack_o_lantern"
+            } else {
+                "minecraft:carved_pumpkin"
+            };
             equip(tag, "head", item);
             level.note_unsupported("pumpkin head drop chance");
         }
@@ -795,18 +1062,26 @@ impl CreatureSpawns {
         match kind {
             "minecraft:husk" => {
                 finalize_mob(&mut tag, &mut RandomRef(level.random()));
-                let root = self.finalize_zombie(level, context, tag, pos, difficulty, group, &mut own);
+                let root =
+                    self.finalize_zombie(level, context, tag, pos, difficulty, group, &mut own);
                 return self.finalize_husk(level, context, root, pos, difficulty, natural);
             }
             "minecraft:zombie" | "minecraft:zombie_villager" => {
                 if kind == "minecraft:zombie_villager" {
                     // The constructor's profession, then `finalizeVillagerType`.
-                    let profession = PROFESSIONS[own.next_i32_bound(PROFESSIONS.len() as i32) as usize];
+                    let profession =
+                        PROFESSIONS[own.next_i32_bound(PROFESSIONS.len() as i32) as usize];
                     let biome = self.biome_name(level.biome(pos));
                     let mut data = BTreeMap::new();
                     data.insert("level".to_owned(), Tag::Int(1));
-                    data.insert("profession".to_owned(), Tag::String(format!("minecraft:{profession}")));
-                    data.insert("type".to_owned(), Tag::String(villager_type(&biome).to_owned()));
+                    data.insert(
+                        "profession".to_owned(),
+                        Tag::String(format!("minecraft:{profession}")),
+                    );
+                    data.insert(
+                        "type".to_owned(),
+                        Tag::String(villager_type(&biome).to_owned()),
+                    );
                     set(&mut tag, "VillagerData", Tag::Compound(data));
                     set(&mut tag, "VillagerDataFinalized", byte(true));
                 }
@@ -823,9 +1098,20 @@ impl CreatureSpawns {
                 finalize_mob(&mut tag, &mut RandomRef(level.random()));
                 if level.random().next_i32_bound(100) == 0 {
                     // A skeleton jockey: the skeleton finalizes as a spawn of its own.
-                    if let Some(mut skeleton) = self.registries.entities.as_ref().and_then(|c| c.default_tag("minecraft:skeleton")) {
+                    if let Some(mut skeleton) = self
+                        .registries
+                        .entities
+                        .as_ref()
+                        .and_then(|c| c.default_tag("minecraft:skeleton"))
+                    {
                         let skeleton_uuid = level.next_uuid();
-                        place(&mut skeleton, Self::position(&tag), Self::y_rot(&tag), 0.0, skeleton_uuid);
+                        place(
+                            &mut skeleton,
+                            Self::position(&tag),
+                            Self::y_rot(&tag),
+                            0.0,
+                            skeleton_uuid,
+                        );
                         let _ = attribute(&mut skeleton, "minecraft:follow_range", 16.0);
                         finalize_mob(&mut skeleton, &mut RandomRef(level.random()));
                         self.finalize_skeleton(level, context, &mut skeleton, difficulty);
@@ -850,7 +1136,11 @@ impl CreatureSpawns {
                 // `AgeableMob.finalizeSpawn` without babies, `Mob`'s part,
                 // then `AbstractCubeMob.setSpawnSize`.
                 if matches!(group, MonsterGroup::None) {
-                    *group = MonsterGroup::Ageable { should_spawn_baby: false, chance: 0.05, size: 0 };
+                    *group = MonsterGroup::Ageable {
+                        should_spawn_baby: false,
+                        chance: 0.05,
+                        size: 0,
+                    };
                 }
                 Self::ageable_monster(level, &mut tag, group);
                 finalize_mob(&mut tag, &mut RandomRef(level.random()));
@@ -864,19 +1154,42 @@ impl CreatureSpawns {
                 // constructor's roll from its own unseeded random.
                 if scale > 0 {
                     let yaw = own.next_f32() * std::f64::consts::TAU as f32;
-                    set(&mut tag, "Rotation", Tag::List(vec![Tag::Float(yaw), Tag::Float(0.0)]));
+                    set(
+                        &mut tag,
+                        "Rotation",
+                        Tag::List(vec![Tag::Float(yaw), Tag::Float(0.0)]),
+                    );
                 }
             }
             "minecraft:zombie_horse" => {
                 // A zombie rider with an iron spear, finalized first.
-                if let Some(mut zombie) = self.registries.entities.as_ref().and_then(|c| c.default_tag("minecraft:zombie")) {
+                if let Some(mut zombie) = self
+                    .registries
+                    .entities
+                    .as_ref()
+                    .and_then(|c| c.default_tag("minecraft:zombie"))
+                {
                     let zombie_uuid = level.next_uuid();
-                    place(&mut zombie, Self::position(&tag), Self::y_rot(&tag), 0.0, zombie_uuid);
+                    place(
+                        &mut zombie,
+                        Self::position(&tag),
+                        Self::y_rot(&tag),
+                        0.0,
+                        zombie_uuid,
+                    );
                     let mut rider_random = entity_random(zombie_uuid);
                     let _ = attribute(&mut zombie, "minecraft:follow_range", 35.0);
                     finalize_mob(&mut zombie, &mut RandomRef(level.random()));
                     let mut rider_group = MonsterGroup::None;
-                    let mut zombie = self.finalize_zombie(level, context, zombie, pos, difficulty, &mut rider_group, &mut rider_random);
+                    let mut zombie = self.finalize_zombie(
+                        level,
+                        context,
+                        zombie,
+                        pos,
+                        difficulty,
+                        &mut rider_group,
+                        &mut rider_random,
+                    );
                     if zombie.get("id").and_then(Tag::as_str) == Some("minecraft:chicken") {
                         level.note_unsupported("chicken jockey on a zombie horse");
                     }
@@ -886,18 +1199,31 @@ impl CreatureSpawns {
                 // `AbstractHorse.finalizeSpawn`: the horse's attributes, then
                 // `AgeableMob` and `Mob`.
                 if matches!(group, MonsterGroup::None) {
-                    *group = MonsterGroup::Ageable { should_spawn_baby: true, chance: 0.2, size: 0 };
+                    *group = MonsterGroup::Ageable {
+                        should_spawn_baby: true,
+                        chance: 0.2,
+                        size: 0,
+                    };
                 }
                 let random = level.random();
                 let third = 0.066_666_666_666_666_67;
-                let jump = 0.5 + random.next_f64() * third + random.next_f64() * third + random.next_f64() * third;
-                let speed = (9.0 + random.next_f64() * 1.0 + random.next_f64() * 1.0 + random.next_f64() * 1.0) / f64::from(42.16f32);
+                let jump = 0.5
+                    + random.next_f64() * third
+                    + random.next_f64() * third
+                    + random.next_f64() * third;
+                let speed = (9.0
+                    + random.next_f64() * 1.0
+                    + random.next_f64() * 1.0
+                    + random.next_f64() * 1.0)
+                    / f64::from(42.16f32);
                 set_attribute_base(&mut tag, "minecraft:jump_strength", jump);
                 set_attribute_base(&mut tag, "minecraft:movement_speed", speed);
                 Self::ageable_monster(level, &mut tag, group);
                 finalize_mob(&mut tag, &mut RandomRef(level.random()));
             }
-            "minecraft:creeper" | "minecraft:enderman" | "minecraft:bat" => finalize_mob(&mut tag, &mut RandomRef(level.random())),
+            "minecraft:creeper" | "minecraft:enderman" | "minecraft:bat" => {
+                finalize_mob(&mut tag, &mut RandomRef(level.random()))
+            }
             _ => {
                 level.note_unsupported(&format!("finalizeSpawn of {kind}"));
                 finalize_mob(&mut tag, &mut RandomRef(level.random()));
@@ -908,7 +1234,12 @@ impl CreatureSpawns {
 
     /// `AgeableMob.finalizeSpawn` for the ageable monsters.
     fn ageable_monster(level: &mut dyn SpawnLevel, tag: &mut Tag, group: &mut MonsterGroup) {
-        if let MonsterGroup::Ageable { should_spawn_baby, chance, size } = group {
+        if let MonsterGroup::Ageable {
+            should_spawn_baby,
+            chance,
+            size,
+        } = group
+        {
             if *should_spawn_baby && *size > 0 && level.random().next_f32() <= *chance {
                 set(tag, "Age", Tag::Int(-24000));
             }
@@ -921,13 +1252,23 @@ impl CreatureSpawns {
         set(tag, "Size", Tag::Int(size - 1));
         let health = f64::from(size * size);
         set_attribute_base(tag, "minecraft:max_health", health);
-        set_attribute_base(tag, "minecraft:movement_speed", f64::from(0.2f32 + 0.1 * size as f32));
+        set_attribute_base(
+            tag,
+            "minecraft:movement_speed",
+            f64::from(0.2f32 + 0.1 * size as f32),
+        );
         set_attribute_base(tag, "minecraft:attack_damage", f64::from(size));
         set(tag, "Health", Tag::Float(health as f32));
     }
 
     /// `AbstractSkeleton.finalizeSpawn` after `Mob`'s part.
-    fn finalize_skeleton(&self, level: &mut dyn SpawnLevel, context: &SpawnContext, tag: &mut Tag, difficulty: DifficultyInstance) {
+    fn finalize_skeleton(
+        &self,
+        level: &mut dyn SpawnLevel,
+        context: &SpawnContext,
+        tag: &mut Tag,
+        difficulty: DifficultyInstance,
+    ) {
         Self::populate_armor(level, tag, difficulty);
         equip(tag, "mainhand", "minecraft:bow");
         Self::roll_enchantments(level, tag, difficulty);
@@ -955,10 +1296,17 @@ impl CreatureSpawns {
         if matches!(group, MonsterGroup::None) {
             // `getSpawnAsBabyOdds`.
             let baby = level.random().next_f32() < 0.05;
-            *group = MonsterGroup::Zombie { baby, can_spawn_jockey: true };
+            *group = MonsterGroup::Zombie {
+                baby,
+                can_spawn_jockey: true,
+            };
         }
         let mut vehicle = None;
-        if let MonsterGroup::Zombie { baby, can_spawn_jockey } = *group {
+        if let MonsterGroup::Zombie {
+            baby,
+            can_spawn_jockey,
+        } = *group
+        {
             if baby {
                 set(&mut tag, "IsBaby", byte(true));
                 // `setBaby` touches the speed (the baby modifier is transient).
@@ -967,7 +1315,14 @@ impl CreatureSpawns {
                     if f64::from(level.random().next_f32()) < 0.05 {
                         let at = Self::position(&tag);
                         let half = f64::from(0.49f32 / 2.0);
-                        let search = [at[0] - half - 5.0, at[1] - 3.0, at[2] - half - 5.0, at[0] + half + 5.0, at[1] + f64::from(0.98f32) + 3.0, at[2] + half + 5.0];
+                        let search = [
+                            at[0] - half - 5.0,
+                            at[1] - 3.0,
+                            at[2] - half - 5.0,
+                            at[0] + half + 5.0,
+                            at[1] + f64::from(0.98f32) + 3.0,
+                            at[2] + half + 5.0,
+                        ];
                         if context.chickens.iter().any(|c| overlaps(&search, c)) {
                             level.note_unsupported("baby zombie riding a nearby chicken");
                         }
@@ -993,17 +1348,53 @@ impl CreatureSpawns {
         }
         Self::halloween_head(level, context, &mut tag);
         // `handleAttributes`, from the zombie's own random.
-        set_attribute_base(&mut tag, "minecraft:spawn_reinforcements", own.next_f64() * f64::from(0.1f32));
-        add_modifier(&mut tag, "minecraft:knockback_resistance", 0.0, "minecraft:random_spawn_bonus", own.next_f64() * f64::from(0.05f32), "add_value");
+        set_attribute_base(
+            &mut tag,
+            "minecraft:spawn_reinforcements",
+            own.next_f64() * f64::from(0.1f32),
+        );
+        add_modifier(
+            &mut tag,
+            "minecraft:knockback_resistance",
+            0.0,
+            "minecraft:random_spawn_bonus",
+            own.next_f64() * f64::from(0.05f32),
+            "add_value",
+        );
         let follow = own.next_f64() * 1.5 * f64::from(special);
         if follow > 1.0 {
-            add_modifier(&mut tag, "minecraft:follow_range", 35.0, "minecraft:zombie_random_spawn_bonus", follow, "add_multiplied_total");
+            add_modifier(
+                &mut tag,
+                "minecraft:follow_range",
+                35.0,
+                "minecraft:zombie_random_spawn_bonus",
+                follow,
+                "add_multiplied_total",
+            );
         }
         if own.next_f32() < special * 0.05 {
-            add_modifier(&mut tag, "minecraft:spawn_reinforcements", 0.0, "minecraft:leader_zombie_bonus", own.next_f64() * 0.25 + 0.5, "add_value");
+            add_modifier(
+                &mut tag,
+                "minecraft:spawn_reinforcements",
+                0.0,
+                "minecraft:leader_zombie_bonus",
+                own.next_f64() * 0.25 + 0.5,
+                "add_value",
+            );
             let bonus = own.next_f64() * 3.0 + 1.0;
-            add_modifier(&mut tag, "minecraft:max_health", 20.0, "minecraft:leader_zombie_bonus", bonus, "add_multiplied_total");
-            set(&mut tag, "Health", Tag::Float((20.0 * (1.0 + bonus)).clamp(1.0, 1024.0) as f32));
+            add_modifier(
+                &mut tag,
+                "minecraft:max_health",
+                20.0,
+                "minecraft:leader_zombie_bonus",
+                bonus,
+                "add_multiplied_total",
+            );
+            set(
+                &mut tag,
+                "Health",
+                Tag::Float((20.0 * (1.0 + bonus)).clamp(1.0, 1024.0) as f32),
+            );
             set(&mut tag, "CanBreakDoors", byte(true));
         }
         match vehicle {
@@ -1019,7 +1410,15 @@ impl CreatureSpawns {
     /// then, for a natural spawn with room for one, a one-in-ten camel
     /// husk the husk rides with an iron spear, a parched riding behind
     /// (each finalized as a spawn of its own).
-    fn finalize_husk(&self, level: &mut dyn SpawnLevel, context: &SpawnContext, mut root: Tag, pos: BlockPos, difficulty: DifficultyInstance, natural: bool) -> Tag {
+    fn finalize_husk(
+        &self,
+        level: &mut dyn SpawnLevel,
+        context: &SpawnContext,
+        mut root: Tag,
+        pos: BlockPos,
+        difficulty: DifficultyInstance,
+        natural: bool,
+    ) -> Tag {
         let loot = level.random().next_f32() < 0.55 * difficulty.special_multiplier();
         let on_its_own = root.get("id").and_then(Tag::as_str) == Some("minecraft:husk");
         if !on_its_own {
@@ -1039,7 +1438,9 @@ impl CreatureSpawns {
         }
         let at = Self::position(&root);
         let (x, z) = (f64::from(pos.x) + 0.5, f64::from(pos.z) + 0.5);
-        let Some(camel_info) = type_info("minecraft:camel_husk") else { return root };
+        let Some(camel_info) = type_info("minecraft:camel_husk") else {
+            return root;
+        };
         if !self.no_collision(level, spawn_aabb(&camel_info, x, f64::from(pos.y), z)) {
             return root;
         }
@@ -1047,7 +1448,10 @@ impl CreatureSpawns {
             return root;
         }
         let catalog = self.registries.entities.as_ref();
-        let (Some(mut camel), Some(mut parched)) = (catalog.and_then(|c| c.default_tag("minecraft:camel_husk")), catalog.and_then(|c| c.default_tag("minecraft:parched"))) else {
+        let (Some(mut camel), Some(mut parched)) = (
+            catalog.and_then(|c| c.default_tag("minecraft:camel_husk")),
+            catalog.and_then(|c| c.default_tag("minecraft:parched")),
+        ) else {
             return root;
         };
         equip(&mut root, "mainhand", "minecraft:iron_spear");
@@ -1060,7 +1464,11 @@ impl CreatureSpawns {
         let camel_uuid = level.next_uuid();
         let camel_yaw = entity_random(camel_uuid).next_f32() * std::f64::consts::TAU as f32;
         place(&mut camel, at, camel_yaw, 0.0, camel_uuid);
-        set(&mut root, "Rotation", Tag::List(vec![Tag::Float(0.0), Tag::Float(0.0)]));
+        set(
+            &mut root,
+            "Rotation",
+            Tag::List(vec![Tag::Float(0.0), Tag::Float(0.0)]),
+        );
         let _ = attribute(&mut camel, "minecraft:follow_range", 16.0);
         finalize_mob(&mut camel, &mut RandomRef(level.random()));
         // The parched: a skeleton's finalize.
@@ -1075,11 +1483,32 @@ impl CreatureSpawns {
 
     /// A chicken jockey's new chicken at the zombie, finalized as a spawn
     /// of its own.
-    fn jockey_chicken(&self, level: &mut dyn SpawnLevel, zombie: &Tag, pos: BlockPos) -> Option<Tag> {
-        let mut chicken = self.registries.entities.as_ref().and_then(|c| c.default_tag("minecraft:chicken"))?;
+    fn jockey_chicken(
+        &self,
+        level: &mut dyn SpawnLevel,
+        zombie: &Tag,
+        pos: BlockPos,
+    ) -> Option<Tag> {
+        let mut chicken = self
+            .registries
+            .entities
+            .as_ref()
+            .and_then(|c| c.default_tag("minecraft:chicken"))?;
         let uuid = level.next_uuid();
-        place(&mut chicken, Self::position(zombie), Self::y_rot(zombie), 0.0, uuid);
-        self.finalize_spawn(level, "minecraft:chicken", &mut chicken, pos, &mut Group::None);
+        place(
+            &mut chicken,
+            Self::position(zombie),
+            Self::y_rot(zombie),
+            0.0,
+            uuid,
+        );
+        self.finalize_spawn(
+            level,
+            "minecraft:chicken",
+            &mut chicken,
+            pos,
+            &mut Group::None,
+        );
         set(&mut chicken, "IsChickenJockey", byte(true));
         Some(chicken)
     }

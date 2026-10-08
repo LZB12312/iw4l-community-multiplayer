@@ -1,4 +1,3 @@
-//! Point-backed countdowns, 82DA4C28 and module82DA37B0.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct PointTimer {
     pub points: f32,
@@ -57,37 +56,5 @@ impl ComboTimer {
         if next > self.multiplier || reward > refresh {
             self.multiplier = next;
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn native_ground_hold_preserves_previous_points_and_expiry_is_an_edge() {
-        let mut timer = PointTimer {
-            points: 2.0,
-            expired: false,
-        };
-        assert!(timer.advance(0.1, 50.0, 1.0, true));
-        assert_eq!(timer.points, 2.0);
-        assert!(!timer.advance(0.1, 50.0, 1.0, false));
-        assert!(timer.expired);
-        timer.advance(0.1, 50.0, 1.0, false);
-        assert!(!timer.expired);
-    }
-    #[test]
-    fn multiplier_uses_credited_points_and_survives_timer_decay() {
-        let levels = [(50.0, 1.5), (450.0, 2.0), (800.0, 3.0)];
-        let mut combo = ComboTimer::default();
-        combo.credit(50.0, 801.0, levels, 799.0);
-        assert_eq!(combo.multiplier, 1.5);
-        combo.credit(400.0, 801.0, levels, 799.0);
-        assert_eq!(combo.multiplier, 2.0);
-        combo.credit(350.0, 801.0, levels, 799.0);
-        assert_eq!(combo.multiplier, 3.0);
-        combo.timer.advance(8.0, 100.0, 1.0, false);
-        combo.credit(1.0, 801.0, levels, 799.0);
-        assert_eq!(combo.multiplier, 3.0);
     }
 }

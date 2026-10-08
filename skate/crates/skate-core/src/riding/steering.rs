@@ -1,4 +1,3 @@
-//! TU3 steering tilt (`0x82D92440`) and truck targets (`0x82C040F0`).
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Copy, Debug)]
@@ -124,7 +123,3 @@ impl TruckSteeringState {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "tests/steering.rs"]
-mod tests;

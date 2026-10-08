@@ -50,8 +50,6 @@ impl FootIk {
         animation: &AnimationFrames,
         skeleton: &AnimatedSkeleton,
     ) -> Result<Self, String> {
-        //82BD3720 walks parents until it finds a represented physical part;
-        //intermediate hierarchy bones do not become phantom physical joints.
         let mut parents = [None; 24];
         for (part, &bone) in skeleton.bone_indices.iter().enumerate() {
             let mut ancestor = *animation
@@ -97,8 +95,6 @@ impl FootIk {
         self.state.enable_feet(enabled);
     }
 
-    ///Skeleton Fill82BE1D98..1E00 publishes each physical toe frame applied
-    ///to the adjacent authored inverse-part translation, not its volume COM.
     pub fn physical_toe_positions(
         &self,
         record: &skate_core::physics::skeleton_body::SkeletonPhysicalRecord,
@@ -184,8 +180,6 @@ impl FootIk {
     }
 }
 
-///82BED418 classF2BD493E resolves to physics_skeletonik/default. XML schema
-/// gives the cached offsets; each vector retains its authored fourth word.
 pub(crate) fn load_settings(data: &Collections) -> Result<Settings, String> {
     let vector = |name| {
         data.words::<4>("physics_skeletonik", "default", name)

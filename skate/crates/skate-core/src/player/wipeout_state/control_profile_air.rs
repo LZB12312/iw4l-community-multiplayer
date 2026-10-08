@@ -1,4 +1,3 @@
-//! Original profile-driven Wipeout air rotation82D3CB50.
 use super::{
     State,
     math::{self, V},
@@ -135,8 +134,6 @@ fn horizontal_alignment(
             },
         );
     }
-    //82D3D4F0 uses the normalized authored axis here, before world composition;
-    //the angle query itself receives world/target. Preserve that distinction.
     let axis = math::normalize_or(math::cross(local, target), [0.0; 4]);
     if !(math::dot(axis, axis) > 0.9) {
         return [0.0; 4];

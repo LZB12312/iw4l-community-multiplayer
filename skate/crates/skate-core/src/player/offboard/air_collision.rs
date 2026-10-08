@@ -1,4 +1,3 @@
-//! BipedAir collision response82D2F748 and postphysics checks82D2FFF8.
 use super::{
     air_launch::{V, dot, length, madd, scale, sub, unit},
     air_state::State,
@@ -49,7 +48,6 @@ pub fn response(
         return None;
     }
     s.collision_adjusted = true;
-    //82C1E170 removes only motion into the supplied plane (called twice).
     let first = remove_into(s.packet.velocity, scale(horizontal, -1.));
     let velocity = madd(normal, 1., remove_into(first, scale(normal, -1.)));
     Some(Relaunch {

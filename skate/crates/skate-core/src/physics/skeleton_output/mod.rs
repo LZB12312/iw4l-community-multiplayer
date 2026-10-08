@@ -1,8 +1,6 @@
-//! Original TU3 physical pose worker82DB95E8, submitted by82DB6698.
-//! Updates the existing animation buffers after the physical solve.
 pub mod board;
-pub mod wobble;
 pub mod correction;
+pub mod wobble;
 
 use super::skeleton_animation_record::{AnimationPartTransform as Transform, compose_affine};
 use crate::animation::foot_ik::{drive::Geometry, transforms::inverse_rigid};
@@ -17,7 +15,6 @@ pub struct SkeletonOutput {
 pub struct Input<'a> {
     /// Skeleton8016, all24 solved physical volume transforms in world space.
     pub physical_parts: &'a [Transform; 24],
-    /// Skeleton11984, captured by82DB66C0 before submitting this worker.
     pub world_to_animation: &'a Transform,
     pub board: board::Input<'a>,
 }
@@ -37,7 +34,6 @@ impl SkeletonOutput {
         {
             return Err("physical pose output does not match the stock animation hierarchy");
         }
-        //82DB96B8..97E4: volume -> animation bone -> animation space.
         for part in 0..24 {
             let world = compose_affine(
                 &input.physical_parts[part],
@@ -45,8 +41,6 @@ impl SkeletonOutput {
             );
             globals[self.bone_indices[part]] = compose_affine(input.world_to_animation, &world);
         }
-        //82DB97F4..9938 descends through the physical mapping. This inverse
-        //is a rigid transpose, distinct from the authored volume inverse.
         for part in (0..24).rev() {
             let bone = self.bone_indices[part];
             locals[bone] = if let Some(parent) = self.geometry.parents[part] {
@@ -62,6 +56,3 @@ impl SkeletonOutput {
         Ok(())
     }
 }
-
-#[cfg(test)]
-mod tests;

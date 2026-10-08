@@ -1,8 +1,3 @@
-//! TU3 ExpressionOperator::GetActivationMasked (82C12508).
-//! Excluded children do not participate in AND/OR/NOT. Preserve lazy calls:
-//! condition operations may read or modify their own instance state.
-
-/// ParseOperator 82C12438: case-sensitive strings, zero for missing/unknown.
 pub fn parse_operator(name: Option<&str>) -> u32 {
     match name {
         Some("and") => 1,

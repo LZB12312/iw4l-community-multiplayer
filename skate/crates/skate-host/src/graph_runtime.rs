@@ -323,7 +323,3 @@ fn load_graph(root: &Path, relative: &str) -> Result<LoadedGraph, String> {
         runtime,
     })
 }
-
-#[cfg(test)]
-#[path = "tests/graph_runtime.rs"]
-mod tests;

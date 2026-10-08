@@ -1,5 +1,3 @@
-//! Physical state602, TU3 vtable82327434. Stock no-comply/boneless/fastplant
-//! animations select this state with AnimSkateboard and launch with FootJump.
 use super::footplant::math::*;
 use super::{GamePhysics, SkaterRuntime, air_phase, plant_skeleton};
 use skate_core::point_graph::PointGraph;
@@ -36,11 +34,9 @@ impl Boneless {
     }
 }
 
-///82D4C900: anchor the last completed physical toe position.
 pub(super) fn enter(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     skater.ground_lifecycle.board_animated_290 = 1;
     let drive = &mut physics.board.hook_mut().drive;
-    //Globals12/912 at822F860C/822F8990; linear HardDrive, angular SoftDrive.
     drive.dynamics[..4].copy_from_slice(&[0x426f_ffff, 0, 0x4560_fffe, 2]);
     drive.enable_angular_soft();
     let right = skater.player_input.processed.flags_2468 & (1 << 26) != 0;
@@ -50,7 +46,6 @@ pub(super) fn enter(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Re
     Ok(())
 }
 
-///82D4C9B8. Authored FootJump controls every launch request; no host timer.
 pub(super) fn update(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     plant_skeleton::advance(
         physics,
@@ -65,7 +60,6 @@ pub(super) fn update(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> R
     Ok(())
 }
 
-///82D4CB18/82D4CC18, four PointNegGraphData8 values from the stock schema.
 fn launch(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     let p = &skater.player_input.processed;
     let up = p.vectors_544_560_592_608[0].map(f32::from_bits);
@@ -98,6 +92,13 @@ fn launch(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), S
     info.player_jumped = true;
     let input = air_phase::selector_input(physics, skater)?;
     skater.trajectory.launch(info, input, &physics.world)?;
-    skater.trajectory.update(input, &physics.world, crate::physics::air_trajectory::GrindContext::from_processed(&skater.player_input.processed, crate::physics::solve::deck_frame(&physics.board)[3]))?;
+    skater.trajectory.update(
+        input,
+        &physics.world,
+        crate::physics::air_trajectory::GrindContext::from_processed(
+            &skater.player_input.processed,
+            crate::physics::solve::deck_frame(&physics.board)[3],
+        ),
+    )?;
     Ok(())
 }

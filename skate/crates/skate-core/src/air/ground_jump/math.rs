@@ -48,7 +48,6 @@ pub(super) fn normalize(value: Vector) -> Vector {
     let square = dot(value, value);
     let inverse = inverse_length_squared(square, 2);
     let length = if square == 0.0 { 0.0 } else { square * inverse };
-    //82F826F8 initializes830BD350 from82181A88 (1e-6), not its IDA BSS zero.
     if length > f32::from_bits(0x3586_37bd) {
         scale(value, inverse)
     } else {

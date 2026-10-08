@@ -1,5 +1,3 @@
-//! Pumping lifecycle, native geometry and CalcPumpForce82D933D0 publication.
-//! Ground supplies the current stock mode and queues the resulting board force.
 pub mod controller;
 pub mod geometry;
 pub mod settings;

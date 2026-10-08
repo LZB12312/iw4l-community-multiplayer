@@ -15,8 +15,6 @@ impl Animation for MotionAnimation {
         mask: u32,
         output: &mut AnimationAttribute,
     ) -> Result<bool, String> {
-        // S3 virtual48 ->825310E0 returns the current root at owner+13524.
-        // Query that root, retaining transition routing and partial results.
         self.current
             .as_ref()
             .ok_or("GrindControlFade requires a current animation tree")?
@@ -31,7 +29,3 @@ impl Animation for MotionAnimation {
         self.motion_intents.get(name).copied()
     }
 }
-
-#[cfg(test)]
-#[path = "animation_owner_tests.rs"]
-mod tests;

@@ -1,4 +1,3 @@
-//! SkeletonIK::BlendTransforms82BEEEB8.
 use super::{
     math::{interpolate, interpolate_affine},
     status::{LimbStatus, Mode},

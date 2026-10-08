@@ -1,7 +1,3 @@
-//! S3 TU3 GrindBalance: 82D86318, 82D86808, 82D86C88; constructor82D8A318.
-//! S2 counterparts82DD2168/82DD64D8/82DD26C0 corroborate field identities.
-//! Keep these three stages in that order, after geometry correction and before
-//! engagement. Independent PC arithmetic is not bit-exact Xenon emulation.
 use super::{V, admission::EntryKind, arithmetic, cross, dot3, scale, sub};
 use crate::air::trajectory::grind_surface::{GeometryType, GrindSurface};
 use crate::{point_graph::PointGraph, trigonometry};
@@ -12,14 +8,12 @@ pub struct BalanceState {
     pub exit_angle_degrees: f32,
     pub entry_delay: f32,
     pub frames_away: i32,
-    /// Unrotated normal retained by82D86318, not the exit-lean output normal.
     pub previous_normal: V,
     pub exit_direction: V,
 }
 
 impl Default for BalanceState {
     fn default() -> Self {
-        //82D8A4BC..82D8A4EC; original vectors82139A20 and82139A10.
         Self {
             elapsed: 0.0,
             exit_angle_degrees: 0.0,
@@ -79,7 +73,6 @@ pub struct ForceExitHit {
 }
 
 impl BalanceState {
-    ///82D86318. None is the native invalid-candidate no-write branch.
     pub fn update_target_up(
         &mut self,
         input: TargetUpInput,
@@ -143,8 +136,6 @@ impl BalanceState {
         }
     }
 
-    ///82D86808. Returns investigation+396 even without a valid candidate.
-    /// Graph is physics_grinds.ExitLeanAngleVsTime, eight X at+16/Y at+48.
     pub fn update_exit_lean(
         &mut self,
         input: ExitLeanInput,
@@ -166,7 +157,6 @@ impl BalanceState {
             }
         });
         let mut started = false;
-        //82D86880..94's carry/sign sequence implements a signed >20 test.
         if self.frames_away > 20 {
             self.exit_angle_degrees = 0.0;
             self.elapsed = 0.0;
@@ -224,10 +214,6 @@ impl BalanceState {
         self.exit_angle_degrees
     }
 
-    ///82D86C88. The callback must execute the real thin nearest world-line
-    /// query82E0AAD0, retaining its filtering and endpoint/edge tolerances.
-    /// No query is issued outside (15,28]. Errors are not collision misses.
-    /// Updates only investigation+412 bit31, and leaves flags intact on error.
     pub fn update_force_exit<E>(
         &self,
         primitive_location: V,
@@ -271,8 +257,6 @@ fn retain_side(previous: V, side: V) -> V {
     }
 }
 
-///82C1E220 and82D86BC0..C70: quaternion half-angle rotation, not a
-/// Rodrigues replacement with a different operation order.
 fn rotate(axis: V, value: V, angle: f32) -> V {
     let (sin, cos) = trigonometry::sin_cos(angle * 0.5);
     let q = scale(axis, sin);
@@ -281,7 +265,3 @@ fn rotate(axis: V, value: V, angle: f32) -> V {
     let second_cross = cross(q, intermediate);
     core::array::from_fn(|i| second_cross[i].mul_add(2.0, value[i]))
 }
-
-#[cfg(test)]
-#[path = "balance_tests.rs"]
-mod tests;

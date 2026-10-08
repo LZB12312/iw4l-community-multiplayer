@@ -1,4 +1,3 @@
-//! Owned PlayerInput packet storage; original actor publication825937EC.
 use skate_core::{
     animation::output::{
         actor_packet::ExternalPhysicsInput,
@@ -28,27 +27,22 @@ pub(crate) struct AnimationProfile {
 }
 impl AnimationProfile {
     pub fn load(data: &Collections, mode: &str) -> Result<Self, String> {
-        //Original82DB1B08..1B78 initializes these variant slots in this order.
         let physics_mode = ["easy", "normal", "hardcore", "motorized", "test"]
             .iter()
             .position(|name| *name == mode)
             .ok_or_else(|| format!("Undefined player physics profile {mode}"))?
             as u32;
         Ok(Self {
-            //82BBBDE0: Globals400/layout96, bound by828A0154.
             skitch_transition_time: data.float(
                 "anim_skitching",
                 "default",
                 "LongSkitchIntoReachTime",
             )?,
-            //82BA5150 global316/layout1844;8289FB24 binds pushing.
             maximum_ground_angle_degrees: data.float(
                 "anim_motion",
                 "pushing",
                 "disable_push_brake_at_slope",
             )?,
-            //Initial equipment preferences use the fixed settings value from
-            //82593988/94. The host allows users to change these independently.
             truck_tightness: f32::from_bits(0x3f333333),
             wheel_hardness: f32::from_bits(0x3f333333),
             physics_mode,
@@ -57,7 +51,6 @@ impl AnimationProfile {
             force_braking: false,
             suppress_transition: false,
             gesture_selections: None,
-            //82B988B8 returns false when its optional context is absent.
             suppress_up_gesture: false,
             gesture_force_brake_bypass: false,
         })
@@ -71,7 +64,6 @@ pub(crate) struct AnimationPhaseOutput {
     mirrored: u8,
     weight_forwards: u8,
     flags: u32,
-    // Actor825938FC/393C consumes these request bits after publication.
 }
 impl AnimationPhaseOutput {
     pub(super) fn new() -> Self {
@@ -133,8 +125,6 @@ impl AnimationPhaseOutput {
         r.prevent_manual_respawn = profile.prevent_manual_respawn;
         r.ignore_respawn_reset_button = profile.ignore_respawn_reset_button;
         r.force_braking = profile.force_braking;
-        //Free skating has no challenge scene19/20 requesting bit22.
-        //82593924 reads Actor1904 bit25, not the input-filter word1908.
         self.flags = pose.flags & !((1 << 24) | (1 << 22));
         self.mirrored = u8::from(pose.mirrored);
         self.weight_forwards = u8::from(pose.weight_forwards);
@@ -155,7 +145,6 @@ impl AnimationPhaseOutput {
             flag_10371: u8::from(pose.riding_switch),
         };
     }
-    ///Actor825926F8 reply ->10704/10768/10784, then82DB5BE0 maps physical input.
     pub(super) fn publish_external_reset(
         &mut self,
         reply: skate_core::animation::output::actor_packet::ExternalReset,

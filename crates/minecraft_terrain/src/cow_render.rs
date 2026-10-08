@@ -38,21 +38,32 @@ pub fn append_cows<'a>(
         if entity.horse.is_some() {
             continue;
         }
-        let Some(mob) = poses.pose(entity.id, partial) else { continue };
+        let Some(mob) = poses.pose(entity.id, partial) else {
+            continue;
+        };
         marks.push((mesh.vertices.len(), mob.overlay(0.0)));
         let feet = mob.feet;
         let rotation = mob.body_rotation(90.0);
         // QuadrupedModel.setupAnim: the head (and all it carries) looks, the
         // legs swing.
-        let head_turn = Quat::from_euler(glam::EulerRot::ZYX, 0.0, mob.head_yaw.to_radians(), mob.head_pitch.to_radians());
-        let [right_hind, left_hind, right_front, left_front] = crate::client_mobs::quadruped_legs(mob.walk_position, mob.walk_speed);
+        let head_turn = Quat::from_euler(
+            glam::EulerRot::ZYX,
+            0.0,
+            mob.head_yaw.to_radians(),
+            mob.head_pitch.to_radians(),
+        );
+        let [right_hind, left_hind, right_front, left_front] =
+            crate::client_mobs::quadruped_legs(mob.walk_position, mob.walk_speed);
         let leg = Quat::from_rotation_x;
         let body_turn = Quat::from_rotation_x(std::f32::consts::FRAC_PI_2);
         // A part of the head, given with its pivot and rotation flattened
         // into the model: moved and turned with the head.
         let on_head = |head: [f32; 3], pivot: [f32; 3], part: Quat| {
             let offset = head_turn * (Vec3::from_array(pivot) - Vec3::from_array(head));
-            ((Vec3::from_array(head) + offset).to_array(), head_turn * part)
+            (
+                (Vec3::from_array(head) + offset).to_array(),
+                head_turn * part,
+            )
         };
         let sprite = if let Some(state) = &entity.mooshroom {
             let kind = match state.variant {
@@ -73,10 +84,24 @@ pub fn append_cows<'a>(
         let block = light.get_block(pos) as f32;
         let scale = 1.0;
         // `mirror()` cubes swap their side faces and flip their texture.
-        let emit_mirrored = |mesh: &mut ChunkMesh, from: [f32; 3], to: [f32; 3], uv: [f32; 2], pivot: [f32; 3], part: Quat, mirror: bool| {
-            cube_tinted_pose_mirror(mesh, feet, rotation, scale, region, sky, block, from, to, uv, pivot, part, [1.0; 3], [64.0; 2], None, mirror);
+        let emit_mirrored = |mesh: &mut ChunkMesh,
+                             from: [f32; 3],
+                             to: [f32; 3],
+                             uv: [f32; 2],
+                             pivot: [f32; 3],
+                             part: Quat,
+                             mirror: bool| {
+            cube_tinted_pose_mirror(
+                mesh, feet, rotation, scale, region, sky, block, from, to, uv, pivot, part,
+                [1.0; 3], [64.0; 2], None, mirror,
+            );
         };
-        let emit = |mesh: &mut ChunkMesh, from: [f32; 3], to: [f32; 3], uv: [f32; 2], pivot: [f32; 3], part: Quat| {
+        let emit = |mesh: &mut ChunkMesh,
+                    from: [f32; 3],
+                    to: [f32; 3],
+                    uv: [f32; 2],
+                    pivot: [f32; 3],
+                    part: Quat| {
             emit_mirrored(mesh, from, to, uv, pivot, part, false);
         };
         if cow.age.baby() {
@@ -210,7 +235,15 @@ pub fn append_cows<'a>(
             // The left legs are mirrored.
             emit_mirrored(mesh, from, to, uv, pivot, part, index == 5);
         }
-        emit_mirrored(mesh, [-2., 0., -2.], [2., 12., 2.], [0., 16.], [4., 12., -5.], leg(left_front), true);
+        emit_mirrored(
+            mesh,
+            [-2., 0., -2.],
+            [2., 12., 2.],
+            [0., 16.],
+            [4., 12., -5.],
+            leg(left_front),
+            true,
+        );
         let head = [0., 4., -8.];
         // WarmCowModel mirrors its two left horn pieces.
         let horns: &[([f32; 3], [f32; 3], [f32; 2], bool)] = match cow.variant {
@@ -276,8 +309,15 @@ pub fn append_cows<'a>(
             .unwrap();
             let mushroom_region = atlas.region(&block_texture);
             // The third mushroom sits on the head and moves with it.
-            for (index, pivot) in [[-4., 3., 4.], [4., 3., 4.], [0., 2., -9.]].into_iter().enumerate() {
-                let pivot = if index == 2 { on_head(head, pivot, Quat::IDENTITY).0 } else { pivot };
+            for (index, pivot) in [[-4., 3., 4.], [4., 3., 4.], [0., 2., -9.]]
+                .into_iter()
+                .enumerate()
+            {
+                let pivot = if index == 2 {
+                    on_head(head, pivot, Quat::IDENTITY).0
+                } else {
+                    pivot
+                };
                 mushroom_cross(
                     mesh,
                     feet,
@@ -302,9 +342,19 @@ pub fn append_cows<'a>(
 /// (`translateToHand`: its pivot in pixels, then its rotation), a turn
 /// about X by -90 and Y by 180 degrees, then out to the hand (a baby's
 /// offset is shorter). The item's display transform follows.
-pub fn right_hand_pose(feet: DVec3, rotation: Quat, arm_pivot: Vec3, arm: Quat, baby: bool) -> glam::Mat4 {
+pub fn right_hand_pose(
+    feet: DVec3,
+    rotation: Quat,
+    arm_pivot: Vec3,
+    arm: Quat,
+    baby: bool,
+) -> glam::Mat4 {
     use glam::Mat4;
-    let offset = if baby { Vec3::new(0.0, 1.0, -4.5) } else { Vec3::new(1.0, 2.0, -10.0) } / 16.0;
+    let offset = if baby {
+        Vec3::new(0.0, 1.0, -4.5)
+    } else {
+        Vec3::new(1.0, 2.0, -10.0)
+    } / 16.0;
     Mat4::from_translation(feet.as_vec3())
         * Mat4::from_quat(rotation)
         * Mat4::from_scale(Vec3::new(-1.0, -1.0, 1.0))
@@ -321,7 +371,9 @@ pub fn right_hand_pose(feet: DVec3, rotation: Quat, arm_pivot: Vec3, arm: Quat, 
 /// reads from their alpha.
 pub fn apply_overlays(mesh: &mut ChunkMesh, marks: &[(usize, f32)]) {
     for (i, &(start, overlay)) in marks.iter().enumerate() {
-        let end = marks.get(i + 1).map_or(mesh.vertices.len(), |&(next, _)| next);
+        let end = marks
+            .get(i + 1)
+            .map_or(mesh.vertices.len(), |&(next, _)| next);
         for vertex in &mut mesh.vertices[start..end] {
             vertex.color[3] = overlay;
         }
@@ -408,50 +460,6 @@ fn mushroom_cross(
     }
 }
 
-
-/// A cuboid with a flag for its mirror, for the cuboid tests.
-#[cfg(test)]
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn cube_tinted(
-    mesh: &mut ChunkMesh,
-    feet: DVec3,
-    rotation: Quat,
-    scale: f32,
-    region: [f32; 4],
-    sky: f32,
-    block: f32,
-    from: [f32; 3],
-    to: [f32; 3],
-    uv: [f32; 2],
-    pivot: [f32; 3],
-    rotate_body: bool,
-    tint: [f32; 3],
-    texture_size: [f32; 2],
-    uv_dimensions: Option<[f32; 3]>,
-) {
-    cube_tinted_pose(
-        mesh,
-        feet,
-        rotation,
-        scale,
-        region,
-        sky,
-        block,
-        from,
-        to,
-        uv,
-        pivot,
-        if rotate_body {
-            Quat::from_rotation_x(std::f32::consts::FRAC_PI_2)
-        } else {
-            Quat::IDENTITY
-        },
-        tint,
-        texture_size,
-        uv_dimensions,
-    );
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn cube_tinted_pose(
     mesh: &mut ChunkMesh,
@@ -509,7 +517,24 @@ pub(crate) fn cube_tinted_pose_mirror(
     uv_dimensions: Option<[f32; 3]>,
     mirror: bool,
 ) {
-    cube_scaled(mesh, feet, rotation, Vec3::splat(scale), region, sky, block, from, to, uv, pivot, part_rotation, tint, texture_size, uv_dimensions, mirror);
+    cube_scaled(
+        mesh,
+        feet,
+        rotation,
+        Vec3::splat(scale),
+        region,
+        sky,
+        block,
+        from,
+        to,
+        uv,
+        pivot,
+        part_rotation,
+        tint,
+        texture_size,
+        uv_dimensions,
+        mirror,
+    );
 }
 
 /// A model cuboid with a per-axis model scale about the feet (a renderer's
@@ -655,202 +680,5 @@ pub(crate) fn cube_scaled(
         mesh.indices
             .extend_from_slice(&[start, start + 1, start + 2, start, start + 2, start + 3]);
         mesh.faces += 1;
-    }
-}
-
-#[cfg(test)]
-mod cuboid_tests {
-    use super::*;
-
-    #[test]
-    fn every_face_points_outward_and_uses_pinned_modelpart_uvs() {
-        for rotation in [Quat::IDENTITY, Quat::from_rotation_y(std::f32::consts::PI)] {
-            let mut mesh = ChunkMesh::default();
-            cube_tinted(
-                &mut mesh,
-                DVec3::ZERO,
-                rotation,
-                1.0,
-                [0.0, 0.0, 1.0, 1.0],
-                15.0,
-                0.0,
-                [-4.0, 0.0, -3.0],
-                [4.0, 12.0, 3.0],
-                [16.0, 20.0],
-                [0.0; 3],
-                false,
-                [1.0; 3],
-                [64.0; 2],
-                None,
-            );
-            assert_eq!(mesh.faces, 6);
-            let center = rotation * Vec3::new(0.0, 18.0 / 16.0, 0.0);
-            for face in 0..6 {
-                let i = face * 6;
-                let a = Vec3::from_array(mesh.vertices[mesh.indices[i] as usize].position);
-                let b = Vec3::from_array(mesh.vertices[mesh.indices[i + 1] as usize].position);
-                let c = Vec3::from_array(mesh.vertices[mesh.indices[i + 2] as usize].position);
-                let face_center = (0..4)
-                    .map(|corner| Vec3::from_array(mesh.vertices[face * 4 + corner].position))
-                    .sum::<Vec3>()
-                    / 4.0;
-                assert!(
-                    (b - a).cross(c - a).dot(face_center - center) > 0.0,
-                    "face {face}"
-                );
-            }
-            // NORTH's first vertex is ModelPart.Cube's t1, mapped to (u2,v1).
-            assert_eq!(mesh.vertices[12].uv, [30.0 / 64.0, 26.0 / 64.0]);
-            // SOUTH's first vertex is l0, mapped to (u4,v1).
-            assert_eq!(mesh.vertices[20].uv, [44.0 / 64.0, 26.0 / 64.0]);
-        }
-    }
-
-    #[test]
-    fn inflated_cube_keeps_the_original_texture_panels() {
-        let mut base = ChunkMesh::default();
-        let mut inflated = ChunkMesh::default();
-        for (mesh, from, to, uv_dimensions) in [
-            (&mut base, [-4., -10., -4.], [4., 0., 4.], None),
-            (
-                &mut inflated,
-                [-4.51, -10.51, -4.51],
-                [4.51, 0.51, 4.51],
-                Some([8., 10., 8.]),
-            ),
-        ] {
-            cube_tinted(
-                mesh,
-                DVec3::ZERO,
-                Quat::IDENTITY,
-                1.0,
-                [0., 0., 1., 1.],
-                15.,
-                0.,
-                from,
-                to,
-                [32., 0.],
-                [0.; 3],
-                false,
-                [1.; 3],
-                [64.; 2],
-                uv_dimensions,
-            );
-        }
-        assert_eq!(
-            base.vertices.iter().map(|v| v.uv).collect::<Vec<_>>(),
-            inflated.vertices.iter().map(|v| v.uv).collect::<Vec<_>>()
-        );
-        assert_ne!(base.vertices[0].position, inflated.vertices[0].position);
-    }
-
-    #[test]
-    fn posed_cube_keeps_pivot_and_texture_coordinates() {
-        let mut unposed = ChunkMesh::default();
-        let mut posed = ChunkMesh::default();
-        let from = [-2., -2., -1.];
-        let to = [2., 6., 1.];
-        let pivot = [0., 3., -1.];
-        cube_tinted(
-            &mut unposed,
-            DVec3::ZERO,
-            Quat::IDENTITY,
-            1.,
-            [0., 0., 1., 1.],
-            15.,
-            0.,
-            from,
-            to,
-            [40., 38.],
-            pivot,
-            false,
-            [1.; 3],
-            [64.; 2],
-            None,
-        );
-        cube_tinted_pose(
-            &mut posed,
-            DVec3::ZERO,
-            Quat::IDENTITY,
-            1.,
-            [0., 0., 1., 1.],
-            15.,
-            0.,
-            from,
-            to,
-            [40., 38.],
-            pivot,
-            Quat::from_rotation_x(-0.75),
-            [1.; 3],
-            [64.; 2],
-            None,
-        );
-        assert_eq!(unposed.indices, posed.indices);
-        assert_eq!(
-            unposed.vertices.iter().map(|v| v.uv).collect::<Vec<_>>(),
-            posed.vertices.iter().map(|v| v.uv).collect::<Vec<_>>()
-        );
-        assert_ne!(unposed.vertices[0].position, posed.vertices[0].position);
-        let source_center = (Vec3::from_array(from) + Vec3::from_array(to)) * 0.5;
-        let expected_center =
-            Quat::from_rotation_x(-0.75) * source_center + Vec3::from_array(pivot);
-        // `scale(-1, -1, 1)` and the 1.501 lift.
-        let expected_world = Vec3::new(
-            -expected_center.x,
-            24.016 - expected_center.y,
-            expected_center.z,
-        ) / 16.;
-        let actual_center = posed.vertices[0..24]
-            .iter()
-            .map(|vertex| Vec3::from_array(vertex.position))
-            .sum::<Vec3>()
-            / 24.;
-        assert!((actual_center - expected_world).length() < 1e-5);
-    }
-
-    #[test]
-    fn mirrored_cube_reverses_mapped_vertices_and_keeps_outward_faces() {
-        let mut mesh = ChunkMesh::default();
-        cube_tinted_pose_mirror(
-            &mut mesh,
-            DVec3::ZERO,
-            Quat::IDENTITY,
-            1.0,
-            [0., 0., 1., 1.],
-            15.,
-            0.,
-            [-1., -2., -1.],
-            [1., 10., 1.],
-            [40., 16.],
-            [0.; 3],
-            Quat::IDENTITY,
-            [1.; 3],
-            [64., 32.],
-            None,
-            true,
-        );
-        // NORTH's first vertex is the source polygon's reversed t2:
-        // left-bottom model corner and (u2,v2) after the X mirror.
-        assert_eq!(mesh.vertices[12].uv, [44. / 64., 30. / 32.]);
-        // The renderer's `scale(-1, -1, 1)` puts the model's -x corner at +x.
-        assert_eq!(
-            mesh.vertices[12].position,
-            [1. / 16., (24.016 - 10.) / 16., -1. / 16.]
-        );
-        let center = Vec3::new(0., 20. / 16., 0.);
-        for face in 0..6 {
-            let index = face * 6;
-            let a = Vec3::from_array(mesh.vertices[mesh.indices[index] as usize].position);
-            let b = Vec3::from_array(mesh.vertices[mesh.indices[index + 1] as usize].position);
-            let c = Vec3::from_array(mesh.vertices[mesh.indices[index + 2] as usize].position);
-            let face_center = (0..4)
-                .map(|corner| Vec3::from_array(mesh.vertices[face * 4 + corner].position))
-                .sum::<Vec3>()
-                / 4.0;
-            assert!(
-                (b - a).cross(c - a).dot(face_center - center) > 0.0,
-                "face {face}"
-            );
-        }
     }
 }

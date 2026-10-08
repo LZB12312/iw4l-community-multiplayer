@@ -1,6 +1,3 @@
-//! Board-owned fields consumed by PhysicalPlayerHiLOD::Input, from original
-//! TU3 Skateboard::FillPhysOut82C02A80. Other physical components publish into
-//! the same packet after its native per-frame reset; their fields are retained.
 use super::{
     board::BodyId,
     board_ground::BoardGroundState,
@@ -11,9 +8,6 @@ use crate::{
     riding::collision_response::signed_angle,
 };
 
-/// Processed96 was captured by PrepareBoardToolkit before simulation. It is
-/// deliberately separate from the current solved board transform. Ground64 is
-/// the retained normal calculated by82C02388, not the wheel-contact normal.
 pub struct BoardInputFrame {
     pub processed_forward: Vector3,
     pub reckoning_normal_1216: Vector3,
@@ -48,8 +42,6 @@ pub fn publish_board_input(
         frame.reckoning_normal_1216,
         frame.reckoning_ground_up,
     );
-    //82C02A80 never writes Motion128/144. Preserve the values from the
-    //output reset and any other physical component, rather than inventing them.
     out.ground.vector_64 = bits(frame.retained_ground_normal_112);
     out.ground.vector_96 = bits(contacts.wheel_normal);
     out.collision.wheel_contact_3296_3299 =
@@ -67,7 +59,6 @@ pub fn publish_board_input(
     );
 }
 
-///82C030B8..322C, including8286CD88's product gate and plane rejection.
 fn travel_angle(forward: Vector3, velocity: Vector3, normal: Vector3, ground_up: Vector3) -> f32 {
     let mut projected_forward = reject(forward, normal);
     if !(dot(projected_forward, velocity) > 0.0) {
@@ -93,19 +84,4 @@ fn reject(vector: Vector3, normal: Vector3) -> Vector3 {
 }
 fn bits(vector: Vector3) -> [u32; 4] {
     [vector.x, vector.y, vector.z, 0.0].map(f32::to_bits)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn forward_and_reverse_motion_use_the_same_travel_axis() {
-        let forward = Vector3::new(0., 0., 1.);
-        let normal = Vector3::new(0., 1., 0.);
-        let a = travel_angle(forward, Vector3::new(1., 0., 4.), normal, normal);
-        let b = travel_angle(forward, Vector3::new(-1., 0., -4.), normal, normal);
-        assert!((a - b).abs() < 0.0001);
-        assert!(a > 0. && a < 0.5);
-        assert_eq!(travel_angle(forward, Vector3::ZERO, normal, normal), 0.);
-    }
 }

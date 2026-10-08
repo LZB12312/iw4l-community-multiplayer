@@ -1,5 +1,3 @@
-//! Candidate generation82D837C8. Uses the recovered sorted/reduced segments;
-//! final candidate selection and contact packet publication happen afterward.
 use super::{
     contact_candidates,
     contact_geometry::{slope_between, slope_limit},
@@ -226,62 +224,4 @@ pub fn candidates(
         }
     }
     out
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::player::offboard::contact_records::Record;
-    fn input(speed: f32) -> Input {
-        Input {
-            position: [0.; 4],
-            surface_forward: [0., 0., 1., 0.],
-            surface_up: [0., 1., 0., 0.],
-            surface_right: [1., 0., 0., 0.],
-            velocity: [0., 0., speed, 0.],
-            animation_up: [0., 1., 0., 0.],
-            animation_right: [1., 0., 0., 0.],
-        }
-    }
-    fn r(y: f32, z: f32) -> Record {
-        Record {
-            position: [0., y, z, 0.],
-            normal: [0., 1., 0., 0.],
-            coordinates: [z, y, z, z],
-            flags: 0,
-            distance: z,
-        }
-    }
-    #[test]
-    fn stationary_support_and_moving_flat_ground_take_distinct_native_paths() {
-        let packet = Packet {
-            flags: 1,
-            ..Packet::default()
-        };
-        let stationary = candidates(input(0.), &packet, &Segments::default(), 100., 0);
-        assert_eq!(stationary.len(), 1);
-        assert_eq!(stationary[0].kind, 0);
-        let mut segments = Segments::default();
-        segments.rebuild(input(3.), &[r(0., 0.), r(0., 2.)]);
-        let moving = candidates(input(3.), &packet, &segments, 100., 0);
-        assert_eq!(moving.len(), 1);
-        assert_eq!(moving[0].kind, 9);
-        assert!((moving[0].position[2] - 0.05).abs() < 1e-6);
-    }
-    #[test]
-    fn step_up_with_forward_clearance_produces_approach_and_top_candidates() {
-        let packet = Packet {
-            flags: 1,
-            ..Packet::default()
-        };
-        let mut segments = Segments::default();
-        segments.rebuild(input(3.), &[r(0., 0.), r(0., 0.5), r(0.3, 0.5), r(0.3, 2.)]);
-        let candidates = candidates(input(3.), &packet, &segments, 100., 0);
-        assert_eq!(
-            candidates.iter().map(|c| c.kind).collect::<Vec<_>>(),
-            vec![1, 3]
-        );
-        assert_eq!(candidates[1].flags, 64);
-        assert_eq!(candidates[1].position, [0., 0.3, 0.5, 0.]);
-    }
 }

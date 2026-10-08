@@ -1,6 +1,3 @@
-//! Complete TU3 82D931E8, called twice by Ground Update for tags 4 and 5.
-//! The research index has not recovered its original name. Keep its four
-//! caller-supplied scalar arguments explicit instead of inventing units.
 use super::vector::{clamp, dot3, normalize};
 #[derive(Clone)]
 pub struct GroundForceSettings {
@@ -22,7 +19,6 @@ pub struct GroundForceInput {
 }
 pub fn calculate(s: &GroundForceSettings, i: &GroundForceInput) -> [f32; 8] {
     let fraction = clamp(i.argument_1 / s.range_1220, 0.0, 1.0);
-    // Native double literals at822F8700/+8 are0 and1, narrowed at zero arg1.
     let zero_scalar = if i.argument_1 != 0.0 || i.balance != 0.0 {
         1.0
     } else {

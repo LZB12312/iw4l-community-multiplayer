@@ -1,4 +1,3 @@
-//! Scorable descriptor conversion links at820862A8, stride24.
 pub const LINKS: [(i32, i32); 332] = [
     (-1, -1),   //0
     (-1, -1),   //1

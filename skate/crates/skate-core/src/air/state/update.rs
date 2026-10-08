@@ -1,5 +1,3 @@
-//! TU3 PhysicsAir Update (`0x82D346C0`) and COM launch helper (`0x82D34570`).
-
 use crate::point_graph::PointGraph;
 
 use super::{
@@ -12,7 +10,7 @@ use super::{
     runtime::{PhysicsAirLaunchInfo, PhysicsAirRuntime},
 };
 
-const FIXED_STEP: f32 = f32::from_bits(0x3C88_8889); // 1/60, 0x82098D40
+const FIXED_STEP: f32 = f32::from_bits(0x3C88_8889);
 const HALF: f32 = f32::from_bits(0x3F00_0000);
 const ONE: f32 = f32::from_bits(0x3F80_0000);
 const TRAJECTORY_UNBOUNDED: f32 = f32::from_bits(0xBF80_0000);
@@ -107,7 +105,6 @@ pub fn update(
     state.time_in_state += frame.delta_time_2604;
 }
 
-/// Scalar wrap at `0x82D347E8..0x82D34848`, after AngleBetweenVectors.
 pub fn wrap_signed_angle(angle: f32) -> f32 {
     let turns = angle * RECIPROCAL_TWO_PI;
     let fraction = turns - turns.floor();
@@ -119,7 +116,6 @@ pub fn wrap_signed_angle(angle: f32) -> f32 {
     signed_fraction * TWO_PI
 }
 
-/// Fixed 1/60 ballistic step at `0x82D349B8..0x82D34A20`.
 pub fn integrate_trajectory_fixed_step(trajectory: &mut AirTrajectory) {
     let step_squared = FIXED_STEP * FIXED_STEP;
     let linear_position: Vector4 = core::array::from_fn(|lane| {

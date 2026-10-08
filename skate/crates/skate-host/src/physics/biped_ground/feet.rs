@@ -1,5 +1,3 @@
-//! Ground-only conditioning82D77330 and history82D775D8 around the shared
-//! FeetIK evaluator. Air's per-update timer resets do NOT belong here.
 use skate_core::{
     animation::foot_ik::state::FootIkState,
     player::offboard::{biped_air::recovered::feet as core, board_possession::manager::State},
@@ -8,7 +6,6 @@ use skate_core::{
 /// The host supplies actual current bone/line/root observations to core::Input.
 /// This borrows state56; it never creates or retains another FeetIK owner.
 pub(crate) fn update(manager: &mut State, mut input: core::Input, ik: &mut FootIkState) {
-    //82D77330 only conditions when BOTH incoming line tests are valid.
     if input.lines.iter().all(|line| line.valid) {
         let d = std::array::from_fn::<_, 2, _>(|i| {
             input.lines[i].position[1] - input.world_foot_pairs[i][0][1]
@@ -20,7 +17,6 @@ pub(crate) fn update(manager: &mut State, mut input: core::Input, ik: &mut FootI
         }
     }
     let targets = core::update(manager, &input);
-    //82D77558 applies IK before Ground correction/history82D775D8.
     if input.flags_2484 & 0x8000_0000 == 0 {
         for (i, target) in targets.into_iter().enumerate() {
             let limb = &mut ik.limbs[i];

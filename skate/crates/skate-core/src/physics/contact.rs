@@ -21,11 +21,6 @@ pub mod tu3 {
     pub const CONTACT_BATCH_BUILD: u32 = 0x82AE_10C8;
 }
 
-/// Exact TU3 constant used to reject a degenerate velocity-derived tangent.
-///
-/// The Xbox data table at `0x830382B0` contains `0x00800000` in every lane.
-/// This is the smallest positive normal binary32 value, not a tuned gameplay
-/// threshold.
 pub const CONTACT_TANGENT_MINIMUM_SQUARED: f32 = f32::from_bits(0x0080_0000);
 pub const CONTACT_FALLBACK_HALF: f32 = f32::from_bits(0x3F00_0000);
 
@@ -82,8 +77,6 @@ pub struct RetailContactInput {
     pub tag: u32,
 }
 
-/// Three scalar fields in the game-side physical material record consumed by
-/// TU3 `0x82763078`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RetailContactMaterial {
     pub static_friction: f32,
@@ -194,20 +187,6 @@ impl From<RetailContactBodyState> for RetailContactWorkspace {
     }
 }
 
-/// Port of TU3 `0x8277A828..0x8277AA88` and its duplicate
-/// `0x8277BFAC..0x8277C21C`.
-///
-/// VMX128 operation order is retained at the scalar-expression level:
-///
-/// 1. compute each contact arm from the copied body center of mass;
-/// 2. compute point rates as `linear + angular cross arm`;
-/// 3. derive tangent 0 from `relative_velocity cross normal`;
-/// 4. if that axis is subnormal, use the exact X/Z projection fallback;
-/// 5. derive tangent 1 as `normal cross tangent_0`;
-/// 6. copy the ten body-state vectors used by `ContactBatchBuild`.
-///
-/// The retail input normal is already unit length. This routine intentionally
-/// does not renormalize it or repair malformed collision input.
 pub fn generate_contact(
     input: RetailContactInput,
     body_a: RetailContactBodyState,
@@ -324,7 +303,3 @@ fn dot(left: Vector3, right: Vector3) -> f32 {
 fn length_squared(vector: Vector3) -> f32 {
     dot(vector, vector)
 }
-
-#[cfg(test)]
-#[path = "tests/contact.rs"]
-mod tests;

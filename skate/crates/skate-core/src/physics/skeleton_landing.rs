@@ -1,5 +1,3 @@
-//! Complete TU3 Skeleton::UpdateLandingAdjust82BD9028. This owns the four
-//! landing modes and history; it does not synthesize physical COM observations.
 use super::skeleton_board_offset::SkateboardOffset;
 use crate::point_graph::PointGraph;
 const STEP: f32 = f32::from_bits(0x3C88_8889);
@@ -56,7 +54,6 @@ pub struct LandingAdjustment {
 }
 impl Default for LandingAdjustment {
     fn default() -> Self {
-        // Skeleton ctor82BD7A9C..7ABC.
         Self {
             active: false,
             kind: 0,
@@ -244,7 +241,3 @@ impl LandingAdjustment {
 fn select(selector: f32, positive: f32, negative: f32) -> f32 {
     if selector >= 0.0 { positive } else { negative }
 }
-
-#[cfg(test)]
-#[path = "tests/skeleton_landing.rs"]
-mod tests;

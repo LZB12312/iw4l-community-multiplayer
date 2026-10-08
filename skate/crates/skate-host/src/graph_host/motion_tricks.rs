@@ -1,5 +1,3 @@
-//! Original trick leaves. Registration strings, not community symbol guesses,
-//! identify SetTrickAttr82BC7848 and ScoringTrick82BCC030.
 use super::motion::MotionHost;
 use skate_core::animation::{
     output::attributes::AttributeName,
@@ -12,7 +10,11 @@ use skate_data::state_graph::attributes::Attributes;
 pub enum Operation {
     FootPlantAbsorb,
     HandplantAntic,
-    HandplantScore { base: String, directions: [Option<String>;4], intents: [String;2] },
+    HandplantScore {
+        base: String,
+        directions: [Option<String>; 4],
+        intents: [String; 2],
+    },
     Height {
         from: AttributeName,
         rename: AttributeName,
@@ -32,9 +34,9 @@ impl Operation {
             "FootPlantAbsorb" => Self::FootPlantAbsorb,
             "SetHandPlantAnticLength" => Self::HandplantAntic,
             "ScoringHandPlants" => Self::HandplantScore {
-                base:a.text("handplantname").unwrap_or("").to_owned(),
-                directions:["up","left","down","right"].map(|n|a.text(n).map(str::to_owned)),
-                intents:["intentX","intentY"].map(|n|a.text(n).unwrap_or("").to_owned()),
+                base: a.text("handplantname").unwrap_or("").to_owned(),
+                directions: ["up", "left", "down", "right"].map(|n| a.text(n).map(str::to_owned)),
+                intents: ["intentX", "intentY"].map(|n| a.text(n).unwrap_or("").to_owned()),
             },
             "SetTrickHeight" => Self::Height {
                 from: encode(a.text("from").unwrap_or("").as_bytes()),
@@ -66,30 +68,55 @@ pub fn execute(
     phase: u8,
 ) -> Result<(), String> {
     match operation {
-        Operation::HandplantAntic if phase==0 => {
-            //VT82321360 Begin=82BBE5D0; shared clip lengths from82B959E8.
-            let duration=|name|->Result<f32,String> {
-                let clip=host.animation.metadata().clip(name)?;
-                Ok((f32::from_bits(clip.frames_bits)-1.0)/(f32::from_bits(clip.base_speed_bits)*f32::from_bits(clip.fps_bits)))
+        Operation::HandplantAntic if phase == 0 => {
+            let duration = |name| -> Result<f32, String> {
+                let clip = host.animation.metadata().clip(name)?;
+                Ok((f32::from_bits(clip.frames_bits) - 1.0)
+                    / (f32::from_bits(clip.base_speed_bits) * f32::from_bits(clip.fps_bits)))
             };
-            let normal=duration("INVERT_HANDPLANT_FS_0_ANTIC")?;
-            let late=duration("INVERT_HANDPLANT_FS_0_ANTIC_LATE")?;
-            let p=host.gameplay_conditions.as_ref().ok_or("Handplant antic requires physical output")?;
-            let value=((normal-(p.handplant_thresholds[2]-p.handplant_time)-late)/(normal-late)).clamp(0.0,1.0);
-            host.animation.set_attribute(SettableAttribute {name:encode(b"antic_length"),value,normalized:false,sequence_id:-1});
+            let normal = duration("INVERT_HANDPLANT_FS_0_ANTIC")?;
+            let late = duration("INVERT_HANDPLANT_FS_0_ANTIC_LATE")?;
+            let p = host
+                .gameplay_conditions
+                .as_ref()
+                .ok_or("Handplant antic requires physical output")?;
+            let value = ((normal - (p.handplant_thresholds[2] - p.handplant_time) - late)
+                / (normal - late))
+                .clamp(0.0, 1.0);
+            host.animation.set_attribute(SettableAttribute {
+                name: encode(b"antic_length"),
+                value,
+                normalized: false,
+                sequence_id: -1,
+            });
         }
-        Operation::HandplantScore {base,directions,intents} if phase==1 => {
-            //82BBF758 uses the same angular windows as ScoringGrabs82BBEF60.
-            let xy=intents.each_ref().map(|n|host.animation.filtered_intent(n).unwrap_or(0.0));
-            let name=super::motion_stock_gameplay::select_grab_score(&base,directions.each_ref().map(|s|s.as_deref()),xy[0],xy[1]);
-            host.score_packet.handplant=Some((encode(name.as_bytes()),xy));
+        Operation::HandplantScore {
+            base,
+            directions,
+            intents,
+        } if phase == 1 => {
+            let xy = intents
+                .each_ref()
+                .map(|n| host.animation.filtered_intent(n).unwrap_or(0.0));
+            let name = super::motion_stock_gameplay::select_grab_score(
+                &base,
+                directions.each_ref().map(|s| s.as_deref()),
+                xy[0],
+                xy[1],
+            );
+            host.score_packet.handplant = Some((encode(name.as_bytes()), xy));
         }
         Operation::FootPlantAbsorb if phase == 1 => {
-            //82BBE4E0 reads the manager's curve duration, Air212.
-            let value = host.gameplay_conditions.as_ref()
-                .ok_or("FootPlantAbsorb requires physical output")?.footplant_duration;
+            let value = host
+                .gameplay_conditions
+                .as_ref()
+                .ok_or("FootPlantAbsorb requires physical output")?
+                .footplant_duration;
             host.animation.set_attribute(SettableAttribute {
-                name: encode(b"absorblength"), value, normalized: false, sequence_id: -1,
+                name: encode(b"absorblength"),
+                value,
+                normalized: false,
+                sequence_id: -1,
             });
         }
         Operation::Height {
@@ -99,7 +126,6 @@ pub fn execute(
             manual,
             grind,
         } if phase == 0 => {
-            // 82BAEE90: graph intents override animation only on the authored paths.
             let gesture = host
                 .animation
                 .motion_intents
@@ -168,7 +194,6 @@ pub fn execute(
             }
         }
         Operation::Scoring(name) if phase == 1 => {
-            // ISkaterMotionGraph236 ->8258FA20 stores both equal names and bit24.
             host.score_packet.trick_names.first = Some(name);
             host.score_packet.trick_names.second = Some(name);
             host.score_packet.flags |= 0x0100_0000;
@@ -211,7 +236,6 @@ pub fn execute(
             }
         }
         Operation::WeightOnNose if phase != 1 => {
-            //82BB2670/26D0 -> ISkaterAnim20 ->82B97110, bit28.
             let flags = host
                 .animation
                 .skater_animation_flags

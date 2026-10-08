@@ -4,10 +4,10 @@ use super::publication::{
     publish_player_flags, publish_state_prefix, replace_bool, replace_byte, select_surface,
     transfer_bit,
 };
+use super::requests::{GroundHistoryRequest, PrepareJumpRequest};
 use super::types::{
     AnimationInputPacket, PhysicalPlayerInput, PlayerInputState, ProcessedPhysicsInput, RawVector,
 };
-use super::requests::{GroundHistoryRequest, PrepareJumpRequest};
 
 const FIXED_FRAME_STEP: f32 = f32::from_bits(0x3c88_8889);
 
@@ -73,15 +73,12 @@ pub enum InputPhaseError<E> {
     InvalidStateVariant(u32),
 }
 
-/// Pre-reset observations retained by82DB4048 across CheckTeleport.
 #[derive(Debug)]
 pub struct InputContinuation {
     captured_state: u32,
     captured_category: u32,
 }
 
-/// Complete recovered TU3 PhysicalPlayerHiLOD::Input82DB4048.
-/// The split also lets a host release subsystem borrows at CheckTeleport.
 pub fn process_input<S: InputPhaseServices>(
     player: &mut PlayerInputState,
     physical: &mut PhysicalPlayerInput,
@@ -93,8 +90,6 @@ pub fn process_input<S: InputPhaseServices>(
     finish_input(continuation, player, physical, packet, output, services)
 }
 
-///82DB4048 through CheckTeleport82DB42DC. Complete the physical reset
-///continuation before calling finish_input; captured fields must survive it.
 pub fn start_input<S: InputPhaseServices>(
     player: &mut PlayerInputState,
     physical: &mut PhysicalPlayerInput,
@@ -132,10 +127,12 @@ pub fn start_input<S: InputPhaseServices>(
     services
         .check_teleport_82db88c8(player, physical, output)
         .map_err(InputPhaseError::Service)?;
-    Ok(InputContinuation { captured_state, captured_category })
+    Ok(InputContinuation {
+        captured_state,
+        captured_category,
+    })
 }
 
-///82DB42F0 through82DB5570, after any reset/normal-setup continuation.
 pub fn finish_input<S: InputPhaseServices>(
     continuation: InputContinuation,
     player: &mut PlayerInputState,
@@ -144,7 +141,10 @@ pub fn finish_input<S: InputPhaseServices>(
     output: &mut ProcessedPhysicsInput,
     services: &mut S,
 ) -> Result<(), InputPhaseError<S::Error>> {
-    let InputContinuation { captured_state, captured_category } = continuation;
+    let InputContinuation {
+        captured_state,
+        captured_category,
+    } = continuation;
     transfer_bit(&mut output.flags_2472, 10, player.flags_1296, 29);
     publish_transition(packet, output, services)?;
     update_signed_ground_time(player, physical, output);
@@ -365,4 +365,3 @@ fn native_nonnegative_decrement(value: u32) -> u32 {
 fn xenon_fsel(test: f32, nonnegative: f32, negative: f32) -> f32 {
     if test >= -0.0 { nonnegative } else { negative }
 }
-

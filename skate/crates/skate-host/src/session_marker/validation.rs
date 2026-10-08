@@ -1,4 +1,3 @@
-//! 8289B928 actor eligibility and 82BFBC18 checkpoint geometry checks.
 use bevy::prelude::*;
 use skate_core::{math::Vector3, physics::board_world::BoardWorld};
 use skate_data::collections::Collections;
@@ -30,7 +29,6 @@ impl Validation {
         let Ok(Some(hit)) = world.query_thin_line(start, end) else {
             return false;
         };
-        //82BFBE30: CTR jump chain, including the zero-case fallthrough.
         let surface = (hit.tag >> 7) & 31;
         if hit.geometry.normal.y < self.slope
             || start.y - hit.geometry.position.y > self.max_drop

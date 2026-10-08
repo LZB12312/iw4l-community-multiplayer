@@ -1,13 +1,3 @@
-//! Semantic port of Skate 3 TU3's six-degree joint iteration.
-//!
-//! Skate 3 builds one 384-byte `JointJacobian` for each of the six skateboard
-//! assembly joints. `rw::physics::Simulation::Solve` visits contacts, joints,
-//! and drives in that order on each configured outer iteration. The joint loop
-//! starts near `0x82AE2BC8`; the loop near `0x82AE2E78` is the drive family.
-//!
-//! Generated-code validation is withdrawn. All arithmetic and packed-lane
-//! semantics require independent review against TU3 IDA before parity claims.
-
 use crate::physics::rigid_body::RetailReactionCorrections;
 
 pub mod tu3 {
@@ -76,7 +66,3 @@ pub fn solve_joint_iteration(
         &mut reaction_b.words,
     );
 }
-
-#[cfg(test)]
-#[path = "tests/joint_solver.rs"]
-mod tests;

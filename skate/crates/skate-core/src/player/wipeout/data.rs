@@ -1,4 +1,3 @@
-//! Actual observation values consumed by Wipeout82D8F9E0/82D90358.
 use crate::{physics::skeleton_animation_record::AnimationPartTransform, point_graph::PointGraph};
 pub type V = [f32; 4];
 #[derive(Clone, Copy, Debug)]

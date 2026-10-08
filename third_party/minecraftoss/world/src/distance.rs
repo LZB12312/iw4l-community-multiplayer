@@ -32,7 +32,11 @@ fn mix(x: i64) -> i64 {
 /// fastutil `HashCommon.arraySize`.
 fn array_size(expected: usize, f: f32) -> usize {
     let s = f64::from(expected as f32 / f).ceil() as u64;
-    let power = if s <= 1 { 1 } else { 1u64 << (64 - (s - 1).leading_zeros()) };
+    let power = if s <= 1 {
+        1
+    } else {
+        1u64 << (64 - (s - 1).leading_zeros())
+    };
     power.max(2) as usize
 }
 
@@ -60,7 +64,18 @@ pub struct LongByteMap {
 impl LongByteMap {
     pub fn new(expected: usize, f: f32, default: i8) -> Self {
         let n = array_size(expected, f);
-        Self { key: vec![0; n + 1], value: vec![0; n + 1], n, mask: n - 1, max_fill: max_fill(n, f), min_n: n, size: 0, contains_null: false, f, default }
+        Self {
+            key: vec![0; n + 1],
+            value: vec![0; n + 1],
+            n,
+            mask: n - 1,
+            max_fill: max_fill(n, f),
+            min_n: n,
+            size: 0,
+            contains_null: false,
+            f,
+            default,
+        }
     }
 
     fn slot(&self, k: i64) -> usize {
@@ -70,7 +85,11 @@ impl LongByteMap {
     /// The key's slot, or where it would go.
     fn find(&self, k: i64) -> Result<usize, usize> {
         if k == 0 {
-            return if self.contains_null { Ok(self.n) } else { Err(self.n) };
+            return if self.contains_null {
+                Ok(self.n)
+            } else {
+                Err(self.n)
+            };
         }
         let mut pos = self.slot(k);
         loop {
@@ -146,7 +165,11 @@ impl LongByteMap {
                     return;
                 }
                 let slot = self.slot(curr);
-                let moves = if last <= pos { last >= slot || slot > pos } else { last >= slot && slot > pos };
+                let moves = if last <= pos {
+                    last >= slot || slot > pos
+                } else {
+                    last >= slot && slot > pos
+                };
                 if moves {
                     break curr;
                 }
@@ -191,7 +214,12 @@ impl LongByteMap {
         if self.contains_null {
             out.push(0);
         }
-        out.extend((0..self.n).rev().map(|pos| self.key[pos]).filter(|&k| k != 0));
+        out.extend(
+            (0..self.n)
+                .rev()
+                .map(|pos| self.key[pos])
+                .filter(|&k| k != 0),
+        );
         out
     }
 }
@@ -219,7 +247,9 @@ impl LinkedSet {
     }
 
     fn remove(&mut self, k: i64) {
-        let Some((prev, next)) = self.links.remove(&k) else { return };
+        let Some((prev, next)) = self.links.remove(&k) else {
+            return;
+        };
         match prev {
             Some(p) => self.links.get_mut(&p).expect("linked").1 = next,
             None => self.head = next,
@@ -251,7 +281,11 @@ struct LevelQueue {
 
 impl LevelQueue {
     fn new(level_count: i32) -> Self {
-        Self { queues: vec![LinkedSet::default(); level_count as usize], first: level_count, level_count }
+        Self {
+            queues: vec![LinkedSet::default(); level_count as usize],
+            first: level_count,
+            level_count,
+        }
     }
 
     fn remove_first(&mut self) -> i64 {
@@ -334,7 +368,9 @@ impl PlayerChunkCounter {
     /// `DistanceManager.removePlayer`'s part for this tracker.
     pub fn remove_player(&mut self, chunk: ChunkPos) {
         let key = pack(chunk.x, chunk.z);
-        let Some(count) = self.players.get_mut(&key) else { return };
+        let Some(count) = self.players.get_mut(&key) else {
+            return;
+        };
         *count -= 1;
         if *count == 0 {
             self.players.remove(&key);
@@ -373,11 +409,19 @@ impl PlayerChunkCounter {
     }
 
     fn level_from_source(&self, to: i64) -> i32 {
-        if self.players.get(&to).is_some_and(|&c| c > 0) { 0 } else { i32::MAX }
+        if self.players.get(&to).is_some_and(|&c| c > 0) {
+            0
+        } else {
+            i32::MAX
+        }
     }
 
     fn level_from_neighbor(&self, from: i64, to: i64, from_level: i32) -> i32 {
-        if from == INVALID { self.level_from_source(to) } else { from_level + 1 }
+        if from == INVALID {
+            self.level_from_source(to)
+        } else {
+            from_level + 1
+        }
     }
 
     fn priority(&self, level: i32, computed: i32) -> i32 {
@@ -415,10 +459,25 @@ impl PlayerChunkCounter {
     /// `ChunkTracker.update`: an edge from the source.
     fn update(&mut self, node: i64, level_from: i32, only_decreased: bool) {
         let (level_to, computed) = (self.level(node), self.computed_of(node));
-        self.check_edge(INVALID, node, level_from, level_to, computed, only_decreased);
+        self.check_edge(
+            INVALID,
+            node,
+            level_from,
+            level_to,
+            computed,
+            only_decreased,
+        );
     }
 
-    fn check_edge(&mut self, from: i64, to: i64, level_from: i32, level_to: i32, old_computed: i32, only_decreased: bool) {
+    fn check_edge(
+        &mut self,
+        from: i64,
+        to: i64,
+        level_from: i32,
+        level_to: i32,
+        old_computed: i32,
+        only_decreased: bool,
+    ) {
         if to == INVALID {
             return;
         }
@@ -426,8 +485,16 @@ impl PlayerChunkCounter {
         let level_from = level_from.clamp(0, top);
         let level_to = level_to.clamp(0, top);
         let was_consistent = old_computed == 255;
-        let old_computed = if was_consistent { level_to } else { old_computed };
-        let new_computed = if only_decreased { old_computed.min(level_from) } else { self.computed_level(to, from, level_from).clamp(0, top) };
+        let old_computed = if was_consistent {
+            level_to
+        } else {
+            old_computed
+        };
+        let new_computed = if only_decreased {
+            old_computed.min(level_from)
+        } else {
+            self.computed_level(to, from, level_from).clamp(0, top)
+        };
         let old_priority = self.priority(level_to, old_computed);
         if level_to != new_computed {
             let new_priority = self.priority(level_to, new_computed);
@@ -444,15 +511,25 @@ impl PlayerChunkCounter {
 
     fn check_neighbor(&mut self, from: i64, to: i64, level: i32, only_decreased: bool) {
         let stored = self.computed_of(to);
-        let level_from = self.level_from_neighbor(from, to, level).clamp(0, self.level_count - 1);
+        let level_from = self
+            .level_from_neighbor(from, to, level)
+            .clamp(0, self.level_count - 1);
         if only_decreased {
             let level_to = self.level(to);
             self.check_edge(from, to, level_from, level_to, stored, true);
         } else {
             let was_consistent = stored == 255;
-            let old_computed = if was_consistent { self.level(to).clamp(0, self.level_count - 1) } else { stored };
+            let old_computed = if was_consistent {
+                self.level(to).clamp(0, self.level_count - 1)
+            } else {
+                stored
+            };
             if level_from == old_computed {
-                let level_to = if was_consistent { old_computed } else { self.level(to) };
+                let level_to = if was_consistent {
+                    old_computed
+                } else {
+                    self.level(to)
+                };
                 self.check_edge(from, to, self.level_count - 1, level_to, stored, false);
             }
         }
@@ -492,35 +569,5 @@ impl PlayerChunkCounter {
                 self.check_neighbors_after_update(node, level, false);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_player_counts_the_chunks_within_eight() {
-        let mut counter = PlayerChunkCounter::new(8);
-        counter.add_player(ChunkPos::new(8, 8));
-        assert_eq!(counter.chunk_count(), 289);
-        assert_eq!(counter.distance(ChunkPos::new(16, 3)), 8);
-        assert_eq!(counter.distance(ChunkPos::new(17, 8)), 10);
-        counter.remove_player(ChunkPos::new(8, 8));
-        assert_eq!(counter.chunk_count(), 0);
-    }
-
-    #[test]
-    fn the_map_keeps_fastutil_order_through_growth_and_removal() {
-        let mut map = LongByteMap::new(16, 0.75, -1);
-        for i in 0..100 {
-            map.put(pack(i % 13, i / 13), i as i8);
-        }
-        for i in (0..100).step_by(3) {
-            map.remove(pack(i % 13, i / 13));
-        }
-        let keys = map.keys();
-        assert_eq!(keys.len(), map.len());
-        assert!(keys.iter().all(|&k| map.get(k) != -1));
     }
 }

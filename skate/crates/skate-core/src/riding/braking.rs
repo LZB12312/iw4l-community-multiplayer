@@ -1,6 +1,3 @@
-//! TU3 ground braking and linear drag, using the existing ground-force
-//! direct82D94AE0/82D94A20 exports and SKATE3_MAIN_SKATER_FUNCTIONS.md.
-//! Cached ground settings are explicit inputs; no replacement tuning defaults.
 use crate::{math::Vector3, physics::force_queue::QueuedPointForce};
 
 #[derive(Clone, Copy, Debug)]
@@ -25,8 +22,6 @@ pub struct BrakeInput {
     pub direction: Vector3,
 }
 
-/// Toolkit_CalcBraking 82D94AE0. GroundUpdate appends even a zero result
-/// with tag 2 at 82D391A0. This result is force, not a velocity assignment.
 pub fn calculate_braking(input: BrakeInput, settings: BrakeSettings) -> QueuedPointForce {
     let mut amount = if input.flags_2468 & 0x4000_0000 != 0 {
         input.input_2728 * settings.input_force
@@ -39,7 +34,6 @@ pub fn calculate_braking(input: BrakeInput, settings: BrakeSettings) -> QueuedPo
     let scaled = input.surface_factor * amount;
     let sign = if input.signed_speed < 0.0 { 1.0 } else { -1.0 };
     amount = sign * scaled;
-    //82D94B78 bge retains the amount when the comparison is unordered.
     if input.absolute_body_speed < settings.minimum_speed {
         amount = 0.0;
     }
@@ -56,7 +50,6 @@ pub fn calculate_braking(input: BrakeInput, settings: BrakeSettings) -> QueuedPo
 
 #[derive(Clone, Copy, Debug)]
 pub struct LinearDragSettings {
-    /// Cached +1244; multiplied by native constant 2.0 at 82060C50.
     pub brake_speed: f32,
     /// Cached +1248.
     pub balance_speed: f32,
@@ -76,8 +69,6 @@ pub struct LinearDragInput {
     pub comparison_scalar: f32,
 }
 
-/// Toolkit_CalcLinearDrag 82D94A20, including its low-speed brake override.
-/// Applying the result to inertia is a separate caller operation.
 pub fn calculate_linear_drag(input: LinearDragInput, settings: LinearDragSettings) -> f32 {
     let brake_override = input.absolute_body_speed < settings.brake_speed * 2.0
         && input.flags_2468 & 0x6000_0000 != 0

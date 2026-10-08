@@ -1,4 +1,3 @@
-//! SettingBodyTilt Update82BA88A0 and CreateInstance82BA8B40.
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Debug)]
@@ -24,7 +23,9 @@ pub struct State {
     was_enabled: bool,
 }
 impl State {
-    pub fn disable(&mut self) {self.was_enabled=false;}
+    pub fn disable(&mut self) {
+        self.was_enabled = false;
+    }
     pub fn update(
         &mut self,
         enabled: bool,
@@ -40,8 +41,6 @@ impl State {
         if !enabled {
             return None;
         }
-        //82B97140 tests fullSkaterAnim15180 bit30. The nonmirrored branch
-        //flips the sign bit of the source X component before multiplication.
         let tilt = if mirrored {
             p.lateral_tilt
         } else {

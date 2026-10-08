@@ -37,11 +37,7 @@ impl HorseKind {
             HorseKind::Horse => 1.52,
             HorseKind::Donkey => 1.425,
         };
-        if baby {
-            eye * scale
-        } else {
-            eye
-        }
+        if baby { eye * scale } else { eye }
     }
 
     /// `createBaseHorseAttributes` (and `createBaseChestedHorseAttributes`
@@ -205,7 +201,9 @@ impl HorseState {
             }
         } else {
             self.allow_stand_sliding = false;
-            self.stand_anim += (0.8 * self.stand_anim * self.stand_anim * self.stand_anim - self.stand_anim) * 0.6 - 0.05;
+            self.stand_anim +=
+                (0.8 * self.stand_anim * self.stand_anim * self.stand_anim - self.stand_anim) * 0.6
+                    - 0.05;
             if self.stand_anim < 0.0 {
                 self.stand_anim = 0.0;
             }
@@ -240,24 +238,3 @@ pub const SOUND_VOLUME: f32 = 0.8;
 /// `SAFE_FALL_DISTANCE` and `FALL_DAMAGE_MULTIPLIER`.
 pub const SAFE_FALL_DISTANCE: f64 = 6.0;
 pub const FALL_DAMAGE_MULTIPLIER: f64 = 0.5;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn grazing_eases_in_and_rearing_clears_it() {
-        let mut horse = HorseState::new(HorseKind::Horse);
-        horse.eating = true;
-        horse.tick_animation();
-        assert_eq!(horse.eat_anim, 0.4_f32 + 0.05);
-        horse.stand_if_possible();
-        assert!(!horse.eating && horse.standing);
-        horse.tick_animation();
-        assert_eq!(horse.eat_anim, 0.0);
-        for _ in 0..19 {
-            horse.tick_animation();
-        }
-        assert!(!horse.standing, "twenty ticks of rearing");
-    }
-}

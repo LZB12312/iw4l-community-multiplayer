@@ -1,4 +1,3 @@
-//! TU3 EdgeCosTest / EdgeCosTestFull, 82AD2860 / 82AD2928.
 use super::arithmetic::*;
 use crate::math::Vector3;
 

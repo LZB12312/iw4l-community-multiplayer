@@ -13,8 +13,6 @@ fn up(bytes: &mut [u8], offset: usize) {
     put(bytes, offset + 4, 0x3f80_0000);
 }
 
-/// Complete 82C00CA0 selective per-frame reset. Wheel surface/audio/object
-/// slots and line-test state survive; this differs from startup 82C00D68.
 pub fn reset_frame_collision_info(info: &mut CollisionInfo) {
     up(info, 0);
     for i in 0..7 {
@@ -40,9 +38,6 @@ pub fn reset_frame_collision_info(info: &mut CollisionInfo) {
     put(info, 808, flags);
 }
 
-/// Complete 82C08818 surface vote. Noncontacting wheels still contribute one
-/// vote; contacting wheels contribute four. Equal counts favor the lower ID.
-/// IDs14/15 are accumulated but not considered by the native winner scan.
 pub fn choose_physics_surface(info: &mut CollisionInfo) {
     let surfaces = std::array::from_fn(|i| word(info, 692 + i * 4));
     let contacts = std::array::from_fn(|i| info[780 + i] != 0);
@@ -50,8 +45,6 @@ pub fn choose_physics_surface(info: &mut CollisionInfo) {
     put(info, 776, result);
 }
 
-/// Typed82C08818 boundary. Values are the retained wheel surface outputs;
-/// query misses and contact replacements belong to their original producers.
 pub fn choose_surface(surfaces: [u32; 4], contacts: [bool; 4], forced_twelve: bool) -> u32 {
     let mut votes = [0u32; 16];
     for i in 0..4 {

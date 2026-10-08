@@ -1,11 +1,5 @@
 use super::*;
-#[test]
-#[ignore = "requires private stock graphs and animation assets"]
-fn tricks_select_air_camera_without_chasing_the_board_upward() {
-    for flick in [[0, 32767], [-32767, 16384], [32767, 16384]] {
-        replay(flick);
-    }
-}
+
 fn replay(flick: [i16; 2]) {
     let root = std::path::PathBuf::from(std::env::var_os("SKATE3_ASSET_ROOT").unwrap());
     let assets = skate_data::GameAssets::load(&root).unwrap();

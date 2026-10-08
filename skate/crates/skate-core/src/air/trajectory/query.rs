@@ -1,5 +1,3 @@
-//! Complete trajectory-segment walk82770910 and result writer8276DBE0.
-//! The host supplies real nearest swept-line hits and intersecting triangles.
 use super::{QueryRequest, QueryResult, math::*};
 #[derive(Clone, Copy, Debug)]
 pub struct SurfaceHit {
@@ -36,7 +34,6 @@ pub fn query_trajectory<E>(
     while trajectory.duration > time {
         let delta = sub(end, start);
         if dot(delta, delta) > minimum_square {
-            //82770B40 rejects a segment only when all XYZ are tiny.
             if delta[..3]
                 .iter()
                 .any(|v| v.abs() > f32::from_bits(0x3780_0000))
@@ -84,8 +81,6 @@ fn step_size(gravity_y: f32, error_radius: f32) -> f32 {
         square * inverse_length(square)
     }
 }
-///8276C558 writes both collision seconds and integer frame, including its
-///distinct negligible-gravity branch. A miss is handled by the caller.
 fn time_at_contact(request: QueryRequest, position: Vector, mut time: f32) -> (f32, i32) {
     const EPSILON: f32 = f32::from_bits(0x38d1_b717);
     let trajectory = request.trajectory;
@@ -118,10 +113,8 @@ fn time_at_contact(request: QueryRequest, position: Vector, mut time: f32) -> (f
     if !found {
         time = trajectory.duration;
     }
-    //82F4E948 is ceiling (truncate then add1 for a positive remainder).
     (time, (reciprocal(STEP) * time).ceil() as i32)
 }
-///82771018, using at most64 triangles retained by82772028 in world order.
 fn average_landing_normal(triangles: &[[Vector; 3]], velocity: Vector) -> Vector {
     let mut accepted = Vec::with_capacity(64);
     let mut most_up = ZERO;

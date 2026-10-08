@@ -36,14 +36,34 @@ pub(super) fn build(
         TreeMetadata::BlendSpace(source) => {
             use skate_core::animation::playback_tree::blend_space::{BlendSpace, Simplex};
             PlaybackTree::BlendSpace(BlendSpace::new(
-                source.parameters.iter().map(|p| encode(p.as_bytes())).collect(),
-                source.children.iter().map(|child| build(metadata, child, construction, parents)).collect::<Result<_,_>>()?,
-                source.simplexes.iter().map(|s| Simplex {
-                    children:s.children.clone(),
-                    vertices:s.vertex_bits.iter().map(|v| v.iter().map(|&v| f32::from_bits(v)).collect()).collect(),
-                    normals:s.normal_bits.iter().map(|v| v.iter().map(|&v| f32::from_bits(v)).collect()).collect(),
-                    scales:s.scale_bits.iter().map(|&v| f32::from_bits(v)).collect(),
-                }).collect(),
+                source
+                    .parameters
+                    .iter()
+                    .map(|p| encode(p.as_bytes()))
+                    .collect(),
+                source
+                    .children
+                    .iter()
+                    .map(|child| build(metadata, child, construction, parents))
+                    .collect::<Result<_, _>>()?,
+                source
+                    .simplexes
+                    .iter()
+                    .map(|s| Simplex {
+                        children: s.children.clone(),
+                        vertices: s
+                            .vertex_bits
+                            .iter()
+                            .map(|v| v.iter().map(|&v| f32::from_bits(v)).collect())
+                            .collect(),
+                        normals: s
+                            .normal_bits
+                            .iter()
+                            .map(|v| v.iter().map(|&v| f32::from_bits(v)).collect())
+                            .collect(),
+                        scales: s.scale_bits.iter().map(|&v| f32::from_bits(v)).collect(),
+                    })
+                    .collect(),
             )?)
         }
         TreeMetadata::PhaseBlend(source) => PlaybackTree::PhaseBlend(PhaseBlend::new(
@@ -82,8 +102,6 @@ pub(super) fn build(
                 .collect::<Result<Vec<_>, String>>()?;
             PlaybackTree::SelectionSpace(SelectionSpace::new(parameters, candidates)?)
         }
-        //82D1B9B4..BAD8 resolves the first matching construction value at
-        //creation. A missing key/value selects child0; this is authored data.
         TreeMetadata::Selector(source) => {
             let value = construction
                 .iter()

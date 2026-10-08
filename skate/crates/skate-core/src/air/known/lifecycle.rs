@@ -9,9 +9,8 @@ use super::{
     trajectory::{init_trajectory_info, restore_velocity},
 };
 
-const ZERO_VECTOR: [f32; 4] = [0.0; 4]; // 0x830BD350.
+const ZERO_VECTOR: [f32; 4] = [0.0; 4];
 
-/// `PhysState_KnownAir::Enter`, TU3 `0x82D352D0`.
 pub fn enter(
     state: &mut KnownAirState,
     frame: &KnownAirFrame,
@@ -53,7 +52,6 @@ pub fn enter(
     state.start_flipped_210 = 0.0 > runtime.dot3(frame.velocity_400, frame.start_flip_reference_96);
 }
 
-/// `PhysState_KnownAir::Exit`, TU3 `0x82D35920`.
 pub fn exit(
     state: &mut KnownAirState,
     frame: &mut KnownAirFrame,

@@ -54,9 +54,6 @@ fn convert(m: Mat4) -> Mat4 {
     out
 }
 
-/// Align each soldier bind segment to the reference skater, then apply the
-/// game's solved pose. Unmapped fingers, equipment and helper bones inherit
-/// the nearest mapped ancestor, preserving their original local offsets.
 pub fn pose(dobj: &xmodel_runtime::DObj, mode: &frame::SkateMode) -> Vec<Mat4> {
     let Some(reference) = reference() else {
         return dobj.bones.iter().map(|b| b.bind_world).collect();
@@ -152,9 +149,69 @@ fn p_from(dobj: &xmodel_runtime::DObj, index: Option<usize>) -> Option<Vec3> {
     Some(dobj.bones.get(index?)?.bind_world.w_axis.truncate())
 }
 
-pub fn board(mode: &frame::SkateMode, geom: &mut CpuBodyGeom) -> Result<(), String> {
-    let model = assets::bot_model::local_skate_board().ok_or("missing board model")?;
-    let reference = reference().ok_or("missing board bind pose")?;
+pub fn board(
+    mode: &frame::SkateMode,
+    appearance: &sim::CharacterAppearance,
+    geom: &mut CpuBodyGeom,
+) -> Result<(), String> {
+    if let Some(profile) = &appearance.profile {
+        let library = assets::character::local_library().ok_or("missing character library")?;
+        let parts = library.assemble_cached(profile)?;
+        for part in parts.iter().filter(|p| p.board()) {
+            skin_native(&part.native, mode, geom)?;
+        }
+        return Ok(());
+    }
+    let model = assets::bot_model::character_option("board", appearance.board)
+        .map(|p| &p.native)
+        .or_else(assets::bot_model::local_skate_board)
+        .ok_or("missing board model")?;
+    skin_native(model, mode, geom)
+}
+
+pub fn character(
+    mode: &frame::SkateMode,
+    appearance: &sim::CharacterAppearance,
+    geom: &mut CpuBodyGeom,
+) -> Result<(), String> {
+    let skeleton = (mode.xray != 0)
+        .then(assets::bot_model::meat_skeleton)
+        .flatten();
+    if let Some(models) = skeleton {
+        skin_native(&models[0], mode, geom)?;
+    }
+    if let Some(profile) = &appearance.profile {
+        let library = assets::character::local_library().ok_or("missing character library")?;
+        let parts = library.assemble_cached(profile)?;
+        for part in parts.iter().filter(|p| !p.board()) {
+            let model = if skeleton.is_some() {
+                part.xray()
+            } else {
+                &part.native
+            };
+            skin_native(model, mode, geom)?;
+        }
+        return Ok(());
+    }
+    for model in assets::bot_model::character_parts(appearance.selections(), true) {
+        let model = if skeleton.is_some() {
+            assets::bot_model::local_characters()
+                .and_then(|parts| parts.iter().find(|part| std::ptr::eq(&part.native, model)))
+                .map_or(model, |part| part.xray())
+        } else {
+            model
+        };
+        skin_native(model, mode, geom)?;
+    }
+    Ok(())
+}
+
+fn skin_native(
+    model: &assets::bot_model::BotModel,
+    mode: &frame::SkateMode,
+    geom: &mut CpuBodyGeom,
+) -> Result<(), String> {
+    let reference = reference();
     let rb = Mat4::from_cols(Vec4::X, -Vec4::Z, Vec4::Y, Vec4::W);
     let matrices: Vec<_> = model
         .joints
@@ -165,11 +222,18 @@ pub fn board(mode: &frame::SkateMode, geom: &mut CpuBodyGeom) -> Result<(), Stri
                 .iter()
                 .position(|n| n == &j.target)
                 .ok_or("missing Skate joint")?;
-            let reference = reference
-                .iter()
-                .find(|b| b.name == j.target)
-                .ok_or("missing reference joint")?;
-            Ok(mode.bones[i] * rb * Mat4::from_cols_array(&reference.inverse_bind))
+            let inverse = if let Some(bind) = &j.inverse_bind {
+                bind
+            } else {
+                &reference
+                    .ok_or("missing board bind pose")?
+                    .iter()
+                    .find(|b| b.name == j.target)
+                    .ok_or("missing reference joint")?
+                    .inverse_bind
+            };
+            let posed = mode.bones.get(i).ok_or("missing Skate joint pose")?;
+            Ok(*posed * rb * Mat4::from_cols_array(inverse))
         })
         .collect::<Result<_, String>>()?;
     for surface in &model.surfaces {
@@ -208,10 +272,16 @@ pub fn board(mode: &frame::SkateMode, geom: &mut CpuBodyGeom) -> Result<(), Stri
         }
         geom.indices
             .extend(surface.indices.iter().map(|i| vertex_base + i));
+        let bone = surface.material.rsplit('/').next().unwrap_or("");
+        let name = if mode.xray & sim::presentation::meat_bone_bit(bone) != 0 {
+            format!("{}/injured", surface.material)
+        } else {
+            surface.material.clone()
+        };
         geom.surfaces.push(CpuSurfMeta {
             index_start,
             index_count: surface.indices.len() as u32,
-            name: Some(surface.material.clone()),
+            name: Some(name),
         });
     }
     geom.decoded_n = geom.packed.len();

@@ -1,4 +1,3 @@
-//! Board portion of original TU3 physical pose worker82DB993C..A55C.
 use crate::physics::{
     board_motion_output::inverse_length_squared,
     native_arithmetic::dot3,
@@ -35,15 +34,12 @@ impl BoneIndices {
     }
 }
 pub struct Input<'a> {
-    /// Raw dynamic-body matrices82585B58, native parts0..5; not82585CB0.
     pub bodies: &'a [Transform; 6],
-    /// SkeletonPhysicalRecord.part0, captured separately by82DB670C.
     pub skeleton_board: &'a Transform,
     /// SkateboardBody7840/7904, not7712/7776 steering-drive base frames.
     pub truck_frames: &'a [Transform; 2],
     pub deck_wobble_tilt: f32,
     pub deck_wobble_squish: f32,
-    /// CalculateAverageWheelCompressions82C08968, front8372/back8376.
     pub average_compression: [f32; 2],
 }
 pub fn publish(
@@ -58,7 +54,6 @@ pub fn publish(
         let up = inverse_direction(&input.bodies[4 + wheel / 2], input.bodies[wheel][1]);
         rotation_x(angle(up, y, z))
     });
-    //82DB9C60/9E00 choose opposite axle directions at the two ends.
     let mut front = inverse_direction(
         input.skeleton_board,
         normalize_safe(subtract(input.bodies[0][3], input.bodies[1][3])),
@@ -102,7 +97,6 @@ pub fn publish(
             settings.truck_displacement_max,
         );
         let rotated = compose_affine(&locals[bone], &rotation_x(tilt));
-        //82DBA130..A318 left-multiplies the rotated local by translation.
         let translation = [
             [1.0, 0.0, 0.0, 0.0],
             [0.0, 1.0, 0.0, 0.0],
@@ -169,7 +163,6 @@ fn clamp(value: f32, minimum: f32, maximum: f32) -> f32 {
 }
 fn rotation_x(angle: f32) -> Transform {
     let (sine, cosine) = sin_cos(angle);
-    //vperm822FB890 replicates X in W; vrlimi2 replaces only Z.
     [
         [1.0, 0.0, 0.0, 1.0],
         [0.0, cosine, sine, 0.0],

@@ -5,7 +5,10 @@ Copyright 2026 vladtrc
 IW4L was originally developed by vladtrc.
 https://github.com/vladtrc/iw4L
 
-IW4L is licensed under the Apache License, Version 2.0; see LICENSE.
+IW4L's Apache-2.0 components retain their license; see LICENSE. Community
+game builds include the GPL-3.0 APT component listed below and distribute
+the combined executable under GPL-3.0, with corresponding source included.
+See GPL-3.0.txt in release archives and crates/ui/src/skate_ui/LICENSE here.
 
 2010 Rust Rewrite Mashup is a fork of IW4L by chasmlol that adds Skate 3's
 skating and a Minecraft world to it.
@@ -37,15 +40,20 @@ GNU FreeFont (crates/console/assets/FreeMono.otf)
 Third-party source code
 --------------------------------------------------------------------------------
 
-No third-party source code is vendored in this repository, and the build links
-no third-party project named below. IW4L's own dependencies are the crates
-declared in Cargo.toml, under their own licences.
+IW4L's dependencies are the crates declared in Cargo.toml, under their own
+licences. The following source is also included in the fork.
 
-The fork carries two projects of its own author's in-tree, built as part of
-the workspace:
+The fork includes the following projects and components in-tree:
 
 skate/ — the Skate 3 skating engine and its data converter. It reads the
   player's own copy of Skate 3; no Skate 3 code or data is included.
+
+crates/ui/src/skate_ui/ — the bounded APT movie interpreter and renderer,
+  adapted from SK8-ENGINE/skate-3-rust-engine, revision
+  4488651c35c44365faa1ba38eed5758b6ebde714.
+  https://github.com/SK8-ENGINE/skate-3-rust-engine
+  GNU General Public License v3; full text in that directory's LICENSE.
+  The converter reads each player's own HUD, fonts and skeleton assets.
 
 third_party/minecraftoss/ — five crates of MinecraftOSS, a Rust Minecraft
   engine, copied from its commit 4013a68 (see its README). Its few data
@@ -95,3 +103,9 @@ contained in this repository or in any release archive. IW4L reads game data fro
 owns and has installed. Call of Duty, Modern Warfare, Black Ops, related
 trademarks and all original game assets belong to their respective owners.
 IW4L is not affiliated with, endorsed by or supported by them.
+Skate audio conversion uses the unmodified vgmstream r2117 Windows x64 decoder
+(https://github.com/vgmstream/vgmstream/releases/tag/r2117). Its copyright and
+component licenses are bundled inside the converter. Corresponding decoder,
+FFmpeg n5.1.2, mpg123, G.719 and Opus source and build configuration are included
+in skate/audio-decoder-source.zip. Original game sounds are supplied locally
+by the player and are never included in the multiplayer archive.

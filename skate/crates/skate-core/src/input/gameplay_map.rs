@@ -1,5 +1,3 @@
-//! Specialization of the 18 stock gameplay expressions registered by82697740.
-//! Config identity and VM operand semantics are recorded in STEERING_INPUT.md.
 use super::{controller::ActionMap, pad::Pad};
 
 #[derive(Clone, Copy, Debug, PartialEq)]

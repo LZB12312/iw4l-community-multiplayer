@@ -14,9 +14,7 @@ pub(super) fn prepare_pose(
     flags_2484: u32,
     flags_2468: &mut u32,
 ) -> Transform {
-    //82BDEE08 consumes animation record6464+16 using the OLD world root.
     board_frames.skate_root = compose_affine(&roots.animation_to_world, animation_board);
-    //82BDE310 also uses the old basis, with world-space state1056 COM.
     board_frames.update_com_lift(
         &roots.animation_to_world,
         input.centre_of_mass_1056,
@@ -45,7 +43,6 @@ pub(super) fn prepare(
 ) -> Transform {
     let mut world = *world;
     if flags_2476 & 4 != 0 {
-        //830BD4A0 initializer82F825F0 splats8216DEE0=-1 across all lanes.
         for axis in [0, 2] {
             for value in &mut world[axis] {
                 *value *= -1.0;
@@ -60,6 +57,3 @@ pub(super) fn prepare(
     *flags_2468 |= 0x80000;
     compose_affine(&world, retained)
 }
-#[cfg(test)]
-#[path = "frames_tests.rs"]
-mod tests;

@@ -1,6 +1,3 @@
-//! Mode binding producer, TU3 ProcessInput 82DB4420..447C.
-//! Numeric mode identities are preserved without assigning guessed names.
-
 /// The two fields are deliberately separate: an unsupported request is still
 /// published, while the previously selected attribute binding remains active.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

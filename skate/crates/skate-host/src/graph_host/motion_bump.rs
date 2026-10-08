@@ -1,4 +1,3 @@
-//! SetBumpCoefficients Begin82BB0660, original Skate 3 TU3.
 use skate_data::collections::Collections;
 
 #[derive(Clone, Copy, Debug)]
@@ -19,13 +18,16 @@ impl Settings {
         })
     }
 
-    /// Begin82BB0660 uses the retained Xenon arithmetic implementation.
     pub fn coefficients(&self, acceleration: [f32; 4], mirrored: bool) -> [f32; 2] {
-        skate_core::animation::bump::coefficients(acceleration, mirrored, &skate_core::animation::bump::Settings {
-            scale_x_acc: self.scale_x_acc,
-            min_bump_mag: self.min_bump_mag,
-            max_bump_mag: self.max_bump_mag,
-            min_bump_blend_value: self.min_bump_blend_value,
-        })
+        skate_core::animation::bump::coefficients(
+            acceleration,
+            mirrored,
+            &skate_core::animation::bump::Settings {
+                scale_x_acc: self.scale_x_acc,
+                min_bump_mag: self.min_bump_mag,
+                max_bump_mag: self.max_bump_mag,
+                min_bump_blend_value: self.min_bump_blend_value,
+            },
+        )
     }
 }

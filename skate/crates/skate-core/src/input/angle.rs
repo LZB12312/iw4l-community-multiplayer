@@ -1,4 +1,3 @@
-//! Scalar lane of native SIMD atan 82473B98 and intention left-stick angle.
 pub(super) fn reciprocal_estimate(value: f32) -> f32 {
     crate::physics::native_arithmetic::reciprocal_estimate(value)
 }

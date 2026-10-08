@@ -5,6 +5,7 @@ game. Keep them this short: nobody opens a long file twice.
 
 | file | about | when to read |
 |---|---|---|
+| [`MULTIPLAYER.md`](MULTIPLAYER.md) | community matchmaking, relay setup and synchronized Skate 3 wardrobe | hosting, joining or choosing characters |
 | [`SKATE.md`](SKATE.md) | Skate 3 mode: what you need, where `default.xex` comes from, setup, controls, how it works, building a release | playing or changing the skate mode |
 | [`PERFORMANCE.md`](PERFORMANCE.md) | the frame-time work in this fork: before/after numbers and every change | "why is it faster", profiling |
 | [`IW4L.md`](IW4L.md) | upstream IW4L's own README | what IW4L is |

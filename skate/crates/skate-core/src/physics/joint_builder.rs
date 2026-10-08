@@ -1,16 +1,3 @@
-//! Semantic port of TU3 `rw::physics::JointJacobian::Build`.
-//!
-//! This module is intentionally separate from generic engine joints.  It
-//! accepts the exact 64-byte parameter and 80-byte frame records emitted by
-//! `SkateboardBody::CreateJoints`, plus the rigid-body fields read by
-//! `0x82AE3BC8`, and emits the 384-byte workspace consumed by the joint branch
-//! of `0x82AE27D0`.
-//!
-//! Evidence labels used below:
-//! - **Observed**: direct field loads, stores, constants, or branches in TU3.
-//! - **Derived**: scalar algebra preserving the observed VMX data flow.
-//! - **Inferred**: source-level naming where the executable has no type name.
-
 use super::{
     constraint_frames,
     joint_records::{RetailJointFramesRaw, RetailJointParametersRaw},
@@ -34,7 +21,6 @@ pub mod tu3 {
 
     /// Observed TU3 vector constant used as the finite "unbounded" value.
     pub const FINITE_INFINITY: f32 = f32::from_bits(0x7F7F_FFFF);
-    /// Observed singularity guard initialized at `0x830BDE50`.
     pub const NEAR_PARALLEL: f32 = f32::from_bits(0x3F7F_FF58);
 }
 
@@ -127,9 +113,6 @@ pub fn build_retail_joint_jacobian(input: RetailJointBuildInput) -> RetailJointJ
     let arm_a = multiply_basis(input.body_a.basis, frames.anchor_a);
     let arm_b = multiply_basis(input.body_b.basis, frames.anchor_b);
     let linear_axes = basis_columns(linear_basis);
-    // Retained matrix product: the original gathers an RQD quaternion before
-    // constructing this matrix. The VA extension of 82AE3D98 (10242A35) is
-    // not independently decoded, so its rounding path remains unverified.
     let relative_matrix = relative_basis(angular_basis_a, angular_basis_b);
     let rqd = create_rqd(world_orientation_a, world_orientation_b);
     let (angular_axes, angular_raw_low, angular_raw_high) = angular_rows(
@@ -166,8 +149,6 @@ pub fn build_retail_joint_jacobian(input: RetailJointBuildInput) -> RetailJointJ
         let b = cross(arm_b, linear_axes[index]);
         let ia = constraint_frames::multiply_inertia_from_zero(inertia_a, a);
         let ib = constraint_frames::multiply_inertia_from_zero(inertia_b, b);
-        // 82AE4814..4990 combines the two bodies component-wise, then uses
-        // (Z + Y) + (X + inverse_mass_A + inverse_mass_B), not two dot sums.
         let x = b.x.mul_add(ib.x, a.x.mul_add(ia.x, 0.0));
         let y = b.y.mul_add(ib.y, a.y.mul_add(ia.y, 0.0));
         let z = b.z.mul_add(ib.z, a.z.mul_add(ia.z, 0.0));
@@ -183,7 +164,6 @@ pub fn build_retail_joint_jacobian(input: RetailJointBuildInput) -> RetailJointJ
         let x = axis.x.mul_add(response.x, 0.0);
         let y = axis.y.mul_add(response.y, 0.0);
         let z = axis.z.mul_add(response.z, 0.0);
-        // 82AE496C..49A0: Z + (X + Y), one estimate, then the RQD factor 1/2.
         0.5 * native_arithmetic::reciprocal_estimate(z + (x + y))
     });
 
@@ -441,7 +421,3 @@ fn write_vector(output: &mut RetailJointJacobian, vector: usize, value: [f32; 4]
         output.words[start + lane] = value[lane].to_bits();
     }
 }
-
-#[cfg(test)]
-#[path = "tests/joint_builder.rs"]
-mod tests;

@@ -2,8 +2,8 @@ use crate::point_graph::PointGraph;
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GroundJump {
     pub velocity: [f32; 4], //JumpInfo0, metres/second
-    pub scalar_16: f32,     //82D93618 initializes and retains zero
-    pub active: bool,       //JumpInfo20
+    pub scalar_16: f32,
+    pub active: bool, //JumpInfo20
 }
 #[derive(Clone, Copy, Debug)]
 pub struct GroundJumpMode {

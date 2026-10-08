@@ -3,8 +3,6 @@ pub(crate) fn publish(
     output: skate_core::player::offboard::biped_air::recovered::OffBoardOutput,
     off_board: &mut skate_core::player::input_phase::OffBoardOutputFields,
 ) {
-    //82D30300 writes OffBoard, not the overlapping on-board Air packet.
-    //Common Biped cadence80/state84 publication remains coordinator-owned.
     off_board.scalar_32 = output.scalar_32;
     off_board.vector_64 = output.vector_64.map(f32::to_bits);
     off_board.scalar_92 = output.scalar_92;

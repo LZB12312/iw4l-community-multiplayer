@@ -24,9 +24,6 @@ fn dot(a: V, b: V) -> f32 {
     crate::physics::native_arithmetic::dot3(a, b)
 }
 
-/// Complete 82585B58. Live bodies return their mass-frame basis/COM directly.
-/// A body-less part with a local mass frame removes that frame from its cache.
-/// This is distinct from 82585CB0's geometric-part transform getter.
 pub fn part_mass_transform(part: &PartPose) -> PoseMatrix {
     if let Some(body) = &part.body {
         return std::array::from_fn(|i| body[[16, 20, 24, 4][i / 4] + i % 4]);
@@ -55,8 +52,6 @@ pub fn part_mass_transform(part: &PartPose) -> PoseMatrix {
     std::array::from_fn(|i| result[i / 4][i % 4].to_bits())
 }
 
-/// Complete 82C08968: observe wheel COM positions in inverse deck mass space,
-/// average native pairs0/1 and2/3, subtract board+8380, store+8372/+8376 only.
 pub fn calculate_wheel_compressions(board: &mut [u8; 8400], parts: &[PartPose; 7]) {
     let deck = matrix(part_mass_transform(&parts[6]));
     let wheels = std::array::from_fn(|i| matrix(part_mass_transform(&parts[i]))[3]);
@@ -72,8 +67,6 @@ pub fn calculate_wheel_compressions(board: &mut [u8; 8400], parts: &[PartPose; 7
     }
 }
 
-///82C08968, with live mass-frame observations rather than a byte-buffer owner.
-///Rest height is physicstrucks/default.TruckYPos, copied to8380 by82C08D18.
 pub fn average_wheel_compressions(deck: M, wheel_positions: [V; 4], rest_height: f32) -> [f32; 2] {
     let c0 = cross(deck[1], deck[2]);
     let c1 = cross(deck[2], deck[0]);

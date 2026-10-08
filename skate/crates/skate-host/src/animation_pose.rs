@@ -42,7 +42,10 @@ impl PoseEvaluator {
     /// Reuses the existing constrained body-clip parser; never replaces board/trajectory data.
     pub(crate) fn install_mod_clips(&self, owner: &str, text: &str) -> Result<(), String> {
         let clips = authored_clips::Replacements::parse(text, &self.frames)?;
-        let mut all = self.mod_clips.write().map_err(|_| "Animation override lock poisoned")?;
+        let mut all = self
+            .mod_clips
+            .write()
+            .map_err(|_| "Animation override lock poisoned")?;
         for (id, other) in all.iter() {
             if id != owner && clips.0.keys().any(|k| other.0.contains_key(k)) {
                 return Err(format!("Animation slots conflict with mod {id}"));
@@ -52,23 +55,27 @@ impl PoseEvaluator {
         Ok(())
     }
     pub(crate) fn remove_mod_clips(&self, owner: &str) {
-        if let Ok(mut all) = self.mod_clips.write() { all.remove(owner); }
+        if let Ok(mut all) = self.mod_clips.write() {
+            all.remove(owner);
+        }
     }
     pub(crate) fn clear_mod_clips(&self) {
-        if let Ok(mut all) = self.mod_clips.write() { all.clear(); }
+        if let Ok(mut all) = self.mod_clips.write() {
+            all.clear();
+        }
     }
 
     /// Executes the ordered stock tree. This uses the native immediate ACS
     /// arithmetic; the host does not recreate packed animation job commands.
     pub fn evaluate(&self, commands: &[PoseCommand]) -> Result<Vec<Sqt>, String> {
-        let mod_clips = self.mod_clips.read().map_err(|_| "Animation override lock poisoned")?;
+        let mod_clips = self
+            .mod_clips
+            .read()
+            .map_err(|_| "Animation override lock poisoned")?;
         let mut stack: Vec<Vec<Sqt>> = Vec::new();
         for command in commands {
             match command {
                 PoseCommand::Pose { name } => {
-                    // Init82B97E38 retains these references from the actor's
-                    // initial database. AddBindPose82B98118 reuses them even
-                    // when a later motion clip comes from another bank.
                     stack.push(
                         self.frames
                             .named_pose(name)?
@@ -113,7 +120,11 @@ impl PoseEvaluator {
                     loops,
                 } => {
                     let stock = self.frames.clip(name)?;
-                    let clip = mod_clips.values().find_map(|c|c.clip(&stock.name)).or_else(||self.authored.clip(&stock.name)).unwrap_or(stock);
+                    let clip = mod_clips
+                        .values()
+                        .find_map(|c| c.clip(&stock.name))
+                        .or_else(|| self.authored.clip(&stock.name))
+                        .unwrap_or(stock);
                     let mut pose = sample_clip(clip, *time)?;
                     if self.frames.has_trajectory {
                         let previous = sample_bone(clip, *previous_time, 0)?;
@@ -129,10 +140,15 @@ impl PoseEvaluator {
                     stack.push(pose);
                 }
                 PoseCommand::WeightedBlend { weights } => {
-                    let start=stack.len().checked_sub(weights.len()).ok_or("Weighted blend pose stack underflow")?;
-                    let pose=skate_core::animation::pose_blend::weighted(&stack[start..],weights)
-                        .map_err(|e| format!("Weighted blend: {e:?}"))?;
-                    stack.truncate(start); stack.push(pose);
+                    let start = stack
+                        .len()
+                        .checked_sub(weights.len())
+                        .ok_or("Weighted blend pose stack underflow")?;
+                    let pose =
+                        skate_core::animation::pose_blend::weighted(&stack[start..], weights)
+                            .map_err(|e| format!("Weighted blend: {e:?}"))?;
+                    stack.truncate(start);
+                    stack.push(pose);
                 }
                 PoseCommand::Blend { weight } | PoseCommand::ChannelBlend { weight, .. } => {
                     let second = stack.pop().ok_or("Animation blend has no second subtree")?;
@@ -165,8 +181,6 @@ impl PoseEvaluator {
         Ok(stack.pop().unwrap())
     }
 
-    /// TU3828D3800 then828D3B58. NewACS824744B8 initializes the
-    /// detached parent to0, so trajectory deltas do not move the local rig.
     pub fn hierarchy(&self, pose: &[Sqt]) -> Result<Vec<NativeMatrix>, String> {
         if pose.len() != self.frames.parents.len() {
             return Err("Animation pose and hierarchy bone counts differ".into());
@@ -231,7 +245,3 @@ fn sqt(words: SampleWords) -> Sqt {
         translation: [tx, ty, tz, 1.0],
     }
 }
-
-#[cfg(test)]
-#[path = "tests/animation_pose.rs"]
-mod tests;

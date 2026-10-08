@@ -1,6 +1,3 @@
-//! Sphere/triangle execution path of PrimitivePairIntersect (82AD3CD8).
-//! Both primitive orders, two-sided geometry, finite edges, vertices, fatness,
-//! separating-direction refinement and complete triangle fixups are preserved.
 use super::{ContactPair, TriangleFeature, TriangleFixup, arithmetic::*, fix_up_triangle};
 use crate::math::Vector3;
 
@@ -65,9 +62,6 @@ pub fn intersect_sphere_triangle(
         b: sub(raw_points.b, scale(normal, fat_b)),
     };
     let distance = dot(sub(points.b, points.a), normal);
-    // 82AD40C0..4308 publishes points/fatness/distances BEFORE fixup. The
-    // fixup's reprojection edits its local prism; TU3 does not recopy those
-    // points into this result. Only the result normal is shared with fixup.
     let settings = TriangleFixup {
         reverse: !triangle_is_a,
         edge_cos_bend_normal_threshold: -1.0,
@@ -106,7 +100,6 @@ pub(super) fn build_prism(
 ) -> Option<SphereTrianglePrism> {
     let axis = triangle.feature.normal;
     let (a, b) = interval_gaps(sphere, triangle, axis, triangle_is_a);
-    // 82ACF070 chooses the second gap on ties.
     let (separating_direction, separating_distance) =
         if a > b { (neg(axis), a) } else { (axis, b) };
     let (fat_a, fat_b) = if triangle_is_a {
@@ -134,8 +127,6 @@ pub(super) fn build_prism(
     let squared = dot(delta, delta);
     let inverse_length = inverse_length_squared(squared, 2);
     let gate = if contact_query {
-        // 8277B830..B8A8 tests the refined LENGTH, whereas 82AD3CD8 tests
-        // squared length. Both compare against the literal 821408EC.
         if squared == 0.0 {
             0.0
         } else {
@@ -168,7 +159,6 @@ fn interval_gaps(
     direction: Vector3,
     triangle_is_a: bool,
 ) -> (f32, f32) {
-    // 82ADD800 / 82ADE3B8. GP intervals exclude primitive fatness.
     let s = dot(direction, sphere.center);
     let p = triangle.vertices.map(|v| dot(direction, v));
     let lo = min(min(p[0], p[1]), p[2]);
@@ -187,9 +177,6 @@ fn max(a: f32, b: f32) -> f32 {
 }
 
 fn point_face(point: Vector3, t: Triangle, axis: Vector3, triangle_is_a: bool) -> (Vector3, u32) {
-    // The sphere contributes no axes or edges (82ACEA30), so the selected
-    // direction is the triangle face normal. Thus GetMaximumFeature's face
-    // branch is the complete reachable branch for this primitive pair.
     let query = if triangle_is_a { axis } else { neg(axis) };
     let same = (dot(query, t.feature.normal) < 0.0) == triangle_is_a;
     let indices = if same { [0, 1, 2] } else { [2, 1, 0] };
@@ -206,9 +193,6 @@ fn point_face(point: Vector3, t: Triangle, axis: Vector3, triangle_is_a: bool) -
         };
         let plane = cross(direction, axis);
         let squared = dot(plane, plane);
-        // Feature::BuildEdgePlanes (82AC6F88): one refinement and select-zero.
-        // CRT initializer 82F837D8 copies 8212BF78 into 830BDD40. The mapped
-        // image alone contains zero here; live TU3 uses 0x34000000.
         scale(
             plane,
             if squared > f32::from_bits(0x3400_0000) {

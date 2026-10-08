@@ -15,8 +15,6 @@ use skate_core::{
 };
 
 impl SkeletonInputRuntime {
-    ///Ground82BDF530: update actual roots/board frames, GeneralUpdate, then
-    ///reset next trajectory. Return the native Processed0..48 publication.
     pub fn update_ground(
         &mut self,
         board: &BoardRuntime,
@@ -109,15 +107,11 @@ impl SkeletonInputRuntime {
         Ok(drives)
     }
 
-    ///Real82BE2798 reset is also callable by the coordinated player reset;
-    ///it clears correction pending but does not invent a fresh state machine.
     pub fn reset_physical_pose(
         &mut self,
         owners: &mut SkeletonOwners<'_>,
         simulation: RetailSimulationStep,
     ) {
-        //82BE27B0 clears the same16388 that states arm and PostWipeoutCheck
-        //consumes. A discontinuity must not retain a detached lifecycle copy.
         owners.correction.pending = false;
         let s = &mut owners.animated;
         let observation = skeleton_general::reset_to_animation(

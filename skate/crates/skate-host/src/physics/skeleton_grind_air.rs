@@ -1,4 +1,3 @@
-//!82BDCFB0 at the existing ProcessData boundary; never a physical teleport.
 use super::animated_skeleton::AnimatedSkeleton;
 use skate_core::{
     animation::output::NativeMatrix,

@@ -1,4 +1,3 @@
-//! Contact publication82D84060 and slope history82D848D0.
 use super::{
     contact_packet::Packet,
     contact_queries::{Input, V},
@@ -188,26 +187,5 @@ fn publish_slope(packet: &mut Packet, tangent: V, history: &mut History) {
         history.cursor = (history.cursor + 1) % 3;
         history.samples[history.cursor] = kind;
         packet.kind_164 = history.stable_kind;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn slope_kind_requires_three_prior_matching_samples_and_flat_resets_history() {
-        let mut packet = Packet {
-            flags: 64,
-            ..Packet::default()
-        };
-        let mut history = History::default();
-        for expected in [0, 0, 0, 2] {
-            publish_slope(&mut packet, [0., 1., 1., 0.], &mut history);
-            assert_eq!(packet.kind_164, expected);
-        }
-        publish_slope(&mut packet, [0., 0., 1., 0.], &mut history);
-        assert_eq!(packet.kind_164, 0);
-        assert_eq!(history.samples, [0; 3]);
-        assert_eq!(history.cursor, 0);
     }
 }

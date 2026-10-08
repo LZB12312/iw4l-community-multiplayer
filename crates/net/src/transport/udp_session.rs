@@ -146,6 +146,9 @@ pub struct CommittedAdmission {
 
 #[derive(Resource)]
 pub struct UdpAuthorityHub {
+    presentation_seen: HashMap<ClientId, (std::time::Instant, sim::CharacterAppearance)>,
+    presentation_sequence: HashMap<ConnectionId, u32>,
+    presentations: HashMap<ClientId, (sim::CharacterAppearance, Option<sim::SkatePose>)>,
     relay: RelayMailbox,
     pub hello: HandshakeHello,
     pub limits: ProtocolLimits,
@@ -289,6 +292,9 @@ impl UdpAuthorityHub {
     pub fn relay(hello: HandshakeHello, first_client: u32, mailbox: RelayMailbox) -> Self {
         let limits = hello.limits;
         Self {
+            presentation_seen: HashMap::new(),
+            presentation_sequence: HashMap::new(),
+            presentations: HashMap::new(),
             relay: mailbox,
             hello,
             limits,
@@ -395,6 +401,11 @@ impl UdpAuthorityHub {
 
     pub fn retire_connection(&mut self, conn: ConnectionId) -> Option<ClientId> {
         let client = self.connections.retire(conn).map(ClientId);
+        self.presentation_sequence.remove(&conn);
+        if let Some(client) = client {
+            self.presentations.remove(&client);
+            self.presentation_seen.remove(&client);
+        }
         self.peers.remove(&conn);
         self.member_by_conn.remove(&conn);
         self.replication.remove(&conn);
@@ -416,6 +427,9 @@ impl UdpAuthorityHub {
     }
 
     pub fn reset_match(&mut self) {
+        self.presentation_seen.clear();
+        self.presentation_sequence.clear();
+        self.presentations.clear();
         self.next_bootstrap_id.clear();
         self.committed_admissions.clear();
         self.denied.clear();
@@ -448,6 +462,42 @@ impl UdpAuthorityHub {
                 Err(_) => continue,
             };
             match packet {
+                ClientPacket::Presentation {
+                    header,
+                    claimed_client,
+                    appearance,
+                    skate,
+                } => {
+                    if self.peers.get(&header.connection) != Some(&from)
+                        || !header.applies_to_epoch(self.live_packet_epoch())
+                        || !self
+                            .replication
+                            .get(&header.connection)
+                            .is_some_and(|p| p.admits_gameplay(self.bootstrap.is_some()))
+                    {
+                        continue;
+                    }
+                    let Ok(id) = self.connections.resolve(header.connection, claimed_client) else {
+                        continue;
+                    };
+                    if self
+                        .presentation_sequence
+                        .get(&header.connection)
+                        .is_some_and(|last| {
+                            header.sequence == *last
+                                || header.sequence.wrapping_sub(*last) >= 0x8000_0000
+                        })
+                    {
+                        continue;
+                    }
+                    self.presentation_sequence
+                        .insert(header.connection, header.sequence);
+                    self.presentation_seen.insert(
+                        ClientId(id),
+                        (std::time::Instant::now(), appearance.clone()),
+                    );
+                    self.presentations.insert(ClientId(id), (appearance, skate));
+                }
                 ClientPacket::Connect(_) => {}
                 ClientPacket::Commands {
                     header,
@@ -537,6 +587,20 @@ impl UdpAuthorityHub {
             }
         }
         Ok(())
+    }
+
+    pub fn take_presentations(
+        &mut self,
+    ) -> HashMap<ClientId, (sim::CharacterAppearance, Option<sim::SkatePose>)> {
+        self.presentation_seen.retain(|id, (seen, appearance)| {
+            if seen.elapsed() > std::time::Duration::from_secs(1) {
+                self.presentations.insert(*id, (appearance.clone(), None));
+                false
+            } else {
+                true
+            }
+        });
+        std::mem::take(&mut self.presentations)
     }
 
     fn apply_admission_acks(&mut self) {
@@ -938,7 +1002,9 @@ impl UdpClientLink {
         matches!(
             self.applied_bootstrap_id,
             Some(applied) if applied != 0 && applied == lane.entered_bootstrap()
-        )
+        ) && self
+            .assigned_client
+            .is_some_and(|client| client.0 != 0 && client.0 == lane.entered_client())
     }
 
     pub fn admission_bootstrap_id(&self) -> Option<u32> {
@@ -1359,5 +1425,34 @@ impl UdpClientLink {
         } else {
             self.send_bytes(&packet.to_bytes())
         }
+    }
+
+    pub fn send_presentation(
+        &mut self,
+        appearance: sim::CharacterAppearance,
+        skate: Option<sim::SkatePose>,
+    ) -> Result<(), UdpSendError> {
+        if !appearance.valid() || skate.as_ref().is_some_and(|p| !p.valid()) {
+            return Err(UdpSendError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid character presentation",
+            )));
+        }
+        let Some(connection) = self.connection else {
+            return Ok(());
+        };
+        self.out_seq = self.out_seq.wrapping_add(1);
+        let packet = ClientPacket::Presentation {
+            header: PacketHeader {
+                connection,
+                sequence: self.out_seq,
+                ack: self.in_ack,
+                epoch: self.match_epoch(),
+            },
+            claimed_client: self.assigned_client.map_or(0, |c| c.0),
+            appearance,
+            skate,
+        };
+        self.send_bytes(&packet.to_bytes())
     }
 }

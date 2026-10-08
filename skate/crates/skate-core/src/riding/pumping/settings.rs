@@ -23,8 +23,6 @@ pub struct PumpingSettings {
     pub angular_speed_damping: f32,
 }
 
-/// Ground 82D37E74 passes ProcessedPhysIn+2548, then Update loads wrapper+4.
-/// ProcessInput 82DB4420..446C selects that wrapper from the five player modes.
 #[derive(Clone, Copy, Debug)]
 pub struct PumpingMode {
     /// +12 Hash_9D1AEE3D7D8A4A7. Name describes its use, not a recovered name.

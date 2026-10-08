@@ -14,8 +14,6 @@ use std::sync::Mutex;
 pub struct RidingConditionInputs {
     /// PhysOut bundle36+16, published from Skeleton's physical COM velocity.
     pub com_velocity: [f32; 4],
-    /// PhysOutSkeleton432/464: effective animation-to-world X/Z columns.
-    /// GetEffectiveRoot82BE3650 negates both iff Processed2476 bit2 is set.
     pub skeleton_x: [f32; 4],
     pub skeleton_z: [f32; 4],
     /// PhysOut bundle0+16.Y: the raw physical deck's up axis.
@@ -53,10 +51,8 @@ impl MotionRidingCondition {
 
     pub fn parse(a: &Attributes<'_>) -> Result<Self, String> {
         Ok(match a.text("name").unwrap_or("") {
-            // Factory82BC3CE8 adds no attributes beyond the base condition.
             "RandomCond" => Self::Random,
             "ComVelCompare" => Self::ComVelocity {
-                // Ctor82BA3ED0 examines only the first byte, default "0".
                 axis: match a.text("axis").unwrap_or("0").as_bytes().first() {
                     Some(b'x' | b'X') => VelocityAxis::X,
                     Some(b'y' | b'Y') => VelocityAxis::Y,
@@ -65,7 +61,6 @@ impl MotionRidingCondition {
                 },
                 numeric: super::condition_nodes::numeric(a),
             },
-            // Factories82BC3258/82BC31B8 use NumericCondition82C126F0.
             "SkateSlope" => Self::SkateSlope(super::condition_nodes::numeric(a)),
             "SurfaceSlope" => Self::SurfaceSlope(super::condition_nodes::numeric(a)),
             name => return Err(format!("Unknown riding condition {name}")),
@@ -74,8 +69,6 @@ impl MotionRidingCondition {
 
     pub fn evaluate(&self, host: &MotionHost) -> Result<bool, String> {
         if matches!(self, Self::Random) {
-            //82BA4D50 -> ISkaterMotionGraph256 ->8258FB60 ->82970628.
-            // Advance only when the graph actually evaluates this leaf.
             return Ok(host.condition_random.next_u32()? & 1 == 0);
         }
         let p = host
@@ -84,8 +77,6 @@ impl MotionRidingCondition {
             .ok_or("MotionGraph requires the actual COM and slope publication")?;
         Ok(match *self {
             Self::ComVelocity { axis, numeric } => {
-                //82BA3FA8 uses relative X/Z but WORLD Y. The named Skate2
-                //counterpart reads direct XYZ, so its axis behavior differs.
                 let velocity = xyz(p.com_velocity);
                 let value = match axis {
                     VelocityAxis::X => dot(velocity, xyz(p.skeleton_x)),
@@ -107,22 +98,15 @@ fn xyz(v: [f32; 4]) -> Vector3 {
 }
 
 fn slope(up_y: f32) -> f32 {
-    //82BA4DD0/82BA4F90 inline the same original inverse-sine polynomial as
-    //DisablePushBrake82BA5150; no clamp or absolute value precedes asin.
     90.0 - trigonometry::asin(up_y) * f32::from_bits(0x4265_2ee1)
 }
 
-/// Per-MotionGraph generator. Original8258F488 seeds this once; its reset
-///825953B0 leaves the sequence intact. Locking only gives the host shared
-///condition interface interior mutability; it does not alter draw timing.
 #[derive(Debug)]
 pub struct MotionRandom(Mutex<[u32; 8]>);
 
 impl MotionRandom {
     pub fn new() -> Self {
-        //FullMotionGraph6000/6004 start at zero, then6008..6031 receive the
-        //original 24-byte literal821642B0. No external runtime RNG is used.
-        Self(Mutex::new([
+        const INITIAL_SEED: [u32; 8] = [
             0,
             0,
             0xf22d_0e56,
@@ -131,7 +115,8 @@ impl MotionRandom {
             0x0702_c49c,
             0x9e35_3f7d,
             0x6fdf_3b64,
-        ]))
+        ];
+        Self(Mutex::new(INITIAL_SEED))
     }
 
     pub fn next_u32(&self) -> Result<u32, String> {
@@ -139,8 +124,6 @@ impl MotionRandom {
             .0
             .lock()
             .map_err(|_| "MotionGraph random state lock poisoned")?;
-        //Complete original82970628 carry/update sequence, including the
-        //separate counter rollover propagation after producing word2.
         let last = words[7];
         let previous = words[6];
         let mut sum = previous.wrapping_add(last);

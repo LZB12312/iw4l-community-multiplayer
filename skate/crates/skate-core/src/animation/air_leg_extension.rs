@@ -1,4 +1,3 @@
-//! ControlAirLegExtension82BAF538 and its ascending/descending/preland helpers.
 use super::output::attributes::AnimationAttribute;
 use crate::{physics::native_arithmetic::dot3, point_graph::PointGraph};
 
@@ -32,7 +31,6 @@ pub struct Physical {
     pub remaining_air_time: f32,
 }
 
-///CreateInstance82BAF980 zeros mode8, distance12 and descending_time16.
 #[derive(Default)]
 pub struct State {
     mode: u32,
@@ -83,7 +81,6 @@ impl State {
                 }
             }
             1 if p.com_velocity[1] >= 0.0 => {
-                //82BAFB60 is FNMSUBS, followed by FSEL against minimum1756.
                 self.height = maximum(
                     (-dt).mul_add(settings.going_up_speed, self.height),
                     settings.minimum_height,
@@ -95,7 +92,6 @@ impl State {
                     self.mode = 3;
                     self.preland(bone, settings, dt);
                 } else {
-                    //82BAFC88..FD0C: both dot products precede the fused blend.
                     let closing = -dot3(p.com_velocity, p.system_up);
                     let vertical = dot3(p.system_up, [0.0, 1.0, 0.0, 0.0]).abs();
                     let speed = maximum(closing, 0.0)
@@ -126,7 +122,6 @@ impl State {
     }
 }
 
-///82BAFDB8 checks the named FullExtension attribute after the physical query.
 pub fn prepare_to_land(
     physical_query: bool,
     full_extension: Option<AnimationAttribute>,

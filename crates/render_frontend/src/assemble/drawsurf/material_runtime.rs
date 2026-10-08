@@ -1086,7 +1086,7 @@ fn build_sorted_material_table(
             .materials
             .get(usize::from(record.asset_id.0))
             .expect("comparator record asset id is a catalog slot");
-        if is_foreign_common_leftover(leftover) {
+        if leftover.extended_sort || is_foreign_common_leftover(leftover) {
             leftover_records.push(record);
         } else {
             iw4_records.push(record);
@@ -1397,6 +1397,7 @@ pub fn capture_runtime_catalog(
                 remap: original_remap_resolution(),
                 state_bits_entry: material.state_bits_entry,
                 state_bits_table: material.state_bits.clone(),
+                blend_constant_bits: material.blend_constant.map(|rgba| rgba.map(f32::to_bits)),
                 camera_region: material.camera_region,
                 sort_key: material.sort_key,
                 info_game_flags: material.info_game_flags,

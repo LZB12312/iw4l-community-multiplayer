@@ -27,7 +27,7 @@ pub(crate) fn digest(bytes: &[u8]) -> String {
     state.iter().map(|v| format!("{v:08x}")).collect()
 }
 fn compress(state: &mut [u32; 8], block: &[u8]) {
-    const K: [u32; 64] = [
+    const ROUND_BITS: [u32; 64] = [
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
         0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
         0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
@@ -60,7 +60,7 @@ fn compress(state: &mut [u32; 8], block: &[u8]) {
         let t1 = h
             .wrapping_add(s1)
             .wrapping_add(choice)
-            .wrapping_add(K[i])
+            .wrapping_add(ROUND_BITS[i])
             .wrapping_add(w[i]);
         let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
         let t2 = s0.wrapping_add((a & b) ^ (a & c) ^ (b & c));

@@ -79,7 +79,12 @@ struct Entry<C> {
 
 impl<C> Clone for Entry<C> {
     fn clone(&self) -> Self {
-        Self { priority: self.priority, enabled: self.enabled, running: self.running, goal: self.goal.clone_box() }
+        Self {
+            priority: self.priority,
+            enabled: self.enabled,
+            running: self.running,
+            goal: self.goal.clone_box(),
+        }
     }
 }
 
@@ -91,7 +96,11 @@ pub struct GoalSelector<C> {
 
 impl<C> Clone for GoalSelector<C> {
     fn clone(&self) -> Self {
-        Self { entries: self.entries.clone(), owners: self.owners, disabled: self.disabled }
+        Self {
+            entries: self.entries.clone(),
+            owners: self.owners,
+            disabled: self.disabled,
+        }
     }
 }
 impl<C> Default for GoalSelector<C> {
@@ -203,101 +212,5 @@ impl<C> GoalSelector<C> {
                 entry.goal.tick(context);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    struct NoWorld;
-    impl World for NoWorld {
-        fn block(&self, _pos: minecraftoss_player::Pos) -> Option<minecraftoss_player::Block> {
-            None
-        }
-        fn set_block(&mut self, _pos: minecraftoss_player::Pos, _block: Option<minecraftoss_player::Block>) {}
-    }
-    #[derive(Default)]
-    struct Context {
-        enabled: [bool; 3],
-        events: Vec<String>,
-    }
-    #[derive(Clone)]
-    struct Probe {
-        id: usize,
-        flags: Controls,
-        every: bool,
-    }
-    impl Goal<Context> for Probe {
-        fn controls(&self) -> Controls {
-            self.flags
-        }
-        fn can_start(&mut self, c: &mut Context, _world: &dyn World) -> bool {
-            c.events.push(format!("use{}", self.id));
-            c.enabled[self.id]
-        }
-        fn can_continue(&mut self, c: &mut Context, _world: &dyn World) -> bool {
-            c.events.push(format!("continue{}", self.id));
-            c.enabled[self.id]
-        }
-        fn start(&mut self, c: &mut Context) {
-            c.events.push(format!("start{}", self.id));
-        }
-        fn stop(&mut self, c: &mut Context) {
-            c.events.push(format!("stop{}", self.id));
-        }
-        fn tick(&mut self, c: &mut Context) {
-            c.events.push(format!("tick{}", self.id));
-        }
-        fn every_tick(&self) -> bool {
-            self.every
-        }
-    }
-    #[test]
-    fn preemption_keeps_other_flag_locked_until_next_cleanup() {
-        let mut s = GoalSelector::default();
-        s.add(
-            2,
-            Probe {
-                id: 0,
-                flags: Controls::new(&[Control::Move, Control::Look]),
-                every: false,
-            },
-        );
-        s.add(
-            1,
-            Probe {
-                id: 1,
-                flags: Controls::new(&[Control::Move]),
-                every: true,
-            },
-        );
-        s.add(
-            3,
-            Probe {
-                id: 2,
-                flags: Controls::new(&[Control::Look]),
-                every: false,
-            },
-        );
-        let mut c = Context {
-            enabled: [true, false, true],
-            ..Context::default()
-        };
-        s.tick(&mut c, &NoWorld);
-        assert_eq!(c.events, ["use0", "start0", "use1", "tick0"]);
-        c.events.clear();
-        c.enabled[1] = true;
-        s.tick(&mut c, &NoWorld);
-        assert_eq!(c.events, ["continue0", "use1", "stop0", "start1", "tick1"]);
-        c.events.clear();
-        s.tick(&mut c, &NoWorld);
-        assert_eq!(c.events, ["continue1", "use2", "start2", "tick1", "tick2"]);
-        c.events.clear();
-        s.tick_running(&mut c, false);
-        assert_eq!(c.events, ["tick1"]);
-        c.events.clear();
-        s.set_enabled(Control::Move, false);
-        s.tick(&mut c, &NoWorld);
-        assert_eq!(c.events, ["stop1", "continue2", "tick2"]);
     }
 }

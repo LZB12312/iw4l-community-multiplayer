@@ -1,5 +1,3 @@
-//! Complete TU3 BodySpin::Update (82D8BF58) and history scan (82D8C2D8).
-//! Cached curves are explicit inputs, not reconstructed from Skate 2 settings.
 use crate::point_graph::PointGraph;
 
 /// Native bytes +0..176. Preserves the unused +136 word and mode-byte padding.
@@ -10,7 +8,6 @@ pub struct BodySpinState {
 }
 
 impl BodySpinState {
-    ///82D8DA98..DAE0 initializes every BodySpin scalar and history entry.
     pub fn new() -> Self {
         Self { words: [0; 44] }
     }
@@ -40,8 +37,6 @@ impl BodySpinState {
     }
 }
 
-/// Native cached inputs at +176/+180, seven 80-byte curves, and 830BD300.
-/// The vector threshold's producer must be supplied: no guessed retail default.
 pub struct BodySpinSettings {
     pub derivative_floor: f32,
     pub acceleration_limit: f32,
@@ -50,7 +45,7 @@ pub struct BodySpinSettings {
     pub input_fade_threshold: [f32; 4],
 }
 
-const STEP: f32 = f32::from_bits(0x3C88_8889); // 820849C8, fixed in these functions.
+const STEP: f32 = f32::from_bits(0x3C88_8889);
 
 /// Registers f1/f2/r6/r7, including the native mode-byte publication.
 pub fn update(
@@ -70,8 +65,6 @@ pub fn update(
     update_air(state, settings, input, auto_spin, mode);
 }
 
-/// Ground caller82D8C8F0 supplies auto_spin=0, in_air=false and mode=0.
-/// This branch does not read any of the airborne BodySpin tuning curves.
 pub fn update_ground(state: &mut BodySpinState, input: f32) {
     update_input(state, input, 0.0, 0);
     finish_ground(state, input);
@@ -168,12 +161,9 @@ fn update_air(
     let change = native_clamp(target - old_speed, lower, upper);
     let speed = old_speed + change;
     state.set(140, speed);
-    // Both subtractions are present at 82D8C27C..284.
     state.set(160, (target - speed) - change);
 }
 
-/// 82D8C2D8 scans the 29 entries before the current write position.
-/// The newest entry starts at negative one native step, with strict peak ties.
 fn calculate_history_derivative(state: &mut BodySpinState, graph: &PointGraph<8>) {
     let end = state.words[42] as usize;
     let mut index = (end + 29) % 30;

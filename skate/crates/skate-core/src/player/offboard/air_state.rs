@@ -1,5 +1,3 @@
-//! BipedAir retained state82D2EDD8, frame stages82D2EF38/82D2E968,
-//! and body-height stage82D2FDD0. Scene and skeleton owners surround these stages.
 use super::air_launch::{cross, dot, length, limit_angle, madd, rotate, scale, sub, unit};
 use super::{air_launch::V, air_prediction::Packet, ground_entry::Frame};
 const UP: V = [0., 1., 0., 0.];

@@ -150,6 +150,8 @@ fn d3d_blend_to_wgpu(factor: BlendFactor) -> Option<WgpuBlendFactor> {
         BlendFactor::DestColor => WgpuBlendFactor::Dst,
         BlendFactor::InvDestColor => WgpuBlendFactor::OneMinusDst,
         BlendFactor::SrcAlphaSat => WgpuBlendFactor::SrcAlphaSaturated,
+        BlendFactor::Constant => WgpuBlendFactor::Constant,
+        BlendFactor::InvConstant => WgpuBlendFactor::OneMinusConstant,
         BlendFactor::Unknown(_) => return None,
     })
 }

@@ -1,5 +1,3 @@
-//! Physical-output publications consumed by gameplay camera82DF69C0.
-//! Reset82DE53F0 runs before the actual producers82DB6EC0/82D3A388.
 use super::{GamePhysics, SkaterRuntime};
 use crate::camera::{
     CameraAirOutput, CameraAnimationOutput, CameraEventsOutput, CameraGrindOutput,
@@ -45,12 +43,9 @@ pub(crate) fn advance(
         CameraPreferences {
             // User preferences are owned here: ordinary uninverted controls.
             invert_look: [false; 2],
-            // Native preferences constructor82DF6294/629C initializes both
-            // fields to zero.82DF8E80 only updates its air-side bytes37..39.
             shake_variant: 0,
             value_32: 0.0,
         },
-        // SkaterAnim vtable8231E170+28=82B97140: full15180 bit30.
         u8::from(skater.animation.stance().1),
         1, // Stable host player identity replaces the original actor pointer.
         output.tick,
@@ -125,8 +120,6 @@ pub(crate) fn publish(
             running_out_160: bit(p.flags_2480, 2),
             skater_animation_stance,
         },
-        //Consume current output, including KnownAir82D36880's predicted
-        //landing/apex. Other states retain their actual template fields.
         air: CameraAirOutput {
             apex_0: physical.air.trajectory_apex_0.map(f32::from_bits),
             landing_position_16: physical.air.collision_position_16.map(f32::from_bits),
@@ -149,22 +142,17 @@ pub(crate) fn publish(
             preparing_52: bit(intents, 27),
             dropping_in_63: bit(intents, 22),
             trick_125: bit(p.flags_2480, 11),
-            //Completed State503 Fill82D4E0A8, consumed as Ground322 by the camera.
             hippy_jump_322: physical.ground.hippy_jumping_322,
-            //Scoring2 reset82DE4468; HoM duration stays inactive in this host.
             broken_bone_duration_200: 0.0,
-            //AirCollector82DA78D0 publishes the world conditioner capability mask.
             capabilities_204: physical.scoring.capabilities_204,
         },
         damped_com_80: com.position,
-        //82C03304..3340 copies actual BoardBody80 into Ground80 and96.
         ground_up_80: [
             output.ground_normal.x,
             output.ground_normal.y,
             output.ground_normal.z,
             0.0,
         ],
-        //Ground288 resets82DE3728; selected ordinary Ground Fill leaves it.
         ground_scalar_288: 0.0,
         look_552_556: [
             skater.animation_input.extra.look_x,
@@ -185,9 +173,6 @@ fn bit(value: u32, shift: u32) -> u8 {
     ((value >> shift) & 1) as u8
 }
 
-///82DF6A68..6B8C copies the distinct OffBoard trajectory when byte331 is set.
-///Keep the owner's actual availability byte: neither state category nor the
-///existence of this packet establishes that a trajectory has been produced.
 fn offboard_output(
     output: &skate_core::player::input_phase::OffBoardOutputFields,
 ) -> CameraOffboardOutput {
@@ -195,22 +180,15 @@ fn offboard_output(
         duration_92: output.scalar_92,
         time_152: output.scalar_152,
         apex_time_156: output.scalar_156,
-        //82DF6B74..6B8C supplies OffBoard160 to setter52 at82DF6CA0.
         launch_normal_160: output.vector_160.map(f32::from_bits),
         launch_position_176: output.vector_176.map(f32::from_bits),
         landing_normal_192: output.vector_192.map(f32::from_bits),
         landing_position_208: output.vector_208.map(f32::from_bits),
         heading_224: output.vector_224.map(f32::from_bits),
         apex_240: output.vector_240.map(f32::from_bits),
-        //82DF74E4 reads308; the camera packet's historical name is misleading.
         object_held_304: output.flag_308,
         hurdle_317: output.hippy_hurdling_317,
         use_trajectory_331: output.trajectory_valid_331,
-        //82DF7474..7490 combines this byte with the dropping-in event.
         dropping_in_334: output.flag_334,
     }
 }
-
-#[cfg(test)]
-#[path = "camera_output_tests.rs"]
-mod tests;

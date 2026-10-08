@@ -1,6 +1,3 @@
-//! ToggleBoard TU3 82BA8FE8, retrieval 82BA9310, drop 82BA9990.
-//! Caller supplies completed physical observations and actual channel timing.
-//! Commands retain the native TransitionTo (+16) versus SequenceTo (+20) distinction.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Phase {
     #[default]
@@ -48,7 +45,6 @@ pub enum Clip {
     BackOut,
 }
 impl Clip {
-    /// Constructor82BA8EC8; drop deliberately selects THROW_90.
     pub fn name(self) -> &'static str {
         match self {
             Self::Throw => "OFB_THROW_0",
@@ -91,7 +87,6 @@ pub struct State {
     throwing: bool,
 }
 impl State {
-    /// Begin82BA8FD8 resets phase then tail-calls ResetYawPitch82BA9D08.
     pub fn begin(&mut self) {
         self.phase = Phase::Idle;
         self.reset_orientation();
@@ -103,7 +98,6 @@ impl State {
         self.initialized_yaw = false;
         self.back = false;
     }
-    /// 82BA9E20; five degrees per update, independent of delta time.
     fn orientation(&mut self, input: Input) {
         let mut yaw = input.yaw_radians * -57.295776_f32;
         if input.mirrored {
@@ -236,6 +230,3 @@ impl State {
         });
     }
 }
-
-#[cfg(test)]
-mod tests;

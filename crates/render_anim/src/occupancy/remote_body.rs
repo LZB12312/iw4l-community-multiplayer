@@ -63,12 +63,224 @@ pub struct RemoteFxBolts {
 }
 
 #[derive(Resource, Default)]
+struct RemoteCharacters {
+    skates: HashMap<u32, frame::SkateMode>,
+    appearances: HashMap<u32, sim::CharacterAppearance>,
+}
+
+type CharacterImageOwner = (
+    Arc<render_material::RuntimeMaterialCatalog>,
+    Arc<Vec<Option<Handle<Image>>>>,
+);
+
+#[derive(Resource, Default)]
+struct CharacterImages {
+    owner: Option<CharacterImageOwner>,
+    handles: HashMap<String, Handle<Image>>,
+    loaded: HashSet<String>,
+    warned: HashSet<u64>,
+}
+
+fn stream_character_images(
+    characters: Res<RemoteCharacters>,
+    local: Option<Res<net::LocalCharacter>>,
+    tess: Option<Res<render_scene::TessMaterials>>,
+    mut images: ResMut<Assets<Image>>,
+    mut resident: ResMut<CharacterImages>,
+) {
+    let Some(tess) = tess.filter(|t| !t.material_images.is_empty()) else {
+        *resident = CharacterImages::default();
+        return;
+    };
+    let Some(library) = assets::character::local_library() else {
+        return;
+    };
+    let unchanged = resident.owner.as_ref().is_some_and(|(catalog, handles)| {
+        Arc::ptr_eq(catalog, &tess.catalog) && Arc::ptr_eq(handles, &tess.material_images)
+    });
+    if !unchanged {
+        *resident = CharacterImages::default();
+        resident.owner = Some((Arc::clone(&tess.catalog), Arc::clone(&tess.material_images)));
+        for id in library.materials().keys() {
+            let name = format!("iw4l_character_library/{id}");
+            let handle = tess
+                .catalog
+                .material_for_name(name)
+                .and_then(|m| m.texture_semantic(2))
+                .and_then(|image| tess.material_images.get(image.0 as usize))
+                .and_then(Option::as_ref);
+            if let (Some(key), Some(handle)) = (library.material_image_key(id), handle) {
+                resident.handles.insert(key, handle.clone());
+            }
+        }
+    }
+    let mut wanted = HashSet::new();
+    for appearance in characters
+        .appearances
+        .values()
+        .chain(local.as_ref().map(|c| &c.0))
+    {
+        if !appearance.skater {
+            continue;
+        }
+        let Some(profile) = &appearance.profile else {
+            continue;
+        };
+        let parts = match library.assemble_cached(profile) {
+            Ok(parts) => parts,
+            Err(error) => {
+                let mut hash = std::collections::hash_map::DefaultHasher::new();
+                profile.hash(&mut hash);
+                if resident.warned.len() >= 64 {
+                    resident.warned.clear();
+                }
+                if resident.warned.insert(hash.finish()) {
+                    diag::warn!(World, "character textures: {error}");
+                }
+                continue;
+            }
+        };
+        for part in parts.iter() {
+            for key in part.texture_keys() {
+                wanted.insert(key.to_owned());
+                if resident.loaded.contains(key) {
+                    continue;
+                }
+                let Some(handle) = resident.handles.get(key) else {
+                    continue;
+                };
+                if let Some(image) = part.texture_image(key)
+                    && images.insert(handle.id(), image).is_ok()
+                {
+                    resident.loaded.insert(key.to_owned());
+                }
+            }
+        }
+    }
+    let evicted: Vec<_> = resident.loaded.difference(&wanted).cloned().collect();
+    for key in evicted {
+        if let Some(handle) = resident.handles.get(&key) {
+            let placeholder = Image::new(
+                bevy::render::render_resource::Extent3d {
+                    width: 1,
+                    height: 1,
+                    depth_or_array_layers: 1,
+                },
+                bevy::render::render_resource::TextureDimension::D2,
+                vec![255; 4],
+                bevy::render::render_resource::TextureFormat::Rgba8UnormSrgb,
+                bevy::asset::RenderAssetUsages::RENDER_WORLD,
+            );
+            if images.insert(handle.id(), placeholder).is_ok() {
+                resident.loaded.remove(&key);
+            }
+        }
+    }
+}
+
+fn update_remote_characters(
+    presented: Res<PresentedSnapshot>,
+    mut characters: ResMut<RemoteCharacters>,
+) {
+    characters.skates.clear();
+    characters.appearances.clear();
+    let Some(snapshot) = presented.snapshot() else {
+        return;
+    };
+    for (client, meta) in &snapshot.meta.clients {
+        characters
+            .appearances
+            .insert(client.0, meta.appearance.clone());
+        if let Some(pose) = &meta.skate {
+            characters.skates.insert(
+                client.0,
+                frame::SkateMode {
+                    active: true,
+                    client: client.0,
+                    xray: if snapshot
+                        .tick
+                        .0
+                        .wrapping_sub(meta.skate_damage.impact.tick)
+                        .saturating_mul(sim::MATCH_TICK_MS)
+                        < 5000
+                    {
+                        meta.skate_damage.injuries
+                    } else {
+                        0
+                    },
+                    tick: pose.tick,
+                    root: Mat4::from_cols_array(&pose.root),
+                    names: pose.names.clone(),
+                    bones: pose.bones.iter().map(Mat4::from_cols_array).collect(),
+                    ..Default::default()
+                },
+            );
+        }
+    }
+    for (slot, pose) in snapshot
+        .meta
+        .corpses
+        .slots
+        .iter()
+        .zip(&snapshot.meta.corpses.skates)
+    {
+        if !slot.occupied {
+            continue;
+        }
+        characters
+            .appearances
+            .insert(slot.entnum as u32, slot.appearance.clone());
+        if let Some(pose) = pose {
+            characters.skates.insert(
+                slot.entnum as u32,
+                frame::SkateMode {
+                    active: true,
+                    client: slot.entnum as u32,
+                    xray: if snapshot
+                        .tick
+                        .0
+                        .wrapping_sub(slot.skate_damage.impact.tick)
+                        .saturating_mul(sim::MATCH_TICK_MS)
+                        < 5000
+                    {
+                        slot.skate_damage.injuries
+                    } else {
+                        0
+                    },
+                    tick: pose.tick,
+                    root: Mat4::from_cols_array(&pose.root),
+                    names: pose.names.clone(),
+                    bones: pose.bones.iter().map(Mat4::from_cols_array).collect(),
+                    ..Default::default()
+                },
+            );
+        }
+    }
+}
+
+#[derive(Resource, Default)]
 struct RemoteBodyLightingBinds {
     by_client: HashMap<u32, ModelLightingRequest>,
 }
 
 pub fn register_remote_body_systems(app: &mut App) {
-    app.init_resource::<RenderPresentationGaps>()
+    app.init_resource::<RemoteCharacters>()
+        .init_resource::<CharacterImages>()
+        .add_systems(
+            Update,
+            update_remote_characters
+                .after(PresentedPublished)
+                .before(sync_remote_bodies)
+                .in_set(render_scene::GfxSceneAdd),
+        )
+        .add_systems(
+            Update,
+            stream_character_images
+                .after(update_remote_characters)
+                .before(sync_remote_bodies)
+                .in_set(render_scene::GfxSceneAdd),
+        )
+        .init_resource::<RenderPresentationGaps>()
         .init_resource::<RemoteBodyDrawPlan>()
         .init_resource::<RemoteBodyTrees>()
         .init_resource::<RemoteSkinPoseHashes>()
@@ -307,6 +519,7 @@ fn occupy_remote_scene_ents(
 }
 
 fn sync_remote_bodies(
+    characters: Res<RemoteCharacters>,
     skate: Res<frame::SkateMode>,
     puppet: Option<Res<frame::InventoryPuppet>>,
     mut commands: Commands,
@@ -407,6 +620,8 @@ fn sync_remote_bodies(
             || runtime.pose_e_type == ET_PLAYER_CORPSE as u8;
         if skate.active && !skate.bones.is_empty() && client.0 == skate.client && !is_corpse {
             pose = Transform::from_matrix(skate.root);
+        } else if !is_corpse && let Some(skate) = characters.skates.get(&client.0) {
+            pose = Transform::from_matrix(skate.root);
         }
         if let Some(puppet) = puppet.as_ref().filter(|p| p.active && client.0 == p.client) {
             pose = Transform::from_matrix(puppet.root);
@@ -429,6 +644,7 @@ fn sync_remote_bodies(
 }
 
 struct PendingBodySkin<'a> {
+    appearance: sim::CharacterAppearance,
     skate: Option<&'a frame::SkateMode>,
     is_bot: bool,
     persist_key: u32,
@@ -456,6 +672,7 @@ enum RemoteSkinAction<'a> {
 }
 
 struct RemotePoseFrame<'a> {
+    characters: &'a RemoteCharacters,
     skate: &'a frame::SkateMode,
     puppet: Option<&'a frame::InventoryPuppet>,
     script: &'a asset_anim::ParsedPlayerAnimScript,
@@ -506,6 +723,7 @@ fn remote_body_scene_slot(
 }
 
 fn pose_remote_bodies(
+    characters: Res<RemoteCharacters>,
     skate: Res<frame::SkateMode>,
     puppet: Option<Res<frame::InventoryPuppet>>,
     time: Res<Time>,
@@ -629,6 +847,7 @@ fn pose_remote_bodies(
     let mut live = HashSet::new();
     let last_cache_hits = pose_hashes.take_last_cache_hits();
     let mut pose_frame = RemotePoseFrame {
+        characters: &characters,
         skate: &skate,
         puppet: puppet.as_deref(),
         script,
@@ -855,13 +1074,15 @@ impl<'a> RemotePoseFrame<'a> {
                 .expect("composed");
             validate_remote_tracks(dobj, clips.as_ref(), body, &model_set.body_name)?;
 
-            // A corpse keeps its client's key; only the living body skates.
-            let skating = self.skate.active
-                && !self.skate.bones.is_empty()
-                && persist_key == self.skate.client
-                && !is_corpse;
+            let skate = if self.skate.active && persist_key == self.skate.client {
+                Some(self.skate)
+            } else {
+                self.characters.skates.get(&persist_key)
+            };
+            let skate = skate.filter(|s| !s.bones.is_empty());
+            let skating = skate.is_some();
             let world = if skating {
-                crate::skate::rig::pose(dobj, self.skate)
+                crate::skate::rig::pose(dobj, skate.unwrap())
             } else {
                 pose_remote_dobj(
                     dobj,
@@ -888,7 +1109,19 @@ impl<'a> RemotePoseFrame<'a> {
                     posed_players,
                 )?;
             }
-            let hash = hash_skin_matrices(&skin);
+            let appearance = self
+                .characters
+                .appearances
+                .get(&persist_key)
+                .cloned()
+                .unwrap_or_default();
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            hash_skin_matrices(&skin).hash(&mut hasher);
+            appearance.skater.hash(&mut hasher);
+            appearance.selections().hash(&mut hasher);
+            appearance.profile.hash(&mut hasher);
+            skate.map_or(0, |s| s.xray).hash(&mut hasher);
+            let hash = hasher.finish();
             let pose_same = pose_hashes.remember_pose_hash(persist_key, hash);
 
             let skin_models = bind_remote_skin_models(dobj, &model_set)?;
@@ -908,9 +1141,15 @@ impl<'a> RemotePoseFrame<'a> {
                     push_cached_surfaces(persist_key, transform, pose_hashes, submit);
                 }
                 RemoteSkinAction::Blend(mut job) => {
+                    job.appearance = self
+                        .characters
+                        .appearances
+                        .get(&persist_key)
+                        .cloned()
+                        .unwrap_or_default();
                     job.is_bot = remote.is_bot;
                     if skating {
-                        job.skate = Some(self.skate);
+                        job.skate = skate;
                         job.gun = None;
                         job.attachments.clear();
                     }
@@ -944,6 +1183,7 @@ fn remote_skin_action<'a>(
         SkinAfterPose::ReuseCache => RemoteSkinAction::ReuseCache,
         SkinAfterPose::Blend => RemoteSkinAction::Blend(PendingBodySkin {
             skate: None,
+            appearance: sim::CharacterAppearance::default(),
             is_bot: false,
             persist_key,
             transform: *transform,
@@ -1177,7 +1417,23 @@ fn assemble_meshes(job: PendingBodySkin<'_>) -> Result<AssembledMeshes, String> 
     let transform = job.transform;
     let lods = (Some(job.body_lod), job.head_lod, job.gun_lod);
     let mut geom = job.dest;
-    if let Some(model) = assets::bot_model::local_bot_model().filter(|_| job.is_bot) {
+    if job.appearance.skater
+        && (job.appearance.profile.is_some() || assets::bot_model::local_characters().is_some())
+    {
+        if let Some(skate) = job.skate {
+            crate::skate::rig::character(skate, &job.appearance, &mut geom)?;
+        } else if let Some(profile) = &job.appearance.profile {
+            let library = assets::character::local_library().ok_or("missing character library")?;
+            let parts = library.assemble_cached(profile)?;
+            for part in parts.iter().filter(|p| !p.board()) {
+                super::bot_model::skin(&part.walking, &job.body.skel, &job.matrices, &mut geom)?;
+            }
+        } else {
+            for model in assets::bot_model::character_parts(job.appearance.selections(), false) {
+                super::bot_model::skin(model, &job.body.skel, &job.matrices, &mut geom)?;
+            }
+        }
+    } else if let Some(model) = assets::bot_model::local_bot_model().filter(|_| job.is_bot) {
         super::bot_model::skin(model, &job.body.skel, &job.matrices, &mut geom)?;
     } else {
         skin_slot_into(
@@ -1245,7 +1501,7 @@ fn assemble_meshes(job: PendingBodySkin<'_>) -> Result<AssembledMeshes, String> 
         )?;
     }
     if let Some(skate) = job.skate {
-        crate::skate::rig::board(skate, &mut geom)?;
+        crate::skate::rig::board(skate, &job.appearance, &mut geom)?;
     }
     let (radii, radius_parents) = radii(
         job.body,

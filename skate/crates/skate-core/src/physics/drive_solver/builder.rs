@@ -32,8 +32,6 @@ pub fn build_drive_rows(
     ];
     let squared = components
         .map(|c| native_arithmetic::vector_min(native_arithmetic::vector_max(c * c, 0.0), 1.0));
-    // 830BDB40 selects bytes [0,4,8,8] in every word: any saturated
-    // quaternion component replaces ALL three axes with frame B's basis.
     let singular = squared.iter().any(|&c| c == 1.0);
     let inverse_lengths = if singular {
         [1.0; 3]
@@ -200,9 +198,6 @@ fn components_of(v: Vector3) -> [f32; 3] {
     [v.x, v.y, v.z]
 }
 
-/// 82AE1E68..20B8 and the matching angular block219C..237C.
-/// Inputs are already scaled in their source order; the hard cap affects only
-/// position error, before the rate and acceleration displacements are added.
 fn build_coefficients(
     params: RetailDriveParams,
     mut position_error: [f32; 3],

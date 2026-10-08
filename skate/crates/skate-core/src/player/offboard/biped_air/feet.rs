@@ -1,9 +1,10 @@
-//! Native foot placement82D773F8/82D77558/82D77AE8. The persistent storage is
-//! shared with the original state56 manager; all contacts come from Processed.
-use super::{Frame, Vector as V, math::{dot, length, limit_angle, madd, scale, sub}};
+use super::{
+    Frame, Vector as V,
+    math::{dot, length, limit_angle, madd, scale, sub},
+};
+use crate::physics::skeleton_animation_record::transform_point;
 use crate::player::offboard::board_possession::manager::State;
 use crate::player::wipeout_state::math::{normalize_or as unit, reciprocal};
-use crate::physics::skeleton_animation_record::transform_point;
 pub struct Line {
     pub position: V,
     pub normal: V,
@@ -47,7 +48,6 @@ pub fn update(s: &mut State, i: &Input) -> [Target; 2] {
         s.vectors_224_to_272[2] = i.effective_root[3];
         s.flags_304_to_307[3] = true;
     }
-    //82D783A8: evaluate the old support mode before82D77CE0 replaces it.
     for index in 0..2 {
         let foot = &mut s.hands[index];
         let low = s.word_300 != 3 && i.local_foot_pairs[index].iter().all(|p| p[1] < 0.09);
@@ -167,9 +167,10 @@ fn clamp_normal(mut normal: V) -> V {
         return normal;
     }
     normal[1] = 0.;
-    //82D78260 does NOT safe-normalize this flattened normal.
-    //Verified image822F8BD8 =3E428F5F; retain the unguarded reciprocal.
-    normal = scale(normal, reciprocal(length(normal)) * f32::from_bits(0x3e428f5f).sqrt());
+    normal = scale(
+        normal,
+        reciprocal(length(normal)) * f32::from_bits(0x3e428f5f).sqrt(),
+    );
     normal[1] = 0.9;
     normal
 }
@@ -193,7 +194,6 @@ fn height_correction(s: &mut State, i: &Input) -> f32 {
     }
     s.scalars_288_to_296[0] - highest
 }
-///82BEDB78 normal setter, shared by both feet after placement.
 pub fn set_normal(target: &mut crate::animation::foot_ik::external::ExternalTarget, normal: V) {
     if target.normal_blend > 0. {
         target.normal = limit_angle(normal, target.normal, 0.1);

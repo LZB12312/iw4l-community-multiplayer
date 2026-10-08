@@ -63,8 +63,6 @@ impl<'a> Runtime<'a> {
     }
 }
 pub(super) fn trajectory(t: Trajectory) -> KnownAirTrajectory {
-    //82E09A14/2C splats the request horizon into all four final-vector lanes.
-    //KnownAir Fill copies all64 bytes, including the three repeated words.
     KnownAirTrajectory {
         position: t.position,
         velocity: t.velocity,

@@ -5,9 +5,8 @@ use super::{
     runtime::KnownAirRuntime,
 };
 
-const MIN_FOOTPLANT_TIME: f32 = f32::from_bits(0x3DCC_CCCD); // 0x820641A8.
+const MIN_FOOTPLANT_TIME: f32 = f32::from_bits(0x3DCC_CCCD);
 
-/// `0x82D36728`, preserving the reset gate and the three update-call order.
 pub(crate) fn update_footplant(
     state: &KnownAirState,
     frame: &KnownAirFrame,

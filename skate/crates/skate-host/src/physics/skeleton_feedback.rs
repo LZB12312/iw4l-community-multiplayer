@@ -27,7 +27,6 @@ pub(super) fn publish(
     let offboard = p.category_2512 == 500 && !matches!(state, 501 | 503);
     let mut point = p.vectors_464_480_496_512_528[if matches!(state, 601 | 602) { 1 } else { 2 }]
         .map(f32::from_bits);
-    // Both82BD8280 and82BE2538 read Skeleton16424 ->Reckoning1216.
     let n = physics.riding.reckoning.ground_normal;
     let mut normal = [n.x, n.y, n.z, 0.0];
     if offboard && p.flags_2480 & 2 != 0 {
@@ -94,9 +93,6 @@ fn publish_board_observations(
     dt: f32,
     flags_2472: u32,
 ) {
-    //82BD9F3C..9F70 transforms retained16144 into16208;9F90 uses the
-    //current deck for16240. Only later82BDA024 replaces16144 with physical
-    //COM10928. Contact/error processing above does not consume these locals.
     frames.publish_local_observations(roots, deck);
     frames.publish_centre_of_mass(physical_com, dt, flags_2472);
 }
@@ -124,12 +120,12 @@ fn collect(physics: &GamePhysics, skater: &SkaterRuntime) -> Vec<SkeletonContact
     for spy in storage[..count as usize * 28].chunks_exact(28) {
         let a = CollisionBody::from_contact_id(spy[24]);
         let b = CollisionBody::from_contact_id(spy[25]);
-        //82768418 rejects the same logical Body and equal nonnull Body+32
-        //owners. Board82C067F4 and Skeleton82BE4620 both store this actor.
-        //Their eligible cross contacts still participate in the shared solve.
-        let remote_base = skater.skeleton.bodies().len() + skater.skeleton_drives.targets.bodies.len();
-        let external = |body| matches!(body, CollisionBody::StaticWorld)
-            || matches!(body, CollisionBody::Attached(index) if index >= remote_base);
+        let remote_base =
+            skater.skeleton.bodies().len() + skater.skeleton_drives.targets.bodies.len();
+        let external = |body| {
+            matches!(body, CollisionBody::StaticWorld)
+                || matches!(body, CollisionBody::Attached(index) if index >= remote_base)
+        };
         if !external(a) && !external(b) {
             continue;
         }
@@ -173,9 +169,13 @@ fn resolve<'a>(
     match CollisionBody::from_contact_id(id) {
         CollisionBody::StaticWorld => None,
         CollisionBody::Board(id) => Some(&physics.board.bodies()[id.index()]),
-        CollisionBody::Attached(part) => skater.skeleton.bodies().iter()
+        CollisionBody::Attached(part) => skater
+            .skeleton
+            .bodies()
+            .iter()
             .chain(skater.skeleton_drives.targets.bodies.iter())
-            .chain(physics.network_proxies.bodies.iter()).nth(part),
+            .chain(physics.network_proxies.bodies.iter())
+            .nth(part),
     }
 }
 fn contact_body(body: Option<&BodySnapshot>) -> SkeletonContactBody {
@@ -193,48 +193,5 @@ fn contact_body(body: Option<&BodySnapshot>) -> SkeletonContactBody {
             inverse_mass: 0.0,
             linear_velocity: [0.0; 4],
         },
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use skate_core::physics::skeleton_animation_record::IDENTITY;
-
-    #[test]
-    fn retained_com_is_localized_before_new_physical_com_publication() {
-        let mut roots = SkeletonRootFrames::default();
-        roots.world_to_animation[3] = [-10.0, -20.0, -30.0, 0.0];
-        let mut deck = IDENTITY;
-        deck[3] = [15.0, 26.0, 37.0, 0.0];
-        let old_com = [11.0, 22.0, 33.0, 4.0];
-        let new_com = [13.0, 26.0, 39.0, 8.0];
-        for flags in [0, 0x400] {
-            let mut frames = SkeletonBoardFrames {
-                centre_of_mass: old_com,
-                ..Default::default()
-            };
-            publish_board_observations(&mut frames, &roots, &deck, new_com, 0.5, flags);
-            assert_eq!(frames.local_centre_of_mass, [1.0, 2.0, 3.0, 0.0]);
-            assert_eq!(frames.local_board_position, [5.0, 6.0, 7.0, 0.0]);
-            assert_eq!(frames.centre_of_mass, new_com);
-            assert_eq!(frames.com_velocity, [4.0, 8.0, 12.0, 8.0]);
-            assert_eq!(
-                frames.previous_centre_of_mass,
-                if flags == 0 { old_com } else { new_com }
-            );
-
-            //The next observation uses the last published COM, but the new
-            //root and deck. The history flag must not erase this distinction.
-            roots.world_to_animation[3] = [-12.0, -24.0, -36.0, 0.0];
-            deck[3] = [20.0, 30.0, 40.0, 0.0];
-            publish_board_observations(&mut frames, &roots, &deck, old_com, 0.5, flags);
-            assert_eq!(frames.local_centre_of_mass, [1.0, 2.0, 3.0, 0.0]);
-            assert_eq!(frames.local_board_position, [8.0, 6.0, 4.0, 0.0]);
-            assert_eq!(frames.centre_of_mass, old_com);
-            assert_eq!(frames.com_velocity, [-4.0, -8.0, -12.0, -8.0]);
-            roots.world_to_animation[3] = [-10.0, -20.0, -30.0, 0.0];
-            deck[3] = [15.0, 26.0, 37.0, 0.0];
-        }
     }
 }

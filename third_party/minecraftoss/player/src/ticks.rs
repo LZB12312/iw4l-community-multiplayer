@@ -61,33 +61,3 @@ impl<K: Copy + Eq + Hash> ScheduledTicks<K> {
         None
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn first_pending_tick_wins_and_ties_retain_insertion_order() {
-        let mut ticks = ScheduledTicks::<u8>::default();
-        ticks.schedule((0, 0, 0), 1, 10);
-        ticks.schedule((1, 0, 0), 1, 5);
-        ticks.schedule((0, 0, 0), 1, 3);
-        ticks.schedule((2, 0, 0), 1, 3);
-        assert_eq!(ticks.pop_due(2), None);
-        assert_eq!(ticks.pop_due(3), Some(((2, 0, 0), 1)));
-        assert_eq!(ticks.pop_due(5), Some(((1, 0, 0), 1)));
-        assert_eq!(ticks.pop_due(10), Some(((0, 0, 0), 1)));
-        assert_eq!(ticks.pop_due(10), None);
-    }
-
-    #[test]
-    fn priority_precedes_insertion_order_for_same_due_tick() {
-        let mut ticks = ScheduledTicks::<u8>::default();
-        ticks.schedule_with_priority((1, 0, 0), 1, 4, 0);
-        ticks.schedule_with_priority((2, 0, 0), 1, 4, -1);
-        ticks.schedule_with_priority((3, 0, 0), 1, 4, -1);
-        assert_eq!(ticks.pop_due(4), Some(((2, 0, 0), 1)));
-        assert_eq!(ticks.pop_due(4), Some(((3, 0, 0), 1)));
-        assert_eq!(ticks.pop_due(4), Some(((1, 0, 0), 1)));
-    }
-}

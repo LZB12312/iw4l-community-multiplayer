@@ -1,4 +1,3 @@
-//! Foot contact history and correction82BEFC80, helpers82BF04C8/82BF0558.
 use super::{
     status::{LimbStatus, Mode},
     transforms::LimbFrames,
@@ -67,8 +66,6 @@ impl ContactState {
                                 input.board,
                                 input.inverse_board,
                             );
-                            //82BEFFB4..FFCC: fix modest penetration immediately;
-                            //larger separations retain the bounded transition.
                             if distance < 0.0 && distance > f32::from_bits(0xBE99_999A) {
                                 contact.offset -= distance;
                             }
@@ -112,8 +109,6 @@ impl ContactState {
     }
 }
 
-///82BF0558: compare both positions in inverse-board space, retaining the
-///separate point transforms and the .025 foot-surface distance adjustment.
 fn distance_to_contact(
     contact: &FootContact,
     frame: &LimbFrames,

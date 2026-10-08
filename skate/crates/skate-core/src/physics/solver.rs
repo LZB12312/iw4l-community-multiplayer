@@ -1,7 +1,3 @@
-//! Shared TU3 constraint iteration (`0x82AE27D0`).
-//!
-//! Constraint families must exchange reactions on every pass. Solving each
-//! family to completion independently changes the physical result.
 use super::{
     contact_solver::RetailContactJacobian, drive_solver::RetailDriveRows,
     joint_solver::RetailJointJacobian, rigid_body::RetailReactionCorrections,

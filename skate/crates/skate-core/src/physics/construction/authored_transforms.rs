@@ -1,11 +1,6 @@
-//! Authored seven-part matrices passed to Part::SetTransform by TU3 82C0ADF0.
-//! This function is called by construction/reset before world-pose publication.
 use super::RetailAffineTransform;
 use crate::math::{Basis3, Vector3};
 
-/// Resolved stock attributes read by InitializeTransforms. Attribute lookup
-/// failure selects the engine's runtime fallback scalar at830D0850; callers
-/// resolving absent attributes must supply that actual initialized value.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AuthoredTransformInputs {
     /// physicsdeck.DeckMidLength; full attribute key C94D65091DCB828B.
@@ -34,7 +29,6 @@ impl AuthoredTransformInputs {
 /// is identity; back truck uses the actual SinCos(pi/2) result about Y. The
 /// tiny polynomial cosine residual is retained, never replaced by exact zero.
 pub fn authored_body_transforms(input: AuthoredTransformInputs) -> [RetailAffineTransform; 7] {
-    // fmadds82C0AEE4 and fnmsubs82C0AF60: one rounded multiply/add each.
     let front_z = input
         .deck_mid_length
         .mul_add(0.5, input.truck_z_position_front);
@@ -57,8 +51,6 @@ pub fn authored_body_transforms(input: AuthoredTransformInputs) -> [RetailAffine
     {
         transforms[part].translation = translation;
     }
-    // Literal pi/2 word at820C69C8. Shared polynomial82473A08 was re-audited
-    // against fresh disassembly and constants822F97C0..822F985F for this path.
     let (sin, cos) = crate::trigonometry::sin_cos(f32::from_bits(0x3fc9_0fdb));
     transforms[5].basis = Basis3 {
         columns: [[cos, 0.0, -sin], [0.0, 1.0, 0.0], [sin, 0.0, cos]],
@@ -66,9 +58,6 @@ pub fn authored_body_transforms(input: AuthoredTransformInputs) -> [RetailAffine
     transforms
 }
 
-/// Native affine rows, ready for reset_skateboard's `authored` argument. All
-/// fourth lanes are zero, including the affine translation:82C0ADF0 explicitly
-/// clears them. This does not perform the downstream COM/quaternion conversion.
 pub fn authored_body_pose_records(input: AuthoredTransformInputs) -> [[u32; 16]; 7] {
     authored_body_transforms(input).map(|transform| {
         let mut words = [0; 16];

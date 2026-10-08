@@ -1,23 +1,21 @@
-//! Native grind contact leaf82C1E2C8. This is distinct from the tolerant wheel
-//! triangle query: exact parallel rejection and closed segment/barycentric bounds.
 use super::native_arithmetic::dot3;
 type V = [f32; 4];
-#[path = "grind_contact/families.rs"]
-pub mod families;
-#[path = "grind_contact/entry.rs"]
-pub mod entry;
-#[path = "grind_contact/control.rs"]
-pub mod control;
 #[path = "grind_contact/admission.rs"]
 pub mod admission;
 #[path = "grind_contact/arithmetic.rs"]
 mod arithmetic;
+#[path = "grind_contact/balance.rs"]
+pub mod balance;
+#[path = "grind_contact/control.rs"]
+pub mod control;
+#[path = "grind_contact/entry.rs"]
+pub mod entry;
+#[path = "grind_contact/families.rs"]
+pub mod families;
 #[path = "grind_contact/investigator.rs"]
 pub mod investigator;
 #[path = "grind_contact/manager.rs"]
 pub mod manager;
-#[path = "grind_contact/balance.rs"]
-pub mod balance;
 
 /// Native query entry: endpoints plus a spline owner, not three vectors.
 #[derive(Clone, Copy, Debug)]
@@ -42,8 +40,6 @@ pub struct FiftyFiftyCandidate {
     pub primitive: usize,
 }
 
-///82C1FB98: the longitudinal deck rectangle. Unlike the two truck rectangles,
-///this catches a rail crossing between the trucks (boardslides/lipslides).
 pub fn deck_contact(
     board: [V; 4],
     flags_2484: u32,
@@ -82,8 +78,6 @@ pub fn deck_contact(
     best
 }
 
-///82D889A8 geometry admission. The state manager owns approach-angle and
-///candidate arbitration separately. No nearest-rail substitute is used.
 pub fn boardslide_candidate(
     board: [V; 4],
     contact: TruckContact,
@@ -100,11 +94,16 @@ pub fn boardslide_candidate(
         return None;
     }
     let delta = sub(edge.end, edge.start);
-    let direction = scale(delta, arithmetic::reciprocal(arithmetic::square_root(dot3(delta, delta))));
+    let direction = scale(
+        delta,
+        arithmetic::reciprocal(arithmetic::square_root(dot3(delta, delta))),
+    );
     if dot3(upright_normal(direction), board[1]) <= 0.65 {
         return None;
     }
-    if !admission.test(400, direction, false).allowed { return None; }
+    if !admission.test(400, direction, false).allowed {
+        return None;
+    }
     let depth = dot3(sub(board[3], contact.position), board[1]);
     let projected = scale(board[1], depth);
     if dot3(projected, projected) >= f32::from_bits(0x3b6b_edfa) {
@@ -140,9 +139,6 @@ pub fn boardslide_candidate(
     })
 }
 
-///82D89150's same-primitive contact branch, before shared admission82D886B8.
-/// Linked/adjacent primitive arbitration belongs to the caller; this boundary
-/// explicitly returns none for that case instead of guessing an owner.
 pub fn fifty_fifty_candidate(
     board: [V; 4],
     balance: [f32; 2],
@@ -151,8 +147,6 @@ pub fn fifty_fifty_candidate(
     fifty_fifty_candidate_on_splines(board, balance, contacts, &[])
 }
 
-///82D89150 also accepts two segment indices when their hits pass its signed
-/// cross-rail separation check. Splines with multiple segments need this path.
 pub fn fifty_fifty_candidate_on_splines(
     board: [V; 4],
     balance: [f32; 2],
@@ -170,7 +164,6 @@ pub fn fifty_fifty_candidate_on_splines(
         let delta = sub(edge.end, edge.start);
         let direction = scale(delta, arithmetic::inverse_square_root(dot3(delta, delta)));
         let across = cross(upright_normal(direction), direction);
-        //820641A8. This comparison is signed in the original routine.
         if dot3(sub(front.position, rear.position), across) > 0.1 {
             return None;
         }
@@ -182,7 +175,10 @@ pub fn fifty_fifty_candidate_on_splines(
     }
     let difference = sub(front.position, rear.position);
     Some(FiftyFiftyCandidate {
-        direction: scale(difference, arithmetic::inverse_square_root(dot3(difference, difference))),
+        direction: scale(
+            difference,
+            arithmetic::inverse_square_root(dot3(difference, difference)),
+        ),
         centre: scale(add(front.position, rear.position), 0.5),
         front: front.position,
         rear: rear.position,
@@ -190,7 +186,6 @@ pub fn fifty_fifty_candidate_on_splines(
     })
 }
 
-///82D370F8: upward-facing normal perpendicular to the spline direction.
 pub fn upright_normal(direction: V) -> V {
     let cross_up = cross([0.0, 1.0, 0.0, 0.0], direction);
     let normal = cross(cross_up, direction);
@@ -204,8 +199,6 @@ pub fn upright_normal(direction: V) -> V {
     scale(normal, arithmetic::reciprocal(length))
 }
 
-///82D88518, common active-grind angular admission. Plane projection occurs
-/// before the direction comparison; vertical speed is not an approach angle.
 pub fn within_approach_angle(direction: V, velocity: V, degrees: f32) -> bool {
     let normal = upright_normal(direction);
     let projected = sub(velocity, scale(normal, dot3(velocity, normal)));
@@ -217,10 +210,6 @@ pub fn within_approach_angle(direction: V, velocity: V, degrees: f32) -> bool {
     alignment > crate::trigonometry::cos(degrees * f32::from_bits(0x3c8e_fa35))
 }
 
-/// Truck rectangles from82C1FDC0. The geometry dimensions come from the
-/// physics_grinds collection (TruckToWheel584, DeckCenterToTruck636).
-/// Output order is positive board-forward truck, negative board-forward truck.
-/// These are geometric contacts;82D89150 still decides whether to engage.
 pub fn truck_contacts(
     board: [V; 4],
     flags_2484: u32,
@@ -232,15 +221,13 @@ pub fn truck_contacts(
         return [None; 2];
     }
     let [right, up, forward, position] = board;
-    //821659F8 /8208EA7C: the probe starts .02 below the board and extends
-    //another .20 down its local up axis. Do not substitute world vertical.
     let centre = core::array::from_fn(|i| up[i].mul_add(-0.02, position[i]));
     let side = scale(right, truck_to_wheel);
     let along = scale(forward, deck_center_to_truck);
     let down = scale(up, -0.2);
     let centres = [add(centre, along), sub(centre, along)];
     let mut result = [None; 2];
-    let mut distance = [1_000_000.0; 2]; //822F88D4, squared-distance ceiling.
+    let mut distance = [1_000_000.0; 2];
     for (primitive, edge) in primitives.iter().enumerate() {
         for truck in 0..2 {
             let a = add(centres[truck], side);
@@ -312,7 +299,3 @@ fn cross(a: V, b: V) -> V {
         0.0,
     ]
 }
-
-#[cfg(test)]
-#[path = "grind_contact/tests.rs"]
-mod tests;

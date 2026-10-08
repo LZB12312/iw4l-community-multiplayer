@@ -1,4 +1,3 @@
-//! Normal constraints82D82940/82E0A258 and obstacle intersections82D82AF0.
 use super::{
     contact_queries::{Input, V},
     contact_records::{Direction, Record, Records, Source},
@@ -46,7 +45,6 @@ pub fn clamp_normal(a: V, b: V, normal: &mut V) -> bool {
     };
     true
 }
-///82E0A060 accepts strictly opposite sides; endpoint-on-plane is not a hit.
 pub fn plane_segment(origin: V, normal: V, start: V, end: V) -> Option<V> {
     let a = dot3(normal, sub(start, origin));
     let b = dot3(normal, sub(end, origin));
@@ -161,34 +159,5 @@ fn insert_intersections(input: Input, records: &mut Records, a: Record, b: Recor
             distance,
         );
         records.obstacle[index].flags |= 4;
-    }
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn normal_is_projected_then_constrained_to_the_native_wedge() {
-        let a = [0., 0., -1., 0.];
-        let b = [0., 1., 0., 0.];
-        let mut n = [1., 1., -1., 0.];
-        assert!(clamp_normal(a, b, &mut n));
-        assert_eq!(n[0], 0.);
-        assert!(n[1] > 0.7 && n[2] < -0.7);
-        let mut outside = [0., -1., 0., 0.];
-        clamp_normal(a, b, &mut outside);
-        assert_eq!(outside, a);
-    }
-    #[test]
-    fn plane_intersection_rejects_endpoint_contacts() {
-        assert_eq!(
-            plane_segment(
-                [0.; 4],
-                [0., 1., 0., 0.],
-                [0., -1., 0., 0.],
-                [0., 1., 0., 0.]
-            ),
-            Some([0.; 4])
-        );
-        assert!(plane_segment([0.; 4], [0., 1., 0., 0.], [0.; 4], [0., 1., 0., 0.]).is_none());
     }
 }

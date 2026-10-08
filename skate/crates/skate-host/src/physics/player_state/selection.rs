@@ -1,4 +1,3 @@
-//! CalcSuggestedState82D8ADE8 gets actual contacts, line distances and pose.
 use super::*;
 use skate_core::player::selector::{
     ProcessedStateInput, StateSelectionInput,
@@ -48,11 +47,9 @@ pub(super) fn advance(
     let requested = skater.player_state.selector.calculate(current, &input);
     skater.player_state.requested_state = requested;
     if requested != current {
-        //82DB5FF4 restores the actual counter also used by ground-history.
         skater.player_input.player.ground_history_frames_1304 = 100;
         super::transition::set(physics, skater, requested)?;
     }
-    //SystemLogic82DB6000 clears the per-frame Wipeout request accumulator.
     skater.wipeout.state.clear_after_selection();
     Ok(())
 }

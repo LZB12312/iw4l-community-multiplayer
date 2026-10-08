@@ -1,4 +1,3 @@
-//! Persistent result owner82D6CC50 and frame publication82D6E3F8.
 use super::{air_completion::Completed, air_launch::V, air_queries::Prepared};
 use crate::{air::trajectory::Trajectory, point_graph::PointGraph};
 const STEP: f32 = f32::from_bits(0x3c888889);
@@ -95,7 +94,6 @@ impl Prediction {
             surface_kind: self.surface_kind,
         }
     }
-    ///82D6DE08 adjusts velocity at the current frame, then restores the common epoch.
     pub fn adjust_animation(&mut self, tick: i32, animation: V, frame: [[f32; 4]; 4], radius: f32) {
         use super::air_launch::{dot, length, madd, scale, sub};
         self.offset = scale(frame[2], animation[2]);
@@ -126,13 +124,11 @@ impl Prediction {
         let mut flat = arc.velocity;
         flat[1] = 0.;
         let end = arc.position_at(self.landing_frame as f32 * STEP);
-        //82D6E018 is the original descending-wall trajectory qualification.
         if self.launch_up[1] < 0.8
             && dot(self.launch_up, flat) <= 0.
             && self.result.normal[1] > 0.9
             && end[1] - arc.position[1] > -0.2
         {
-            //82D6E178 recomputes the native9.8 m/s² arc to the same end point.
             let duration = (2. * length(sub(arc.position, end)) / 9.8)
                 .sqrt()
                 .mul_add(0.66, self.landing_frame as f32 * f32::from_bits(0x3bb9af72));

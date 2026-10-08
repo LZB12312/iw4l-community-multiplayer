@@ -1,5 +1,3 @@
-//! Branch composition of `PhysicsGround::UpdateSkateboard` (`82D38800`).
-
 use crate::riding::{speed_wobble, steering};
 
 use super::{

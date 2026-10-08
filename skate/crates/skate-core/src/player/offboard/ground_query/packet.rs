@@ -1,6 +1,5 @@
 use super::{EdgeSelection, Frame, GroundQueryPacket, Line, QueryContext, math::*};
 use crate::math::Vector3;
-///82D321D0..32320 then82C20728: all seven Biped lines, in source order.
 pub fn prepare_packet(
     frame: Frame,
     context: QueryContext,

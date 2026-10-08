@@ -1,6 +1,3 @@
-//! Normal camera subject accessors and reference points, TU3 82DF69C0/82DF78A8.
-//! Physical and animation producers supply this snapshot together, after their
-//! tick. No grounded state, bone position, or camera anchor is inferred here.
 use super::{
     AnchorTrackingSubject, AvoidanceSubject, ReferenceHeightSubject, RigModeSubject,
     RigPositioningSubject,
@@ -8,7 +5,6 @@ use super::{
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Subject {
-    /// 82DF80D8 -> setter24. This is the native camera subject basis.
     pub transform: [[f32; 4]; 4],
     /// Physical output bundle5+432 -> setter32.
     pub skeleton_root: [[f32; 4]; 4],
@@ -35,12 +31,9 @@ pub struct Subject {
     pub state_flag_81: u8,
     /// Bundle15 float200 > 0 and flags204 bit2 -> setter316, getter668.
     pub broken_bone_slowmo: u8,
-    /// Setter328 is cleared by82DF69C0; later subject writers remain explicit.
     pub subject_flag_328: u8,
 }
 
-/// Exact inputs used by82DF78A8; names identify their role in the camera's
-/// reference-point table, while comments retain the physical output binding.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ReferencePointInputs {
     pub head: [f32; 4],                  // skeleton+32

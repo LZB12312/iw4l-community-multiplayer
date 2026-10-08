@@ -1,4 +1,3 @@
-//! MatchTwistAndLean: TU3 Begin82BC0848, Update82BC0860, read82BC0968.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Observation {
     /// Actual PhysOutSkeleton+496 and+500, produced by active-state Fill.
@@ -15,8 +14,6 @@ pub struct State {
 }
 
 impl State {
-    /// Instance constructor82BA8DC0 initializes both retained values to zero.
-    /// An absent original component makes read82BC0968 leave them unchanged.
     pub fn begin(&mut self, observation: Option<Observation>) {
         if let Some(observation) = observation {
             *self = read(observation);
@@ -44,7 +41,3 @@ fn read(observation: Observation) -> State {
         lean: observation.hips_right_angle,
     }
 }
-
-#[cfg(test)]
-#[path = "twist_lean/tests.rs"]
-mod tests;

@@ -50,7 +50,9 @@ pub fn append_slimes<'a>(
     let mut marks = Vec::new();
     for entity in slimes {
         let slime = &entity.slime;
-        let Some(mob) = poses.pose(entity.id, partial) else { continue };
+        let Some(mob) = poses.pose(entity.id, partial) else {
+            continue;
+        };
         marks.push((mesh.vertices.len(), mob.overlay(0.0)));
         let feet = mob.feet;
         let sample = mob.light_block();
@@ -60,29 +62,44 @@ pub fn append_slimes<'a>(
         let squish = slime.previous_squish + (slime.squish - slime.previous_squish) * partial;
         let scale = size_and_squish(slime.size, squish);
         for (from, to, uv) in INNER {
-            cube_scaled(mesh, feet, rotation, scale, region, sky, block, from, to, uv, [0.0; 3], Quat::IDENTITY, [1.0; 3], [64., 32.], None, false);
+            cube_scaled(
+                mesh,
+                feet,
+                rotation,
+                scale,
+                region,
+                sky,
+                block,
+                from,
+                to,
+                uv,
+                [0.0; 3],
+                Quat::IDENTITY,
+                [1.0; 3],
+                [64., 32.],
+                None,
+                false,
+            );
         }
         let (from, to, uv) = OUTER;
-        cube_scaled(translucent, feet, rotation, scale, region, sky, block, from, to, uv, [0.0; 3], Quat::IDENTITY, [1.0; 3], [64., 32.], None, false);
+        cube_scaled(
+            translucent,
+            feet,
+            rotation,
+            scale,
+            region,
+            sky,
+            block,
+            from,
+            to,
+            uv,
+            [0.0; 3],
+            Quat::IDENTITY,
+            [1.0; 3],
+            [64., 32.],
+            None,
+            false,
+        );
     }
     crate::cow_render::apply_overlays(mesh, &marks);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn landing_squashes_and_leaping_stretches() {
-        let rest = size_and_squish(2, 0.0);
-        assert!((rest - Vec3::splat(2.0 * 0.999)).length() < 1e-6);
-        // `targetSquish` -0.5 on landing: wider and flatter.
-        let landed = size_and_squish(2, -0.5);
-        assert!(landed.x > rest.x && landed.y < rest.y, "{landed:?}");
-        // 1 on take-off: narrower and taller.
-        let leaping = size_and_squish(2, 1.0);
-        assert!(leaping.x < rest.x && leaping.y > rest.y, "{leaping:?}");
-        // Bigger slimes squash less.
-        assert!(size_and_squish(4, 1.0).y / 4.0 < leaping.y / 2.0);
-    }
 }

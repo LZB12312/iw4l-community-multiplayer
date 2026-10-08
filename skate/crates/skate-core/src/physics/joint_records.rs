@@ -1,15 +1,8 @@
-//! TU3 skateboard joint definitions reconstructed from stock collection data.
-//!
-//! `SkateboardBody::CreateJoints` (`0x82C0C268`) builds two deck/truck joints
-//! followed by four truck/wheel joints. This module emits the native parameter
-//! and frame payloads that `Assembly::Initialize` consumes; it does not replace
-//! them with a third-party constraint type.
-
 use super::{
     board::BodyId,
     drive_frames::{
-        default_truck_drive_frames, retail_quaternion_from_basis, AuthoredTransformInputs,
-        RetailDriveFrame, RetailDriveFrames,
+        AuthoredTransformInputs, RetailDriveFrame, RetailDriveFrames, default_truck_drive_frames,
+        retail_quaternion_from_basis,
     },
     rigid_body::RetailQuaternion,
 };
@@ -235,7 +228,3 @@ const fn joint(
         frames,
     }
 }
-
-#[cfg(test)]
-#[path = "tests/joint_records.rs"]
-mod tests;

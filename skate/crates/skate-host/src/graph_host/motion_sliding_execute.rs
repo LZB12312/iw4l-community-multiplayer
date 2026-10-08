@@ -43,7 +43,6 @@ impl MotionHost {
             }
             Operation::Create { right } => match phase {
                 0 => {
-                    //ISkaterAnim virtual12=82B970D8 reads the live bit29.
                     let fakie = self
                         .animation
                         .skater_animation_flags
@@ -66,7 +65,6 @@ impl MotionHost {
                 _ => {}
             },
             Operation::ManualAttribute if phase == 1 => {
-                //82BB34D8 uses Manual830BE900; only a negative present value emits.
                 if let Some(value) = self.animation.motion_intent("Manual")
                     && value < 0.0
                 {
@@ -78,7 +76,6 @@ impl MotionHost {
                     return Err("PowerSlideDecel has an invalid instance".into());
                 };
                 if phase == 0 {
-                    //Begin82BB3198; same zero in native instance constructor.
                     *previous = 0.0;
                 } else if phase == 1 {
                     let velocity = self
@@ -112,7 +109,6 @@ impl MotionHost {
                 self.slide_latch.set_candidate_enabled(phase == 0);
             }
             Operation::IsPowerSliding if phase != 1 => {
-                //Begin82BACD20/End82BACD70 -> specific setter8258F910.
                 self.is_power_sliding = phase == 0;
             }
             _ => {}

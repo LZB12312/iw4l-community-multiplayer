@@ -28,10 +28,6 @@ pub(super) fn advance(
     board_volumes.retain(|volume| skater.board_possession_live.volume_enabled(volume.body));
     let skeleton_volumes =
         skeleton_colliders::enabled_volumes(&skater.skeleton, &skater.skeleton_collision)?;
-    // Each native assembly has its own query record and retention buffer.
-    // Skeleton82BE5094 passes false to82768728: its edge threshold is -1,
-    // whereas the board requests .999. GroundPipeline supplies the remaining
-    // shared values. Do not let the second query overwrite the first's rows.
     let mut contacts = physics
         .world
         .query_primitives(&board_volumes, physics.query, physics.retention)
@@ -69,6 +65,29 @@ pub(super) fn advance(
     }
     physics.network_contacts = contacts.len() - before_remote;
     physics.contact_count = contacts.len();
+    skater.environment_impact = None;
+    for collision in &contacts {
+        use skate_core::physics::board_step::CollisionBody;
+        if collision.body_b != CollisionBody::StaticWorld {
+            continue;
+        }
+        if collision.body_a == CollisionBody::StaticWorld {
+            continue;
+        }
+        let v = physics.board.bodies()[BodyId::Deck.index()]
+            .rates
+            .linear_velocity;
+        let n = collision.contact.normal;
+        let closing = -(v.x * n.x + v.y * n.y + v.z * n.z);
+        if closing.is_finite()
+            && closing > if n.y > 0.5 { 6. } else { 4.5 }
+            && skater
+                .environment_impact
+                .is_none_or(|(speed, _)| closing > speed)
+        {
+            skater.environment_impact = Some((closing, [n.x, n.y, n.z]));
+        }
+    }
     let dt = physics.settings.step.simulation.time_step;
     let mut joints =
         skater
@@ -81,7 +100,6 @@ pub(super) fn advance(
         dt,
     );
     let skeleton_drive_count = drives.rows.len();
-    //82D74FD8: persistent hand drives share the deck and skeleton reactions.
     skater.board_possession.append_drives(
         physics.board.bodies()[BodyId::Deck.index()],
         [skater.skeleton.bodies()[3], skater.skeleton.bodies()[7]],

@@ -1,4 +1,3 @@
-//! PowerSliding Update82BB28E8, instance82BB2D70 and helper82595930.
 use super::motion_animation::MotionAnimation;
 use skate_core::input::set_turning::SlideLatch;
 use skate_core::{animation::playback_parameters::ParameterInputs, point_graph::PointGraph};
@@ -62,7 +61,6 @@ impl Operation {
     pub fn parse(a: &Attributes<'_>) -> Option<Self> {
         Some(match a.text("name")? {
             "PowerSliding" => Self::Update,
-            // Factory82BC9100 explicitly defaults authored right to true.
             "CreateSlide" => Self::Create {
                 right: a.boolean_byte("right", 1) != 0,
             },
@@ -148,12 +146,9 @@ impl State {
     }
 }
 
-///82595930 normalizes Motion80 with two root and reciprocal refinements,
-/// then dots the authored Reckoning Z, reversing for Motion273.
 pub fn direction(velocity: [f32; 4], mut z: [f32; 4], flipped: bool) -> f32 {
     use skate_core::riding::ground_correction_math::dot_product;
     let squared = dot_product(velocity, velocity);
-    //825959D4 ble also takes the unordered branch after fcmpu.
     if !(squared > f32::from_bits(0x3a83126f)) {
         return 1.0;
     }
@@ -173,7 +168,6 @@ pub fn direction(velocity: [f32; 4], mut z: [f32; 4], flipped: bool) -> f32 {
     dot_product(velocity.map(|v| v * inverse), z)
 }
 
-/// CreateSlide Update82BB2F60, ordered packet values (Slide, Turn).
 pub fn create(
     latch: &SlideLatch,
     authored_right: bool,
@@ -214,8 +208,6 @@ pub fn create(
     [slide, turn]
 }
 
-/// PowerSlideDecel82BB31B0: inverse Ground basis rotates velocity without
-/// translation. Source zeros local Y before measuring the horizontal speed.
 pub fn deceleration(
     previous: &mut f32,
     velocity: [f32; 4],
@@ -245,7 +237,6 @@ pub fn deceleration(
     *previous
 }
 
-/// PowerSlideSpin Begin82BB33C8; the input is GetSlideDirection82595930.
 pub fn spin(direction: f32, settings: &Settings) -> f32 {
     -settings.phys_to_anim_spin.evaluate(direction)
 }

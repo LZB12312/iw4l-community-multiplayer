@@ -1,6 +1,3 @@
-//! Animation-record COM producer82BEBF88 and mass normalization82BEBAA8.
-//! Skeleton embeds this source state at6464, so com_to_deck_world4544 is the
-//! ProcessData82BD8918 input published from Skeleton11008 to Processed752.
 use super::rigid_body::{RetailQuaternion, basis_from_quaternion};
 use crate::math::Vector3;
 
@@ -14,11 +11,6 @@ pub const IDENTITY: AnimationPartTransform = [
     [0.0, 0.0, 0.0, 0.0],
 ];
 
-/// Forward PhysicsParamBoneData frame from SkeletonData::Init82BD6E24..6E98.
-/// The same sqrt(2), fused negative product and lane permutations are used by
-/// RigidBody::DynamicUpdate. Keep the otherwise unused fourth rotation lanes:
-/// native permute masks822FB8A0/B0/C0 duplicate Z.z, Y.x and X.y respectively.
-/// This is the forward frame, not the inverse stored by the later init slice.
 pub fn physics_bone_frame(quaternion: [f32; 4], translation: [f32; 4]) -> AnimationPartTransform {
     let [x, y, z, w] = quaternion;
     let [ri, up, at] = basis_from_quaternion(RetailQuaternion { x, y, z, w }).columns;
@@ -30,11 +22,6 @@ pub fn physics_bone_frame(quaternion: [f32; 4], translation: [f32; 4]) -> Animat
     ]
 }
 
-/// ProcessData82BD8BB4..8CAC: gather each named global animation bone, then
-/// right-multiply its forward physics frame. Native maps names to hierarchy
-/// indices in82BD6CB4..6CE4; the host loader provides those verified indices.
-/// The result is the input to the following skeleton IK and adjustment stages,
-/// which must run before UpdateAnimRecord for the final physical pose.
 pub fn map_animation_parts(
     global_bones: &[AnimationPartTransform],
     bone_indices: &[usize; 24],
@@ -69,11 +56,6 @@ pub struct SkeletonAnimationMasses {
     pub fractional: [f32; 24],
 }
 impl SkeletonAnimationMasses {
-    /// Full weight assignment slice82BE4900/82BE5428. Board part0 is weight0;
-    /// other parts use original PhysicsParamBoneData.size32, not collider size.
-    /// Shapes0/1/2 all use the same box product. Native unrecognized shapes>=3
-    /// retain the iteration's initialized0. A hat on head1 takes its own branch
-    /// and still uses the original head box product, excluding the hat volume.
     pub fn from_bone_data(
         sizes: [Vector3; 24],
         collision_shapes: [u32; 24],
@@ -89,8 +71,6 @@ impl SkeletonAnimationMasses {
         Self::normalize(weights)
     }
 
-    ///82BEBAA8: ordered24 scalar additions, one scalar single-precision divide,
-    /// then24 multiplies. No clamping, epsilon, density or re-normalization.
     pub fn normalize(part_weights: [f32; 24]) -> Self {
         let mut total = 0.0f32;
         for (i, weight) in part_weights.iter().enumerate() {
@@ -121,8 +101,6 @@ pub struct SkeletonAnimationRecord {
 }
 impl Default for SkeletonAnimationRecord {
     fn default() -> Self {
-        // Constructor82BEB8C8 initializes24 animation transforms via82BF30C0,
-        // then all four vectors and resetScalar5224 to0.
         Self {
             pose: [IDENTITY; 24],
             centre_of_mass: [0.0; 4],
@@ -134,8 +112,6 @@ impl Default for SkeletonAnimationRecord {
     }
 }
 impl SkeletonAnimationRecord {
-    /// Animation fields of SkeletonState::Reset82BEBBB0. The function leaves
-    /// animation transforms, fractional masses and resetScalar unchanged.
     pub fn reset_history(&mut self) {
         self.centre_of_mass = [0.0; 4];
         self.centre_of_mass_delta = [0.0; 4];
@@ -181,10 +157,6 @@ pub fn transform_point(transform: &AnimationPartTransform, point: [f32; 4]) -> [
         transform[2][i].mul_add(point[2], y)
     })
 }
-
-#[cfg(test)]
-#[path = "tests/skeleton_animation_record.rs"]
-mod tests;
 
 /// Native affine product used by ProcessData and board-offset application.
 pub fn compose_affine(

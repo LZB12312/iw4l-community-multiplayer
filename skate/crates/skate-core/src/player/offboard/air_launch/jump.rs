@@ -1,5 +1,3 @@
-//! Mode4:82D7C0C0..C7F4. Secondary obstacle direction and primary impulse
-//! intentionally have different dataflow, and the source compares signed angles.
 use super::{PointGraph, Processed, Settings, Vector, controller, math::*};
 use crate::player::wipeout_state::orientation::projected_angle;
 
@@ -41,7 +39,6 @@ pub(super) fn calculate(
     let vertical = select(-vertical, 0.0, vertical);
     secondary = normalize_or(flatten(secondary), ZERO);
     let requested_turn = (turn.evaluate(state.motion.speed_704) * state.intent.steering) * RADIANS;
-    //82D7C6C4 reads Biped+688; +672 is the unrelated edge-position vector.
     let turn_center = state.motion.angular_velocity_688;
     let window = f32::from_bits(0x3fdf_66f3);
     let angle = clamp(

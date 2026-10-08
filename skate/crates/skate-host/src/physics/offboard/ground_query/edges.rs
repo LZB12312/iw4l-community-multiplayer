@@ -38,7 +38,6 @@ pub(super) fn candidates(scene: &Scene<'_>, search: &EdgeSearch) -> Vec<Edge> {
                     if squared >= 225. {
                         continue;
                     }
-                    //82C4C4E0 checks individual segment bounds, no asset bound gate.
                     append(&mut output, entry.segments, entry.local_to_world, query);
                     if output.len() == 40 {
                         break;

@@ -1,7 +1,3 @@
-//! Volume moments accumulated by TU3 82AE6CB8/82AE6D88/82AE6F88 and reduced
-//! to a local principal frame by 82AE7508. This is the aggregate mass producer;
-//! geometry construction and requested-mass scaling remain separate stages.
-
 use super::{PrimitiveMass, principal_axes::diagonalize, refined_reciprocal};
 use crate::math::{Basis3, Vector3};
 use crate::physics::rigid_body::RetailLocalMassFrame;
@@ -25,7 +21,6 @@ impl MassMoments {
         columns: [[0.0; 4]; 4],
     };
 
-    /// 82AE6CB8 converts primitive principal inertia into volume moments.
     pub fn from_primitive(primitive: PrimitiveMass) -> Self {
         let inertia = primitive.moments_per_unit_mass;
         let volume = primitive.volume;
@@ -42,8 +37,6 @@ impl MassMoments {
         }
     }
 
-    /// 82AE6D88: H * moments * transpose(H). The source explicitly sets the
-    /// basis fourth lanes to zero and the translation fourth lane to one.
     pub fn transform(&mut self, basis: Basis3, translation: Vector3) {
         let mut affine = [[0.0; 4]; 4];
         for (column, axis) in affine[..3].iter_mut().zip(basis.columns) {
@@ -56,8 +49,6 @@ impl MassMoments {
         });
     }
 
-    /// 82AE6F88 adds successful children in volume order, without weighting or
-    /// normalizing them individually. Collision-enable flags are not read here.
     pub fn add(&mut self, child: Self) {
         for (output, value) in self.columns.iter_mut().zip(child.columns) {
             for (output, value) in output.iter_mut().zip(value) {
@@ -66,8 +57,6 @@ impl MassMoments {
         }
     }
 
-    /// 82AE7508 mutates the aggregate into its center-of-mass frame before
-    /// diagonalizing its inertia. Preserve this mutation and native axis order.
     pub fn principal_properties(&mut self) -> AggregateMassProperties {
         let volume = self.columns[3][3];
         let inverse_volume = refined_reciprocal(volume);

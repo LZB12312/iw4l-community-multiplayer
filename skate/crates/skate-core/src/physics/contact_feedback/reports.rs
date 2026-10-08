@@ -12,9 +12,6 @@ pub struct ContactReportBuffer {
     pub records: [[u8; 96]; 16],
 }
 
-/// Container/locking boundary of 827682B0. The map operation inserts an absent
-/// Body key; clearing resets existing vector ends without erasing keys/storage.
-/// Allocated report slots and their padding are supplied by the backend.
 pub trait ContactReportBackend {
     fn lock(&mut self);
     fn clear_report_counts(&mut self);
@@ -25,8 +22,6 @@ pub trait ContactReportBackend {
     fn unlock(&mut self);
 }
 
-/// Complete 82768250 lookup lifetime: lock, operator[] (possibly inserts),
-/// unlock, return the live vector handle. No detached report copy is produced.
 pub fn get_contact_reports(body: u32, backend: &mut impl ContactReportBackend) -> usize {
     backend.lock();
     let handle = backend.get_or_insert_reports(body);
@@ -34,8 +29,6 @@ pub fn get_contact_reports(body: u32, backend: &mut impl ContactReportBackend) -
     handle
 }
 
-/// Live tree traversal and Body virtual+8 dispatch boundary of 827685C8.
-/// The backend retains native map order and resolves next after each callback.
 pub trait ContactReportDispatchBackend {
     fn first_report_entry(&mut self) -> Option<usize>;
     fn next_report_entry(&mut self, handle: usize) -> Option<usize>;
@@ -43,8 +36,6 @@ pub trait ContactReportDispatchBackend {
     fn dispatch_reports(&mut self, handle: usize);
 }
 
-/// Complete 827685C8. Visits every map entry, invokes only nonempty live vectors,
-/// and performs no list clearing or local locking around callbacks.
 pub fn resolve_contact_reports(backend: &mut impl ContactReportDispatchBackend) {
     let mut entry = backend.first_report_entry();
     while let Some(handle) = entry {
@@ -55,9 +46,6 @@ pub fn resolve_contact_reports(backend: &mut impl ContactReportDispatchBackend) 
     }
 }
 
-/// Complete 827682B0 report construction/filter/order, with its native map and
-/// lock operations supplied by the backend. `spy_base` retains native pointer
-/// identity; reports borrow that simulation storage through the consuming phase.
 pub fn create_contact_reports(
     spies: &[[u32; 28]],
     spy_base: u32,

@@ -1,5 +1,3 @@
-//! Original SkateboardController's lifecycle, TU3 82D74DD8/82D75EA0.
-//! This is the hand-held/retrieval controller. Normal riding stops it.
 use crate::player::lifecycle::{SkateboardControllerActions, SkateboardControllerFields};
 
 pub struct SkateboardController {
@@ -13,7 +11,6 @@ impl Default for SkateboardController {
 }
 impl SkateboardController {
     pub const fn new() -> Self {
-        //82D74EFC/4F00/4F04, after the retrieval-progress initializer.
         Self {
             fields: SkateboardControllerFields {
                 word_444: 0,
@@ -23,9 +20,6 @@ impl SkateboardController {
         }
     }
 
-    ///82D75EA0. PhysicalPlayer invokes this for requested states outside
-    ///500..502. The active-held release remains the real LetGoOfSkateboard
-    ///action; do not replace it with a transform reset or an empty callback.
     pub fn stop(&mut self, actions: &mut impl SkateboardControllerActions) {
         if !self.fields.system_on_452 {
             return;

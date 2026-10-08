@@ -1,6 +1,3 @@
-//! TU3 Skateboard::UpdateSpeedModel 82C04F68, including its force-enable gate.
-//! The caller supplies GetEffectiveTransform and GetMass outputs, not a guessed
-//! direction or mass. Ground submits this result as force tag 6.
 use super::vector::{clamp, dot3, normalize};
 use crate::point_graph::PointGraph;
 
@@ -26,7 +23,6 @@ pub struct SpeedModelSettings {
     /// Selected-mode layout +44 and +40.
     pub override_enabled: bool,
     pub override_speed: f32,
-    /// Live constants 830BD350 and 830BD380 (four native lanes each).
     pub normal_threshold: [f32; 4],
     pub override_direction_threshold: [f32; 4],
 }
@@ -54,9 +50,7 @@ pub struct SpeedModelInput {
     pub vector_352: [f32; 4],
     pub velocity_416: [f32; 4],
     pub normal_464: [f32; 4],
-    /// Z column of 82C01BF8's result; stance correction has already happened.
     pub effective_forward: [f32; 4],
-    /// 82C06F58 result, whose two-accumulator summation is implemented in mass.
     pub mass: f32,
 }
 

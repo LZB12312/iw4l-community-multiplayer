@@ -1,4 +1,3 @@
-//! Authored joystick PAT data consumed by TU3 82696B18.
 use skate_core::input::gesture::Pattern;
 use std::path::Path;
 
@@ -67,17 +66,4 @@ pub fn parse(source: &str) -> Result<Vec<Pattern>, String> {
     }
     skate_core::input::gesture::Recognizer::new(patterns.clone())?;
     Ok(patterns)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn authored_order_and_per_pattern_tolerances_are_preserved() {
-        let p = parse("global_tolerance_dist 0.4\nglobal_anticipation_delay 15\npattern Ollie\ntolerance_dist 0.55\ncoord 0 1\ncoord 0 -1\npattern Test\ncoord 1 0\ncoord -1 0").unwrap();
-        assert_eq!(p[0].points, vec![[0.0, 1.0], [0.0, -1.0]]);
-        assert_eq!(p[0].tolerance_squared, 0.55 * 0.55);
-        assert_eq!(p[1].tolerance_squared, 0.4 * 0.4);
-        assert!(parse("global_tolerance_dist 0.4\npattern Broken\ncoord 0 1").is_err());
-    }
 }

@@ -1,4 +1,3 @@
-//! Skeleton82BDE428: old-root COM, new root, shared drives, shared reckoning.
 use super::{GamePhysics, SkaterRuntime};
 use crate::physics::{
     input_phase, offboard::skeleton_ground::ReckoningUpdate, skeleton_input_runtime::SkeletonOwners,
@@ -32,7 +31,6 @@ pub(super) fn update(
     s.board_frames
         .update_com_lift(&old, s.board_frames.centre_of_mass, 0.);
     s.motion.trajectory = IDENTITY;
-    //82BE090C..0950 resets only packet bone0; inverse trajectory12112 survives.
     let packet = &mut skater.animation.packet;
     *packet
         .hierarchy

@@ -58,8 +58,6 @@ impl<'a> Scene<'a> {
     pub(crate) fn query(&self, query: &Query) -> Result<Vec<Record>, String> {
         native::query(&self.registry.objects, query).map_err(str::to_owned)
     }
-    ///8275F8D8 dispatches ONLY descriptor kinds1/2. Resolve the actual authored
-    ///spline geometry and CURRENT physical transform, not an old query result.
     pub(crate) fn resolve(&self, descriptor: Descriptor) -> Result<Option<Record>, String> {
         if !matches!(descriptor.kind, 1 | 2) {
             return Ok(None);

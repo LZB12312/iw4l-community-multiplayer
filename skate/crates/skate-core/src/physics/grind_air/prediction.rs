@@ -1,6 +1,5 @@
 use super::*;
 pub(super) type Samples = [[V; 5]; 12];
-///82D71430: frame zero is the actual processed deck; advance velocity before position.
 pub(super) fn project(
     input: Input,
     s: &Settings,
@@ -33,7 +32,6 @@ pub(super) fn project(
                 madd(board[1], p[1], madd(board[0], p[0], board[3])),
             )
         });
-        //82D71F40, preserve the target's literal post-ACos 90/180 fold.
         let forward = sub(samples[frame][1], samples[frame][4]);
         let projected = unit(sub(forward, scale(normal, dot(normal, forward))));
         let aligned = if dot(projected, rail) < 0. {

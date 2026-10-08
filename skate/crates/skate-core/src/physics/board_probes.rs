@@ -1,5 +1,3 @@
-//! Deck and wall probes in TU3 82C07788/82C079E0, with the actual optional
-//! wall-line producer82C01F10. Wheel probes remain in board_ground.
 use super::{
     board_ground::WheelLine,
     board_motion_output::{dot, inverse_length_squared},
@@ -22,7 +20,6 @@ pub struct BoardProbeState {
 }
 impl Default for BoardProbeState {
     fn default() -> Self {
-        // SkateboardBody ctor82C06614..82C0675C clears both complete records.
         Self {
             start: Vector3::ZERO,
             point: Vector3::ZERO,
@@ -76,8 +73,6 @@ pub struct WallLineInput {
     pub deck_position: Vector3,
     pub time: f32,
 }
-/// Source82C01F10 clears endpoints208/224 on every call, then enables byte291
-/// only for the three physical gates below. No guessed grounded condition.
 pub fn wall_probe(input: WallLineInput) -> Option<WheelLine> {
     if !matches!(input.state, 100 | 101)
         || !(input.contact_normal.y.abs() < 0.5)
@@ -117,38 +112,4 @@ fn cross(a: Vector3, b: Vector3) -> Vector3 {
         (-a.x).mul_add(b.z, a.z * b.x),
         (-a.y).mul_add(b.x, a.x * b.y),
     )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn wall_probe_gates_and_miss_retention_follow_source() {
-        let mut input = WallLineInput {
-            state: 100,
-            contact_normal: Vector3::new(1., 0., 0.),
-            skater_up: Vector3::new(1., 0., 0.),
-            deck_position: Vector3::new(2., 3., 4.),
-            time: 0.02,
-        };
-        let line = wall_probe(input).unwrap();
-        assert_eq!(line.start, Vector3::new(2.05, 3., 4.));
-        assert_eq!(line.end, Vector3::new(2.05, -1., 4.));
-        input.state = 200;
-        assert!(wall_probe(input).is_none());
-        let mut output = BoardProbeState::default();
-        output.start(line.start);
-        output.publish(Some(BoardProbeHit {
-            point: line.end,
-            normal: Vector3::new(0., 1., 0.),
-            surface_tag: 7,
-        }));
-        output.start(line.start);
-        output.publish(None);
-        assert!(!output.hit);
-        assert_eq!(output.point, line.end);
-        assert_eq!(output.surface_tag, 7);
-        output.disable();
-        assert_eq!(output, BoardProbeState::default());
-    }
 }

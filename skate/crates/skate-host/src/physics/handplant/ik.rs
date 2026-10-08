@@ -1,4 +1,3 @@
-//! HandPlantManager82D633B0 and Skeleton82BD9728/97D0, shared four-limb IK.
 use super::*;
 pub(super) fn update(skater: &mut SkaterRuntime, ground: bool) {
     let p = &skater.player_input.processed;
@@ -74,7 +73,6 @@ pub(super) fn update(skater: &mut SkaterRuntime, ground: bool) {
             },
     );
     if h.ik_blend > 0.0 {
-        //82BD9728 clamps against the authored reparented hand target.
         let original = point(
             &animated.roots.animation_to_world,
             animated.targets[limb][3],

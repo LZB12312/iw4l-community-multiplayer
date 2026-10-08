@@ -1,5 +1,3 @@
-//! BipedAir Skeleton82BDDD70 with the existing skeleton, drives and solver.
-//! The caller supplies the shared reckoning service; no second physics owner.
 use super::skeleton_ground::ReckoningUpdate;
 use crate::physics::{
     skeleton_air::SkeletonAir,
@@ -44,7 +42,6 @@ impl SkeletonInputRuntime {
         F: FnOnce(ReckoningUpdate, &ProcessedPhysicsInput, f32) -> Result<(), String>,
     {
         let s = &mut owners.animated;
-        //82BDEE08 and82BDE310 use the OLD root, before82BDDDC8 changes it.
         s.board_frames.skate_root = compose_affine(&s.roots.animation_to_world, &s.record.pose[0]);
         s.board_frames.update_com_lift(
             &s.roots.animation_to_world,

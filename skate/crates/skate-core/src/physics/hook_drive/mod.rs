@@ -17,8 +17,6 @@ pub struct HookDriveState {
 }
 
 impl HookDriveState {
-    /// Frame/dynamics initialization in 82C0D330. This does not manufacture the
-    /// separate hook assembly, allocate a drive, or choose a gameplay pose.
     pub fn initial() -> Self {
         let mut state = Self {
             frames: [0; 16],
@@ -33,28 +31,22 @@ impl HookDriveState {
         state
     }
 
-    /// 82C04708, including its inline linear enable and 82C0D5C0 call.
-    /// TU3 reads no caller strength multiplier here.
     pub fn enable_animation_soft(&mut self, animated: &mut u8) {
         *animated = 1;
         self.dynamics[..4].copy_from_slice(&soft(5000.0, f32::from_bits(0x44e0_fffe)));
         self.enable_angular_soft();
     }
 
-    /// Complete 82C0D5C0. Other fields and the caller's animated flag survive.
     pub fn enable_angular_soft(&mut self) {
         self.dynamics[4..].copy_from_slice(&soft(20000.0, f32::from_bits(0x470c_9fff)));
     }
 
-    /// Complete 82C05658: animated flag, angular soft, then linear hard/zero.
     pub fn enable_angular_only(&mut self, animated: &mut u8) {
         *animated = 1;
         self.enable_angular_soft();
         self.disable_linear();
     }
 
-    /// Inline Ground Enter82D375D0..5FC and LetGo82D75450..98 operation.
-    /// The blend flag and stored board quaternion are not inputs or outputs.
     pub fn disable_animation(&mut self, animated: &mut u8) {
         *animated = 0;
         self.disable_linear();

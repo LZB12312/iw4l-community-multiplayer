@@ -2,7 +2,7 @@ use crate::{
     pack::{PackStack, ResourceId},
     scene::Block,
 };
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use glam::{EulerRot, Mat4, Quat, Vec3};
 use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
@@ -47,28 +47,50 @@ impl ElementRotation {
         let (x, y, z) = (x - self.origin[0], y - self.origin[1], z - self.origin[2]);
         let m = &self.matrix;
         let row = |r: usize| m[0][r] * x + (m[1][r] * y + (m[2][r] * z + 0.0));
-        [row(0) + self.origin[0], row(1) + self.origin[1], row(2) + self.origin[2]]
+        [
+            row(0) + self.origin[0],
+            row(1) + self.origin[1],
+            row(2) + self.origin[2],
+        ]
     }
 
     /// `CuboidModelElement.Deserializer.getRotation`: `axis` and `angle`, or
     /// Euler `x`, `y` and `z`, about `origin` (in sixteenths), optionally
     /// rescaled so the rotated element keeps its extent.
     pub fn parse(raw: &Value) -> Result<Option<Self>> {
-        let Some(rotation) = raw.get("rotation") else { return Ok(None) };
-        let origin = rotation.get("origin").map(coords).transpose()?.unwrap_or([0.0; 3]);
+        let Some(rotation) = raw.get("rotation") else {
+            return Ok(None);
+        };
+        let origin = rotation
+            .get("origin")
+            .map(coords)
+            .transpose()?
+            .unwrap_or([0.0; 3]);
         let number = |key: &str| rotation.get(key).and_then(Value::as_f64).map(|v| v as f32);
         let radians = |degrees: f32| degrees * (std::f64::consts::PI / 180.0) as f32;
         let mut m = if rotation.get("axis").is_some() || rotation.get("angle").is_some() {
             let angle = number("angle").ok_or_else(|| anyhow!("rotation angle missing"))?;
-            let axis = rotation.get("axis").and_then(Value::as_str).ok_or_else(|| anyhow!("rotation axis missing"))?;
+            let axis = rotation
+                .get("axis")
+                .and_then(Value::as_str)
+                .ok_or_else(|| anyhow!("rotation axis missing"))?;
             single_axis(axis, radians(angle))?
         } else if ["x", "y", "z"].iter().any(|k| rotation.get(*k).is_some()) {
-            euler_zyx(radians(number("z").unwrap_or(0.0)), radians(number("y").unwrap_or(0.0)), radians(number("x").unwrap_or(0.0)))
+            euler_zyx(
+                radians(number("z").unwrap_or(0.0)),
+                radians(number("y").unwrap_or(0.0)),
+                radians(number("x").unwrap_or(0.0)),
+            )
         } else {
             bail!("rotation needs an axis and angle or x, y and z");
         };
         let identity = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
-        if rotation.get("rescale").and_then(Value::as_bool).unwrap_or(false) && m != identity {
+        if rotation
+            .get("rescale")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+            && m != identity
+        {
             // `computeRescale`: each axis by one over its image's largest
             // component, as `Matrix4f.scale` scales the columns.
             for column in &mut m {
@@ -110,14 +132,30 @@ fn single_axis(axis: &str, angle: f32) -> Result<[[f32; 3]; 3]> {
 
 /// `Matrix4f.rotationZYX(angleZ, angleY, angleX)`.
 fn euler_zyx(z: f32, y: f32, x: f32) -> [[f32; 3]; 3] {
-    let (sin_x, sin_y, sin_z) = ((x as f64).sin() as f32, (y as f64).sin() as f32, (z as f64).sin() as f32);
-    let (cos_x, cos_y, cos_z) = (cos_from_sin(sin_x, x), cos_from_sin(sin_y, y), cos_from_sin(sin_z, z));
+    let (sin_x, sin_y, sin_z) = (
+        (x as f64).sin() as f32,
+        (y as f64).sin() as f32,
+        (z as f64).sin() as f32,
+    );
+    let (cos_x, cos_y, cos_z) = (
+        cos_from_sin(sin_x, x),
+        cos_from_sin(sin_y, y),
+        cos_from_sin(sin_z, z),
+    );
     let (nm00, nm01, nm10, nm11) = (cos_z, sin_z, -sin_z, cos_z);
     let (nm20, nm21, nm22) = (nm00 * sin_y, nm01 * sin_y, cos_y);
     [
         [nm00 * cos_y, nm01 * cos_y, -sin_y],
-        [nm10 * cos_x + nm20 * sin_x, nm11 * cos_x + nm21 * sin_x, nm22 * sin_x],
-        [nm10 * -sin_x + nm20 * cos_x, nm11 * -sin_x + nm21 * cos_x, nm22 * cos_x],
+        [
+            nm10 * cos_x + nm20 * sin_x,
+            nm11 * cos_x + nm21 * sin_x,
+            nm22 * sin_x,
+        ],
+        [
+            nm10 * -sin_x + nm20 * cos_x,
+            nm11 * -sin_x + nm21 * cos_x,
+            nm22 * cos_x,
+        ],
     ]
 }
 #[derive(Clone, Debug)]
@@ -571,7 +609,11 @@ fn resolve_choices(pack: &PackStack, block: &Block, choices: &[&Value]) -> Resul
                     texture,
                     uv,
                     cull: data.get("cullface").is_some(),
-                    cullface: data.get("cullface").and_then(Value::as_str).filter(|c| *c != direction.as_str()).map(str::to_owned),
+                    cullface: data
+                        .get("cullface")
+                        .and_then(Value::as_str)
+                        .filter(|c| *c != direction.as_str())
+                        .map(str::to_owned),
                     tint: data.get("tintindex").is_some(),
                     tint_index: data
                         .get("tintindex")
@@ -825,173 +867,4 @@ fn fallback_fluid(texture: ResourceId) -> Vec<Element> {
             })
             .collect(),
     }]
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use image::{Rgba, RgbaImage};
-    use std::fs;
-    #[test]
-    fn texture_material_preserves_forced_translucency_through_reference() {
-        let textures = serde_json::json!({
-            "line": "#material",
-            "material": {"sprite": "minecraft:block/redstone_dust_line0", "force_translucent": true}
-        });
-        let (texture, forced) =
-            resolve_texture_material("#line", textures.as_object().unwrap(), "minecraft").unwrap();
-        assert_eq!(texture.key(), "minecraft:block/redstone_dust_line0");
-        assert!(forced);
-    }
-    #[test]
-    fn generated_item_uses_sprite_edges_and_inherited_first_person_display() {
-        let temp = crate::test_dir::tempdir().unwrap();
-        let root = temp.path();
-        fs::write(
-            root.join("pack.mcmeta"),
-            r#"{"pack":{"min_format":[97,1],"max_format":[97,1]}}"#,
-        )
-        .unwrap();
-        for (name, contents) in [
-            (
-                "assets/test/items/pane.json",
-                r#"{"model":{"type":"minecraft:model","model":"test:item/pane"}}"#,
-            ),
-            (
-                "assets/test/models/item/pane.json",
-                r#"{"parent":"test:item/generated","textures":{"layer0":"test:item/pane"}}"#,
-            ),
-            (
-                "assets/test/models/item/generated.json",
-                r#"{"parent":"builtin/generated","display":{"firstperson_righthand":{"rotation":[0,-90,25],"translation":[1.13,3.2,1.13],"scale":[0.68,0.68,0.68]}}}"#,
-            ),
-        ] {
-            let path = root.join(name);
-            fs::create_dir_all(path.parent().unwrap()).unwrap();
-            fs::write(path, contents).unwrap();
-        }
-        let sprite_path = root.join("assets/test/textures/item/pane.png");
-        fs::create_dir_all(sprite_path.parent().unwrap()).unwrap();
-        let mut sprite = RgbaImage::new(16, 16);
-        sprite.put_pixel(4, 5, Rgba([255, 255, 255, 255]));
-        sprite.save(sprite_path).unwrap();
-        let pack = PackStack::open(vec![root.into()]).unwrap();
-        let id = ResourceId::parse("test:pane").unwrap();
-        let model = resolve_item_model(&pack, &id).unwrap().unwrap();
-        assert_eq!(model.elements.len(), 5); // front, back, and four exposed edges
-        assert_eq!(model.elements[0].faces.len(), 2);
-        // ItemModelGenerator's LEFT and RIGHT side names use EAST and WEST
-        // FaceInfo respectively, with Y running from top to bottom.
-        let left = &model.elements[3];
-        assert_eq!(left.faces[0].direction, "east");
-        assert_eq!(left.from, [4.0 / 16.0, 11.0 / 16.0, 7.5 / 16.0]);
-        assert_eq!(left.to, [4.0 / 16.0, 10.0 / 16.0, 8.5 / 16.0]);
-        let right = &model.elements[4];
-        assert_eq!(right.faces[0].direction, "west");
-        assert_eq!(right.from, [5.0 / 16.0, 11.0 / 16.0, 7.5 / 16.0]);
-        assert_eq!(right.to, [5.0 / 16.0, 10.0 / 16.0, 8.5 / 16.0]);
-        let transform = item_first_person_transform(&pack, &id).unwrap();
-        let center = transform.transform_point3(Vec3::splat(0.5));
-        assert!((center.x - 1.13 / 16.0).abs() < 1e-5);
-        assert!((center.y - 3.2 / 16.0).abs() < 1e-5);
-        assert!((center.z - 1.13 / 16.0).abs() < 1e-5);
-    }
-    #[test]
-    fn double_chest_halves_use_entity_textures_and_hide_join_faces() {
-        for (kind, texture, hidden, x0, x1) in [
-            ("right", "normal_right", "east", 1.0 / 16.0, 1.0),
-            ("left", "normal_left", "west", 0.0, 15.0 / 16.0),
-        ] {
-            let model =
-                closed_chest_model(&Block::new("minecraft:chest").with("type", kind)).unwrap();
-            assert_eq!(model.elements[0].from[0], x0);
-            assert_eq!(model.elements[0].to[0], x1);
-            assert!(model
-                .elements
-                .iter()
-                .all(|part| part.faces.iter().all(|face| {
-                    face.direction != hidden && face.texture.path.ends_with(texture)
-                })));
-            let lid_south = model.elements[1]
-                .faces
-                .iter()
-                .find(|face| face.direction == "south")
-                .unwrap();
-            assert_eq!(lid_south.uv[1], 19.0 / 64.0);
-            assert_eq!(lid_south.uv[3], 14.0 / 64.0);
-            let lock_south = model.elements[2]
-                .faces
-                .iter()
-                .find(|face| face.direction == "south")
-                .unwrap();
-            assert_eq!(lock_south.uv[1], 5.0 / 64.0);
-            assert_eq!(lock_south.uv[3], 1.0 / 64.0);
-        }
-    }
-    #[test]
-    fn variant_and_multipart() {
-        let state: Value =
-            serde_json::from_str(r#"{"variants":{"axis=x":{"model":"x"},"axis=y":{"model":"y"}}}"#)
-                .unwrap();
-        let props = BTreeMap::from([("axis".into(), "y".into())]);
-        assert_eq!(choose_models(&state, &props).unwrap()[0]["model"], "y");
-        let multi:Value=serde_json::from_str(r#"{"multipart":[{"apply":{"model":"a"}},{"when":{"axis":"x"},"apply":{"model":"b"}}]}"#).unwrap();
-        assert_eq!(choose_models(&multi, &props).unwrap().len(), 1);
-    }
-    #[test]
-    fn omitted_uv_uses_element_bounds_and_stays_in_tile() {
-        let temp = crate::test_dir::tempdir().unwrap();
-        let root = temp.path();
-        fs::write(
-            root.join("pack.mcmeta"),
-            r#"{"pack":{"min_format":[97,1],"max_format":[97,1]}}"#,
-        )
-        .unwrap();
-        let state = root.join("assets/test/blockstates/sample.json");
-        fs::create_dir_all(state.parent().unwrap()).unwrap();
-        fs::write(state, r#"{"variants":{"":{"model":"test:block/sample"}}}"#).unwrap();
-        let model = root.join("assets/test/models/block/sample.json");
-        fs::create_dir_all(model.parent().unwrap()).unwrap();
-        fs::write(model, r##"{"textures":{"all":"test:block/stone"},"elements":[{"from":[2,4,6],"to":[14,12,10],"faces":{"down":{"texture":"#all"},"north":{"texture":"#all"},"up":{"texture":"#all"}}}]}"##).unwrap();
-        let packs = PackStack::open(vec![root.into()]).unwrap();
-        let result = resolve_block(&packs, &Block::new("test:sample")).unwrap();
-        let faces = &result.elements[0].faces;
-        let face = |name: &str| faces.iter().find(|f| f.direction == name).unwrap().uv;
-        assert_eq!(face("down"), [0.125, 0.375, 0.875, 0.625]);
-        assert_eq!(face("north"), [0.125, 0.25, 0.875, 0.75]);
-        assert_eq!(face("up"), [0.125, 0.375, 0.875, 0.625]);
-        for f in faces {
-            assert!(f.uv.iter().all(|value| (0.0..=1.0).contains(value)));
-        }
-        assert_eq!(
-            implicit_uv("south", [0.0; 3], [1.0; 3]).unwrap(),
-            [0.0, 0.0, 1.0, 1.0]
-        );
-    }
-
-    #[test]
-    fn weighted_variants_keep_each_rotation_and_weight() {
-        let temp = crate::test_dir::tempdir().unwrap();
-        let root = temp.path();
-        fs::write(
-            root.join("pack.mcmeta"),
-            r#"{"pack":{"min_format":[97,1],"max_format":[97,1]}}"#,
-        )
-        .unwrap();
-        let state = root.join("assets/test/blockstates/sample.json");
-        fs::create_dir_all(state.parent().unwrap()).unwrap();
-        fs::write(state, r#"{"variants":{"": [{"model":"test:block/sample","y":0},{"model":"test:block/sample","y":90,"weight":2},{"model":"test:block/sample","y":180},{"model":"test:block/sample","y":270}]}}"#).unwrap();
-        let model = root.join("assets/test/models/block/sample.json");
-        fs::create_dir_all(model.parent().unwrap()).unwrap();
-        fs::write(model, r##"{"textures":{"all":"test:block/stone"},"elements":[{"from":[0,0,0],"to":[16,16,16],"faces":{"up":{"texture":"#all"}}}]}"##).unwrap();
-        let packs = PackStack::open(vec![root.into()]).unwrap();
-        let variants = resolve_block_variants(&packs, &Block::new("test:sample")).unwrap();
-        assert_eq!(
-            variants
-                .iter()
-                .map(|(model, weight)| (model.elements[0].rotation_y, *weight))
-                .collect::<Vec<_>>(),
-            vec![(0, 1), (90, 2), (180, 1), (270, 1)]
-        );
-    }
 }

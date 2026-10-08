@@ -1,6 +1,5 @@
 use super::{Edge, EdgeSearch, EdgeSelection, Frame, QueryContext, math::*};
 use crate::math::Vector3;
-/// 82D32168..321C0 and82D32808. Inputs are the live Biped frame and state1040.
 pub fn edge_search(
     frame: Frame,
     context: QueryContext,
@@ -27,7 +26,6 @@ pub fn edge_search(
         narrow_forward,
     }
 }
-///82E09D28: finite-segment closest point, including the tiny-edge retain branch.
 pub fn closest_point(point: Vector3, edge: Edge) -> Vector3 {
     let mut d = sub(edge.end, edge.start);
     let l = length(d);
@@ -37,8 +35,6 @@ pub fn closest_point(point: Vector3, edge: Edge) -> Vector3 {
     let t = dot(d, sub(point, edge.start)).min(l).max(0.);
     madd(d, t, edge.start)
 }
-///82D32808: input candidates MUST retain provider order and its shared cap40.
-///Both distances must improve; this is not a nearest-distance sort.
 pub fn select_edge(search: EdgeSearch, candidates: &[Edge]) -> Option<EdgeSelection> {
     let mut best_vertical = 0.2;
     let mut best_horizontal = 1.5;

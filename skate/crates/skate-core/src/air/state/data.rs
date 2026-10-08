@@ -37,17 +37,22 @@ pub struct PhysicsAirState {
 }
 
 impl Default for PhysicsAirState {
-    ///Original constructor82D341D0: zero vectors80/96/112, -1 at128,
-    ///up144, zero160/164/168 and172..176. Entry is a separate operation.
     fn default() -> Self {
         Self {
             centre_of_mass_trajectory: AirTrajectory {
-                position: [0.0; 4], velocity: [0.0; 4], acceleration: [0.0; 4], scalar_48: -1.0,
+                position: [0.0; 4],
+                velocity: [0.0; 4],
+                acceleration: [0.0; 4],
+                scalar_48: -1.0,
             },
             landing_normal: [0.0, 1.0, 0.0, 0.0],
-            time_in_state: 0.0, start_y: 0.0, max_y: 0.0,
-            reached_apex: false, use_centre_of_mass_velocity: false,
-            selector_latch_174: false, trajectory_query_countdown: 0,
+            time_in_state: 0.0,
+            start_y: 0.0,
+            max_y: 0.0,
+            reached_apex: false,
+            use_centre_of_mass_velocity: false,
+            selector_latch_174: false,
+            trajectory_query_countdown: 0,
         }
     }
 }
@@ -92,7 +97,6 @@ pub struct PhysicsAirReckoningFields {
     pub body_spin_speed_1572: f32,
 }
 
-/// Native zero-initialized point-force record passed to `0x82D944E8`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AirBoardForce {
     pub force_world: Vector4,
@@ -106,8 +110,6 @@ impl AirBoardForce {
     };
 }
 
-/// Writes performed by `FillPhysOut` (`0x82D34E90`). `scalar_184_write` is
-/// `None` when native code leaves the existing PhysOut field untouched.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PhysicsAirOutput {
     pub is_at_apex: bool,

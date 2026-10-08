@@ -1,5 +1,3 @@
-//! Offboard state slot40 at82DB6DCC, after Skeleton feedback82DB6DB8 and
-//! before PostWipeoutCheck82DB6DF8 consumes the same request owner.
 use crate::physics::{GamePhysics, SkaterRuntime, biped_air, biped_ground, wipeout};
 use skate_core::player::{offboard::ground_lifecycle::CollisionInput, state::PhysicalStateId};
 

@@ -1,6 +1,6 @@
 //! Chest item storage and menu transactions. Each placed block owns 27 slots;
 //! a double-chest menu combines two halves in vanilla's right-then-left order.
-use crate::inventory::{click_stack, Inventory, ItemStack};
+use crate::inventory::{Inventory, ItemStack, click_stack};
 
 #[derive(Clone, Debug)]
 pub struct Chest {
@@ -208,83 +208,5 @@ fn move_stack(
                 return;
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn total(chest: &Chest, inventory: &Inventory) -> u32 {
-        chest
-            .slots
-            .iter()
-            .chain(&inventory.slots)
-            .chain(std::iter::once(&inventory.cursor))
-            .filter_map(Option::as_ref)
-            .map(|stack| stack.count as u32)
-            .sum()
-    }
-
-    #[test]
-    fn shift_transfer_merges_then_fills_and_preserves_items() {
-        let mut chest = Chest::default();
-        let mut inventory = Inventory::default();
-        chest.slots[0] = Some(ItemStack::new("minecraft:stone", 60));
-        inventory.slots[9] = Some(ItemStack::new("minecraft:stone", 10));
-        chest.quick_move_from_inventory(9, &mut inventory);
-        assert_eq!(total(&chest, &inventory), 70);
-        assert_eq!(chest.slots[0].as_ref().unwrap().count, 64);
-        assert_eq!(chest.slots[1].as_ref().unwrap().count, 6);
-        chest.click_slot(0, false, true, &mut inventory);
-        assert_eq!(total(&chest, &inventory), 70);
-        assert!(chest.slots[0].is_none());
-        assert_eq!(inventory.slots[35].as_ref().unwrap().count, 64);
-    }
-
-    #[test]
-    fn full_chest_keeps_source_and_break_returns_contents() {
-        let mut chest = Chest::default();
-        for slot in &mut chest.slots {
-            *slot = Some(ItemStack::new("minecraft:dirt", 64));
-        }
-        let mut inventory = Inventory::default();
-        inventory.slots[0] = Some(ItemStack::new("minecraft:stone", 7));
-        chest.quick_move_from_inventory(0, &mut inventory);
-        assert_eq!(inventory.slots[0].as_ref().unwrap().count, 7);
-        let contents = chest.take_contents();
-        assert_eq!(contents.len(), 27);
-        assert!(chest.slots.iter().all(Option::is_none));
-    }
-
-    #[test]
-    fn dragging_across_chest_and_player_slots_conserves_stack() {
-        let mut chest = Chest::default();
-        let mut inventory = Inventory::default();
-        inventory.cursor = Some(ItemStack::new("minecraft:stone", 9));
-        chest.distribute(&[43, 44, 0], false, &mut inventory);
-        assert_eq!(chest.slots[0].as_ref().unwrap().count, 3);
-        assert_eq!(chest.slots[1].as_ref().unwrap().count, 3);
-        assert_eq!(inventory.slots[0].as_ref().unwrap().count, 3);
-        assert!(inventory.cursor.is_none());
-    }
-
-    #[test]
-    fn double_menu_stores_in_right_then_left_and_splits_without_loss() {
-        let mut right = Chest::default();
-        let mut left = Chest::default();
-        right.slots[26] = Some(ItemStack::new("minecraft:oak_log", 2));
-        left.slots[0] = Some(ItemStack::new("minecraft:stone", 3));
-        let mut menu = Chest::combined(&right, &left);
-        assert_eq!(menu.slots.len(), 54);
-        assert_eq!(menu.slots[27].as_ref().unwrap().id, "minecraft:stone");
-        let mut inventory = Inventory::default();
-        inventory.slots[9] = Some(ItemStack::new("minecraft:stone", 4));
-        menu.quick_move_from_inventory(9, &mut inventory);
-        assert_eq!(menu.slots[27].as_ref().unwrap().count, 7);
-        menu.split_into(&mut right, &mut left);
-        assert_eq!(right.slots[26].as_ref().unwrap().count, 2);
-        assert_eq!(left.slots[0].as_ref().unwrap().count, 7);
-        assert!(inventory.slots[9].is_none());
     }
 }

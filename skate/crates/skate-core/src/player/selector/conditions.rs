@@ -1,5 +1,3 @@
-//! Small predicates called by TU3 `CalcSuggestedState` (`0x82D8ADE8`).
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BoardBodyState {
     /// `SkateboardBody + 856`.
@@ -15,7 +13,6 @@ pub struct TwoStageThresholds {
     pub field_7692: f32,
 }
 
-/// TU3 `0x82D8BBB8`. All comparisons are strict, matching `fcmpu`/`bgt`.
 pub fn condition_is_off_ground_skitching(
     body: BoardBodyState,
     thresholds: TwoStageThresholds,
@@ -25,8 +22,6 @@ pub fn condition_is_off_ground_skitching(
             && body.field_7692 > thresholds.field_7692)
 }
 
-/// TU3 `0x82D8BD50`. The separate settings source is intentional: the native
-/// function reads these three values from the live physics-mode collection.
 pub fn condition_is_off_ground(body: BoardBodyState, thresholds: TwoStageThresholds) -> bool {
     body.field_856 > thresholds.field_856_primary
         || (body.field_856 > thresholds.field_856_secondary
@@ -43,7 +38,6 @@ pub struct SkeletonAnimationState {
     pub threshold_800: f32,
 }
 
-/// TU3 `0x82BDC6C8`. The native absolute value clears the scalar sign bit.
 pub fn is_skateboard_animated(input: SkeletonAnimationState) -> bool {
     if input.mode_16420 == 2 {
         return true;

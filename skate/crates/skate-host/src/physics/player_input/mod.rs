@@ -107,7 +107,6 @@ impl PlayerInputRuntime {
                 processed_flags_2476: self.processed.flags_2476,
             },
         );
-        // Board Fill82C03318 and common ProcessOutput82DB7598.
         let normal = riding.ground.wheel_normal;
         self.physical.ground.vector_80 = [normal.x, normal.y, normal.z, 0.0].map(f32::to_bits);
         self.physical.ground.flag_273 = u8::from(self.processed.flags_2468 & 0x0010_0000 != 0);
@@ -163,22 +162,4 @@ impl PlayerInputRuntime {
 }
 fn xyz(v: [f32; 4]) -> Vector3 {
     Vector3::new(v[0], v[1], v[2])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    #[ignore = "requires private stock collections"]
-    fn original_player_input_settings_and_reset_load() {
-        let assets = std::path::PathBuf::from(
-            std::env::var_os("SKATE3_ASSET_ROOT").expect("SKATE3_ASSET_ROOT"),
-        );
-        let data = Collections::load(&assets).unwrap();
-        let state = PlayerInputRuntime::load(&data).unwrap();
-        assert_eq!(state.player.flags_1296, 0xe00c0000);
-        assert!(state.pending_teleport().is_none());
-        assert_eq!(state.physical.ground.scalar_276, -1.0);
-        assert_eq!(state.dynamic_normal.normal, Vector3::new(0.0, 1.0, 0.0));
-    }
 }

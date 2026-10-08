@@ -1,4 +1,3 @@
-//! Type11 layout from original 82D1BEA0, 82D26CC0 and 82D26FF8.
 use super::validate_name;
 use crate::abin::{Error, Reader, RecordHeader, Result};
 use serde::Deserialize;

@@ -1,5 +1,3 @@
-//! Math::_TwoBoneIKSolve8296F8C0, TU3 complete reachable/recursive/invalid path.
-//! Plane construction uses the native general inverse, not a rigid transpose.
 use super::math::{Vector, cross, inverse_affine, length, normalize, reciprocal};
 use crate::{
     physics::{
@@ -22,9 +20,9 @@ pub struct AngleLimits {
     pub maximum_degrees: f32,
 }
 
-const EPSILON: f32 = f32::from_bits(0x3A03_126F); //830BD4B0 <-821A0318
-const TO_DEGREES: f32 = f32::from_bits(0x4265_2EE1); //830BD390
-const TO_RADIANS: f32 = f32::from_bits(0x3C8E_FA35); //830BD360
+const EPSILON: f32 = f32::from_bits(0x3A03_126F);
+const TO_DEGREES: f32 = f32::from_bits(0x4265_2EE1);
+const TO_RADIANS: f32 = f32::from_bits(0x3C8E_FA35);
 
 pub fn solve(
     root: Vector,
@@ -135,8 +133,6 @@ pub fn solve(
     {
         target_angle *= -1.0;
     }
-    // The target heading is an addend *inside* this acos in the TU3 body
-    // (vmaddfp82970088). Preserve it rather than fitting a textbook IK formula.
     let ratio = reciprocal(twice_upper * distance, 2).mul_add(
         (upper_squared + planar_squared) - lower_squared,
         target_angle,
@@ -165,8 +161,6 @@ pub fn solve(
     SolveResult::Solved
 }
 
-///The source uses830BD310=0 and830BD430=1 for these clamps. The lower
-///constant is not minus one; its initializer82F82718 loads82165A10.
 fn clamp_native_cosine(value: f32) -> f32 {
     vector_min(1.0, vector_max(0.0, value))
 }

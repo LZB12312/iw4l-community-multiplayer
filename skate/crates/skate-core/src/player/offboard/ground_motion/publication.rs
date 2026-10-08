@@ -1,4 +1,3 @@
-//!82D80CE0: published frame copy and retained positional correction decay.
 use super::math::*;
 use super::{GroundMotionState, Vector};
 pub(super) fn update(s: &mut GroundMotionState, displacement: Vector) {

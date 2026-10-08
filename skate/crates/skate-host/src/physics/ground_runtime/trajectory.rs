@@ -1,8 +1,3 @@
-//! Ground ordinary tail82D749D0 cancels pending trajectory work and clears
-//!published validity. Rust owns the request lifetime; no guest pool is copied.
-///The caller's actual pending request type can cancel work on Drop. Prediction
-///data may remain cached, as native Reset clears validity rather than erasing
-///all output vectors. Lower six flags retain their existing values.
 pub(crate) struct GroundTrajectoryState<T> {
     pub pending_request: Option<T>,
     pub primary_valid_288: bool,

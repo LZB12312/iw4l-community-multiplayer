@@ -1,5 +1,3 @@
-//! Stock bindings for original82C02388. Hashes were matched to the actual
-//! collection names; XML layoutC85F0-C8190 verifies curve offset1120.
 use skate_core::{physics::board_dynamic_normal::DynamicNormalSettings, point_graph::PointGraph};
 use skate_data::collections::Collections;
 pub(crate) fn settings(data: &Collections) -> Result<DynamicNormalSettings, String> {

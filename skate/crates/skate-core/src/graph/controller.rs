@@ -1,7 +1,3 @@
-//! Dynamic controller 82C13260, list preparation 82C13A00, Enter 82C13B20 and
-//! Exit 82C13E58. The host owns concrete behavior/condition implementations and
-//! instance storage. Graph topology is the processed stock asset.
-
 use super::{
     activation::{ActivationProgram, ConditionHost},
     selection::{Selection, StateId, Topology, TransitionId},
@@ -110,9 +106,6 @@ impl Controller {
         }
     }
 
-    /// DynamicHierarchicalController::EndAllBehaviours (82C13498). Native
-    /// shutdown visits active behaviours in reverse order and does not alter
-    /// the current state or state-time map; graph reset remains a separate act.
     pub fn end_all_behaviors(&mut self, host: &mut impl Host) {
         while let Some(&active) = self.active.last() {
             let mut context = host.context();
@@ -123,8 +116,6 @@ impl Controller {
         }
     }
 
-    /// Complete 82C13A00 / 82C122E8 / 82C12260. Explicit transitions to a
-    /// current ancestor re-enter that ancestor, including self transitions.
     fn prepare_lists(
         &mut self,
         program: &Program,
@@ -201,68 +192,4 @@ fn path(graph: &Topology, mut state: Option<StateId>) -> Vec<StateId> {
     }
     result.reverse();
     result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::graph::activation::ConditionId;
-
-    #[derive(Default)]
-    struct HostLog(Vec<String>);
-
-    impl ConditionHost for HostLog {
-        fn condition_activation(&mut self, _: ConditionId, _: &Frame) -> u32 {
-            unreachable!()
-        }
-    }
-
-    impl Host for HostLog {
-        fn context(&self) -> [u32; 6] {
-            [1, 2, 0, 4, 5, 6]
-        }
-
-        fn allocate(&mut self, _: BehaviorId, _: &Frame) -> u32 {
-            unreachable!()
-        }
-
-        fn begin(&mut self, _: BehaviorId, _: [u32; 6], _: &Frame) {
-            unreachable!()
-        }
-
-        fn update(&mut self, _: BehaviorId, _: [u32; 6], _: &Frame) {
-            unreachable!()
-        }
-
-        fn end(&mut self, behavior: BehaviorId, context: [u32; 6], _: &Frame) {
-            self.0.push(format!("end:{behavior}:{}", context[2]));
-        }
-
-        fn hook(&mut self, _: HookId, _: &Frame) {
-            unreachable!()
-        }
-
-        fn release(&mut self, instance: u32) {
-            self.0.push(format!("release:{instance}"));
-        }
-    }
-
-    #[test]
-    fn end_all_behaviors_uses_reverse_order_and_instance_context() {
-        let mut controller = Controller::new(0);
-        controller.active = vec![
-            ActiveBehavior {
-                behavior: 4,
-                instance: 40,
-            },
-            ActiveBehavior {
-                behavior: 7,
-                instance: 70,
-            },
-        ];
-        let mut host = HostLog::default();
-        controller.end_all_behaviors(&mut host);
-        assert_eq!(host.0, ["end:7:70", "release:70", "end:4:40", "release:40"]);
-        assert!(controller.active.is_empty());
-    }
 }

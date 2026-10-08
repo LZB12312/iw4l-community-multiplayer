@@ -1,7 +1,3 @@
-//! Physical publications consumed by riding animation, TU3 82DB6EC0.
-//!
-//! This receives the actual board, Pumping, SpeedWobble and Reckoning results.
-//! It does not reconstruct the skater frame from the deck or rendered pose.
 use crate::{
     animation::{crouching, ground_acceleration},
     input::{set_turning, turn_conditioner},
@@ -16,7 +12,6 @@ use crate::{
 pub struct ReckoningFeedback {
     /// PhysOutSystemReckoning+64.
     pub system_position: Vector3,
-    /// Reckoning+1152 -> PhysOutSystemReckoning+96 at82DB7068.
     pub system_up: Vector3,
     /// PhysOutDeck+48.
     pub board_position: Vector3,
@@ -39,16 +34,12 @@ pub struct PhysicalFeedback {
     pub turning: set_turning::Physical,
     pub crouching: crouching::Physical,
     pub pumping_acceleration: f32,
-    /// PhysOutAnimation112, conditioned actual deck acceleration82DF0508.
     pub ground_acceleration: [f32; 4],
-    /// Original IsBumped82BA7310 evaluated with anim_motion/bumps.
     pub bumped: bool,
     /// Complete PhysOutAnimation32..60, retained for other native consumers.
     pub conditioned_turn: turn_conditioner::Output,
 }
 
-/// Postphysics publication followed by the animation turn conditioner82DEFF38.
-/// Stateful filtering happens once per conditioner update, without a dt factor.
 pub fn publish(
     state: &mut turn_conditioner::State,
     settings: &turn_conditioner::Settings,
@@ -68,7 +59,6 @@ pub fn publish(
         state,
         turn_conditioner::Input {
             body_160: motion.speed,
-            // Skateboard::FillPhysOut82C03230..3238 reads Wobble+36.
             body_176: f32::from_bits(wobble.0[5]),
             bundle_36_field_160: lean,
             bundle_32_field_264: controls.turn,
@@ -79,8 +69,6 @@ pub fn publish(
     );
     let system = vector(reckoning.system_position);
     let board = vector(reckoning.board_position);
-    //82DB7A38..7A54: vsubfp followed by vmsum3fp. The isolated native
-    // arithmetic retains its documented host approximation boundary.
     let difference = core::array::from_fn(|lane| {
         flush_subnormal(flush_subnormal(system[lane]) - flush_subnormal(board[lane]))
     });
@@ -97,7 +85,6 @@ pub fn publish(
         crouching: crouching::Physical {
             body_84: motion.linear_velocity.y,
             body_164: motion.ground_speed,
-            //82C02CF0 copies Pumping+44, named mPumpPotential in S2 FillPhysOut.
             body_188: pumping.pumping,
             force_516: pumping.absorption,
             ground_force_520: pumping.ground_normal_absorption,

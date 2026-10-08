@@ -16,7 +16,6 @@ impl Operation {
     pub fn parse(a: &Attributes<'_>) -> Option<Self> {
         match a.text("name")? {
             "ResetTimeSinceKickturn" => Some(Self::ResetTimer),
-            //82BC7218: both constructor defaults are literal8209975C=0.5.
             "KickTurnSteering" => Some(Self::Steering(kickturn::Parameters {
                 max_height: f32::from_bits(a.float_bits("maxHeight", 0x3f000000)),
                 spin_scale: f32::from_bits(a.float_bits("spinScale", 0x3f000000)),
@@ -27,8 +26,6 @@ impl Operation {
 }
 
 pub fn load_settings(data: &Collections) -> Result<kickturn::Settings, String> {
-    //Original8289FB90..FBB0 binds Globals324 to A168897919752875,
-    //the independently verified stock anim_motion/kickturn collection key.
     let curve = |name| -> Result<PointGraph<8>, String> {
         let words = data.words::<20>("anim_motion", "kickturn", name)?;
         Ok(PointGraph {
@@ -54,26 +51,19 @@ pub fn execute(
         state.begin(settings);
         return Ok(());
     }
-    //Native End82B61BB8 is the no-op lifecycle method.
     if phase != 1 {
         return Ok(());
     }
     if state.needs_animation_length() {
-        //82BAE51C..560: IAnimatable84 applies pending parameters through
-        //82D18F98, then v48 supplies the tree for GetLength(v20).
         animation.apply_parameters()?;
         state.capture_animation_length(animation.current_length()?);
     }
-    //Original830BE1E0 initializer82F84BC8 identifies KickTurn. HasIntent's
-    //destination is initialized to0; an absent/zero intent retains the sign.
     let output = state.update(
         dt,
         animation.motion_intent("KickTurn").unwrap_or(0.0),
         parameters,
         settings,
     );
-    //MGspecific v16=8258F6E0 appends attributes, not animation parameters.
-    //82F85A08/82F858D0 identify the two original names and this order.
     animation.emit_packet(encode(b"Balance"), output.balance);
     animation.emit_packet(encode(b"Spin"), output.spin);
     Ok(())

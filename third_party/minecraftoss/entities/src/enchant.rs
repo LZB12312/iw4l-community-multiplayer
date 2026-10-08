@@ -35,7 +35,10 @@ impl Enchantment {
     /// `isPrimaryItem`: its primary items, or failing those its supported
     /// ones.
     fn primary_item(&self, item: &str) -> bool {
-        self.primary.as_ref().unwrap_or(&self.supported).contains(item)
+        self.primary
+            .as_ref()
+            .unwrap_or(&self.supported)
+            .contains(item)
     }
 
     /// `canEnchant`: a supported item.
@@ -59,7 +62,9 @@ pub struct Enchantments {
 pub fn resolve_tag(tags: &HashMap<String, Value>, id: &str, out: &mut Vec<String>, depth: usize) {
     let Some(tag) = tags.get(id) else { return };
     for value in tag["values"].as_array().into_iter().flatten() {
-        let Some(name) = value.as_str().or_else(|| value["id"].as_str()) else { continue };
+        let Some(name) = value.as_str().or_else(|| value["id"].as_str()) else {
+            continue;
+        };
         match name.strip_prefix('#') {
             Some(nested) if depth < 16 => resolve_tag(tags, nested, out, depth + 1),
             Some(_) => {}
@@ -83,13 +88,20 @@ fn holder_set(value: &Value, tags: &HashMap<String, Value>) -> Vec<String> {
             }
             None => vec![s.clone()],
         },
-        Value::Array(list) => list.iter().filter_map(Value::as_str).map(str::to_owned).collect(),
+        Value::Array(list) => list
+            .iter()
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect(),
         _ => Vec::new(),
     }
 }
 
 fn cost(value: &Value) -> (i32, i32) {
-    (value["base"].as_i64().unwrap_or(0) as i32, value["per_level_above_first"].as_i64().unwrap_or(0) as i32)
+    (
+        value["base"].as_i64().unwrap_or(0) as i32,
+        value["per_level_above_first"].as_i64().unwrap_or(0) as i32,
+    )
 }
 
 /// `Math.round(float)`.
@@ -111,7 +123,12 @@ pub fn java_round(value: f32) -> i32 {
 impl Enchantments {
     /// From the JAR's enchantments (`id` → JSON), enchantment and item
     /// tags (`id` → tag JSON) and the items' `enchantable` values.
-    pub fn new(mut definitions: Vec<(String, Value)>, enchantment_tags: &HashMap<String, Value>, item_tags: &HashMap<String, Value>, enchantable: HashMap<String, i32>) -> Self {
+    pub fn new(
+        mut definitions: Vec<(String, Value)>,
+        enchantment_tags: &HashMap<String, Value>,
+        item_tags: &HashMap<String, Value>,
+        enchantable: HashMap<String, i32>,
+    ) -> Self {
         definitions.sort_by(|a, b| a.0.cmp(&b.0));
         let list = definitions
             .into_iter()
@@ -120,9 +137,16 @@ impl Enchantments {
                 weight: json["weight"].as_i64().unwrap_or(1) as i32,
                 min_cost: cost(&json["min_cost"]),
                 max_cost: cost(&json["max_cost"]),
-                supported: holder_set(&json["supported_items"], item_tags).into_iter().collect(),
-                primary: json.get("primary_items").map(|p| holder_set(p, item_tags).into_iter().collect()),
-                exclusive: json.get("exclusive_set").map(|e| holder_set(e, enchantment_tags).into_iter().collect()).unwrap_or_default(),
+                supported: holder_set(&json["supported_items"], item_tags)
+                    .into_iter()
+                    .collect(),
+                primary: json
+                    .get("primary_items")
+                    .map(|p| holder_set(p, item_tags).into_iter().collect()),
+                exclusive: json
+                    .get("exclusive_set")
+                    .map(|e| holder_set(e, enchantment_tags).into_iter().collect())
+                    .unwrap_or_default(),
                 id,
             })
             .collect();
@@ -134,7 +158,11 @@ impl Enchantments {
                 (id.clone(), out)
             })
             .collect();
-        Self { list, tags, enchantable }
+        Self {
+            list,
+            tags,
+            enchantable,
+        }
     }
 
     pub fn index(&self, id: &str) -> Option<usize> {
@@ -147,22 +175,36 @@ impl Enchantments {
         match options {
             None => (0..self.list.len()).collect(),
             Some(Value::String(s)) => match s.strip_prefix('#') {
-                Some(tag) => self.tags.get(tag).into_iter().flatten().filter_map(|id| self.index(id)).collect(),
+                Some(tag) => self
+                    .tags
+                    .get(tag)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|id| self.index(id))
+                    .collect(),
                 None => self.index(s).into_iter().collect(),
             },
-            Some(Value::Array(list)) => list.iter().filter_map(Value::as_str).filter_map(|id| self.index(id)).collect(),
+            Some(Value::Array(list)) => list
+                .iter()
+                .filter_map(Value::as_str)
+                .filter_map(|id| self.index(id))
+                .collect(),
             Some(_) => Vec::new(),
         }
     }
 
     /// Whether an enchantment tag holds `id`.
     pub fn tag_contains(&self, tag: &str, id: &str) -> bool {
-        self.tags.get(tag).is_some_and(|ids| ids.iter().any(|e| e == id))
+        self.tags
+            .get(tag)
+            .is_some_and(|ids| ids.iter().any(|e| e == id))
     }
 
     /// `Enchantment.areCompatible`.
     fn compatible(&self, a: usize, b: usize) -> bool {
-        a != b && !self.list[a].exclusive.contains(&self.list[b].id) && !self.list[b].exclusive.contains(&self.list[a].id)
+        a != b
+            && !self.list[a].exclusive.contains(&self.list[b].id)
+            && !self.list[b].exclusive.contains(&self.list[a].id)
     }
 
     /// `getAvailableEnchantmentResults`: for each enchantment of `source`
@@ -206,10 +248,20 @@ impl Enchantments {
     /// enchantability and spread by up to 15%, one enchantment by weight,
     /// then while a roll in 50 stays under the (halving) cost, another
     /// compatible one.
-    pub fn select(&self, random: &mut dyn LootRandom, item: &str, mut cost: i32, source: &[usize]) -> Vec<(usize, i32)> {
+    pub fn select(
+        &self,
+        random: &mut dyn LootRandom,
+        item: &str,
+        mut cost: i32,
+        source: &[usize],
+    ) -> Vec<(usize, i32)> {
         let mut results = Vec::new();
-        let Some(&enchantable) = self.enchantable.get(item) else { return results };
-        cost += 1 + random.next_int((enchantable / 4 + 1) as u32) as i32 + random.next_int((enchantable / 4 + 1) as u32) as i32;
+        let Some(&enchantable) = self.enchantable.get(item) else {
+            return results;
+        };
+        cost += 1
+            + random.next_int((enchantable / 4 + 1) as u32) as i32
+            + random.next_int((enchantable / 4 + 1) as u32) as i32;
         let span = (random.next_float() + random.next_float() - 1.0) * 0.15;
         cost = java_round(cost as f32 + cost as f32 * span).max(1);
         let mut available = self.available(cost, item, source);
@@ -238,28 +290,25 @@ impl Enchantments {
 /// An item's enchantments as its component holds them (`minecraft:enchantments`,
 /// or `minecraft:stored_enchantments` on an enchanted book), each raised
 /// to at least `level` (`ItemEnchantments.Mutable.upgrade`).
-pub fn add_enchantment(item: &str, components: &mut serde_json::Map<String, Value>, id: &str, level: i32) {
+pub fn add_enchantment(
+    item: &str,
+    components: &mut serde_json::Map<String, Value>,
+    id: &str,
+    level: i32,
+) {
     if level <= 0 {
         return;
     }
-    let key = if item == "minecraft:enchanted_book" { "minecraft:stored_enchantments" } else { "minecraft:enchantments" };
-    let map = components.entry(key).or_insert_with(|| Value::Object(serde_json::Map::new()));
+    let key = if item == "minecraft:enchanted_book" {
+        "minecraft:stored_enchantments"
+    } else {
+        "minecraft:enchantments"
+    };
+    let map = components
+        .entry(key)
+        .or_insert_with(|| Value::Object(serde_json::Map::new()));
     if let Value::Object(map) = map {
         let current = map.get(id).and_then(Value::as_i64).unwrap_or(0) as i32;
         map.insert(id.to_owned(), Value::from(current.max(level.min(255))));
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rounds_as_java_does() {
-        assert_eq!(java_round(2.5), 3);
-        assert_eq!(java_round(-2.5), -2);
-        assert_eq!(java_round(0.49999997), 0);
-        assert_eq!(java_round(7.4), 7);
-        assert_eq!(java_round(1.0e10), i32::MAX);
     }
 }

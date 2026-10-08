@@ -1,4 +1,3 @@
-//! GroundSlopeType: TU3 ctor82BA7BD8 and condition82BA7E80.
 use skate_data::state_graph::attributes::Attributes;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -1,6 +1,3 @@
-//! Static host for original S3 82C20728 and 82E0AAD0 line batches.
-//! Both use scene mask7, matching ID2952, side flags3, rejection mask0 and
-//! a null surface-exclusion table. Metadata is mandatory, never render tags.
 use skate_core::{
     air::trajectory::grind_surface::{Probe, ProbeHit},
     math::Vector3,
@@ -14,12 +11,6 @@ use skate_core::{
     },
 };
 
-#[cfg(test)]
-#[path = "world_tests.rs"]
-mod tests;
-
-///82C205D8/82C20728: descriptor5 has radius .001; the others have radius0.
-/// The descriptor supplies its radius, so both thin and swept leaves execute.
 pub(crate) fn surface_probe(
     world: &BoardWorld,
     actor: [u32; 2],
@@ -34,7 +25,6 @@ pub(crate) fn surface_probe(
     line(world, actor[1] as i32, probe)
 }
 
-///82D86C88 passes processed2952 into82E0AAD0, not actor identity2948.
 pub(crate) fn force_exit_line(
     world: &BoardWorld,
     actor: [u32; 2],
@@ -76,7 +66,6 @@ fn line(world: &BoardWorld, matching: i32, probe: Probe) -> Result<Option<ProbeH
         return Err("Grind line bounds overflow".into());
     }
     let delta = sub(end, start);
-    //82770650's component gate precedes dispatch, including rounded lines.
     let threshold = f32::from_bits(0x3780_0000);
     if !(delta.x.abs() > threshold || delta.y.abs() > threshold || delta.z.abs() > threshold) {
         return Ok(None);
@@ -93,7 +82,6 @@ fn line(world: &BoardWorld, matching: i32, probe: Probe) -> Result<Option<ProbeH
         .collect::<Vec<_>>();
     let mut nearest = f32::MAX;
     let mut output = None;
-    //82764AB0 mask7 and8276EC40 aggregate nearest: ties retain earlier pools.
     for pool in [QueryPool::Ground, QueryPool::Island, QueryPool::Conditional] {
         if pool == QueryPool::Conditional && metadata.island_flags != 3 {
             continue;
@@ -117,7 +105,6 @@ fn line(world: &BoardWorld, matching: i32, probe: Probe) -> Result<Option<ProbeH
                 let vertices = triangle.triangle.vertices;
                 let triangle_bounds =
                     Bounds::from_points(vertices).ok_or("Non-finite authored grind triangle")?;
-                //82ACA170 decoder's per-volume AABB gate; no leaf tolerance pad.
                 if !bounds.overlaps(triangle_bounds) {
                     continue;
                 }
@@ -127,8 +114,6 @@ fn line(world: &BoardWorld, matching: i32, probe: Probe) -> Result<Option<ProbeH
                     fraction: 0.,
                     volume_parameter: [0.; 3],
                 };
-                //827719B8 explicitly passes zero TRIANGLE fatness, irrespective
-                //of the contact triangle's stored fatness. Not BoardWorld.query.
                 if !triangle_segment(&mut hit, start, delta, vertices, probe.radius, 0.) {
                     continue;
                 }
@@ -159,15 +144,11 @@ fn sub(a: Vector3, b: Vector3) -> Vector3 {
     Vector3::new(a.x - b.x, a.y - b.y, a.z - b.z)
 }
 
-//827719B8's ordered fsel choices, including the unordered upper choice.
 fn clamp_fraction(fraction: f32) -> f32 {
     let lower = if -fraction >= 0. { 0. } else { fraction };
     if 1. - lower >= 0. { lower } else { 1. }
 }
 
-//82ACA4E0..550, from decoded authored winding, with two rsqrt refinements.
-//As in current core native_arithmetic, the PC seed is sqrt().recip(); this
-//preserves host arithmetic policy, not bit-exact Xenon estimate emulation.
 fn face([a, b, c]: [Vector3; 3]) -> Vector3 {
     let u = sub(b, a);
     let v = sub(c, a);

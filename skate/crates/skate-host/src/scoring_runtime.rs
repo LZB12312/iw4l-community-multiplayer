@@ -257,8 +257,6 @@ impl Runtime {
             let was_active = self.metric_started[slot];
             self.metric_started[slot] = true;
             if c.announced && !(self.collector == Collector::Air && f.suspend_air) {
-                // 82DB0588 starts a distance collector at time/distance zero.
-                // Every active frame still updates its reference position.
                 if !distance_metric || was_active {
                     self.held[slot] += f.dt;
                 }
@@ -554,8 +552,6 @@ impl Runtime {
                 self.session
                     .publish_sequence(&self.data.session_rules(), 1., bailout, true);
             self.sequence_active = false;
-            // 82775328 -> 82774E88 closes only for ScoreModule reset/bail
-            // output 14630 (82DA4010/82DA4238), not a banked landing.
             self.close_tricks = bailout;
         } else if self.sequence_active {
             let s = &self.session.holder.snapshot;

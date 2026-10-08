@@ -1,6 +1,3 @@
-//! Original BoneDrives constructor82BEC4A0/82BEC7B0 collection bindings.
-//!82BEC50C..544 builds local=00132D1E84F0BC32;82BEC5B4..D4 builds
-//! root=550B23128E0C3838. The12 transition keys preserve native offsets232..276.
 use skate_core::physics::skeleton_body::{
     AnimationDriveSettings, BoneDriveSettings, DriveInterpolation,
 };

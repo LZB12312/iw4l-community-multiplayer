@@ -1,10 +1,8 @@
-//! TU3 triangle closest-feature calculation82ADE8B8.
 use super::triangle_query::{dot, madd, sub};
 use crate::math::Vector3;
 
 pub(super) struct ClosestTrianglePoint {
     pub point: Vector3,
-    /// Vertex0..2, edge AB/AC/BC3..5, face6, as used by82ADEB70.
     pub region: u32,
     pub u: f32,
     pub v: f32,

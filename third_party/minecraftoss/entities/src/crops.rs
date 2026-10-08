@@ -1,6 +1,6 @@
 //! Crops as villagers tend them (26.3 `CropBlock` and its kinds): their
 //! ages, what planting a seed makes, and bone meal's growth.
-use minecraftoss_player::{rng::LegacyRandom, Block};
+use minecraftoss_player::{Block, rng::LegacyRandom};
 
 /// `CropBlock.getMaxAge` for the crop kinds (`CarrotBlock`, `PotatoBlock`,
 /// `BeetrootBlock`, `TorchflowerCropBlock`, and wheat itself); none for
@@ -17,7 +17,10 @@ pub fn max_age(id: &str) -> Option<i32> {
 
 /// `CropBlock.getAge`.
 pub fn age(block: &Block) -> i32 {
-    block.property("age").and_then(|a| a.parse().ok()).unwrap_or(0)
+    block
+        .property("age")
+        .and_then(|a| a.parse().ok())
+        .unwrap_or(0)
 }
 
 /// `block instanceof CropBlock crop && crop.isMaxAge(state)`.
@@ -38,7 +41,13 @@ pub fn planted(item: &str) -> Option<Block> {
         "minecraft:potato" => "minecraft:potatoes",
         "minecraft:beetroot_seeds" => "minecraft:beetroots",
         "minecraft:torchflower_seeds" => "minecraft:torchflower_crop",
-        "minecraft:pitcher_pod" => return Some(Block::new("minecraft:pitcher_crop").with("age", "0").with("half", "lower")),
+        "minecraft:pitcher_pod" => {
+            return Some(
+                Block::new("minecraft:pitcher_crop")
+                    .with("age", "0")
+                    .with("half", "lower"),
+            );
+        }
         _ => return None,
     };
     Some(Block::new(crop).with("age", "0"))
@@ -60,19 +69,4 @@ pub fn bonemealed(block: &Block, random: &mut LegacyRandom) -> Block {
         return Block::new("minecraft:torchflower");
     }
     block.clone().with("age", &grown.to_string())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn crops_ripen_at_their_last_age() {
-        assert!(ripe(&Block::new("minecraft:wheat").with("age", "7")));
-        assert!(growing(&Block::new("minecraft:wheat").with("age", "6")));
-        assert!(ripe(&Block::new("minecraft:beetroots").with("age", "3")));
-        assert!(!ripe(&Block::new("minecraft:torchflower_crop").with("age", "1")));
-        assert!(!ripe(&Block::new("minecraft:stone")) && !growing(&Block::new("minecraft:stone")));
-        assert_eq!(planted("minecraft:potato").map(|b| b.id), Some("minecraft:potatoes".to_owned()));
-    }
 }

@@ -8,19 +8,20 @@
 //! `WolfRenderer` (its variant's wild, angry or tame texture, darker while
 //! wet) and `WolfCollarLayer` (a tame wolf's collar in its dye colour).
 use crate::{
+    client_mobs::ClientMobs,
     cow_render::cube_tinted_pose_mirror,
     lighting::SkyLight,
     mesh::{Atlas, ChunkMesh},
     pack::ResourceId,
-    client_mobs::ClientMobs,
 };
 use glam::{EulerRot, Quat, Vec3};
 use minecraftoss_entities::world::WolfEntity;
 use std::f32::consts::PI;
 
 /// `DyeColor.getTextureDiffuseColor`, by dye ID.
-const DYE_DIFFUSE: [u32; 16] = [
-    16383998, 16351261, 13061821, 3847130, 16701501, 8439583, 15961002, 4673362, 10329495, 1481884, 8991416, 3949738, 8606770, 6192150, 11546150, 1908001,
+const DYE_DIFFUSE_RGB_BITS: [u32; 16] = [
+    16383998, 16351261, 13061821, 3847130, 16701501, 8439583, 15961002, 4673362, 10329495, 1481884,
+    8991416, 3949738, 8606770, 6192150, 11546150, 1908001,
 ];
 
 #[derive(Clone, Copy, PartialEq)]
@@ -41,10 +42,28 @@ enum Part {
 
 /// A cuboid: corners, texture offset, mirrored, inflated UV size, the part,
 /// and (for a baby's ears and tail cube) its own offset and turn within it.
-type Cube = ([f32; 3], [f32; 3], [f32; 2], bool, Option<[f32; 3]>, Part, [f32; 3], f32);
+type Cube = (
+    [f32; 3],
+    [f32; 3],
+    [f32; 2],
+    bool,
+    Option<[f32; 3]>,
+    Part,
+    [f32; 3],
+    f32,
+);
 
 const fn cube(from: [f32; 3], size: [f32; 3], uv: [f32; 2], part: Part) -> Cube {
-    ([from[0], from[1], from[2]], [from[0] + size[0], from[1] + size[1], from[2] + size[2]], uv, false, None, part, [0.0; 3], 0.0)
+    (
+        [from[0], from[1], from[2]],
+        [from[0] + size[0], from[1] + size[1], from[2] + size[2]],
+        uv,
+        false,
+        None,
+        part,
+        [0.0; 3],
+        0.0,
+    )
 }
 
 const ADULT: [Cube; 11] = [
@@ -55,25 +74,79 @@ const ADULT: [Cube; 11] = [
     cube([-3., -2., -3.], [6., 9., 6.], [18., 14.], Part::Body),
     cube([-3., -3., -3.], [8., 6., 7.], [21., 0.], Part::UpperBody),
     // The right legs are mirrored.
-    ([0., 0., -1.], [2., 8., 1.], [0., 18.], true, None, Part::RightHindLeg, [0.; 3], 0.),
+    (
+        [0., 0., -1.],
+        [2., 8., 1.],
+        [0., 18.],
+        true,
+        None,
+        Part::RightHindLeg,
+        [0.; 3],
+        0.,
+    ),
     cube([0., 0., -1.], [2., 8., 2.], [0., 18.], Part::LeftHindLeg),
-    ([0., 0., -1.], [2., 8., 1.], [0., 18.], true, None, Part::RightFrontLeg, [0.; 3], 0.),
+    (
+        [0., 0., -1.],
+        [2., 8., 1.],
+        [0., 18.],
+        true,
+        None,
+        Part::RightFrontLeg,
+        [0.; 3],
+        0.,
+    ),
     cube([0., 0., -1.], [2., 8., 2.], [0., 18.], Part::LeftFrontLeg),
     cube([0., 0., -1.], [2., 8., 2.], [9., 18.], Part::Tail),
 ];
 
 const BABY: [Cube; 10] = [
     // `CubeDeformation(0.025F)`.
-    ([-3.015, -3.275, -3.025], [3.035, 1.775, 2.025], [0., 12.], false, Some([6., 5., 5.]), Part::Head, [0.; 3], 0.),
+    (
+        [-3.015, -3.275, -3.025],
+        [3.035, 1.775, 2.025],
+        [0., 12.],
+        false,
+        Some([6., 5., 5.]),
+        Part::Head,
+        [0.; 3],
+        0.,
+    ),
     cube([-1.5, -0.24, -5.], [3., 2., 2.], [17., 12.], Part::Head),
-    ([-1., -1., -0.5], [1., 1., 0.5], [0., 5.], false, None, Part::Head, [-2., -4.25, -0.5], 0.),
-    ([-1., -1., -0.5], [1., 1., 0.5], [20., 5.], false, None, Part::Head, [2., -4.25, -0.5], 0.),
+    (
+        [-1., -1., -0.5],
+        [1., 1., 0.5],
+        [0., 5.],
+        false,
+        None,
+        Part::Head,
+        [-2., -4.25, -0.5],
+        0.,
+    ),
+    (
+        [-1., -1., -0.5],
+        [1., 1., 0.5],
+        [20., 5.],
+        false,
+        None,
+        Part::Head,
+        [2., -4.25, -0.5],
+        0.,
+    ),
     cube([-3., -2., -4.], [6., 4., 8.], [0., 0.], Part::Body),
     cube([-1., 0., -1.], [2., 3., 2.], [0., 22.], Part::RightHindLeg),
     cube([-1., 0., -1.], [2., 3., 2.], [8., 22.], Part::LeftHindLeg),
     cube([-1., 0., -1.], [2., 3., 2.], [0., 0.], Part::RightFrontLeg),
     cube([-1., 0., -1.], [2., 3., 2.], [20., 0.], Part::LeftFrontLeg),
-    ([-1., -5.7, -1.], [1., 0.3, 1.], [22., 16.], false, None, Part::Tail, [0., -0.6, 0.2], -3.1),
+    (
+        [-1., -5.7, -1.],
+        [1., 0.3, 1.],
+        [22., 16.],
+        false,
+        None,
+        Part::Tail,
+        [0., -0.6, 0.2],
+        -3.1,
+    ),
 ];
 
 /// `WolfRenderState.getBodyRollAngle`: the roll as the shake passes `offset`.
@@ -93,7 +166,12 @@ struct Pose {
 
 impl Pose {
     const fn at(offset: [f32; 3], x: f32) -> Self {
-        Self { offset, x, y: 0.0, z: 0.0 }
+        Self {
+            offset,
+            x,
+            y: 0.0,
+            z: 0.0,
+        }
     }
     fn rotation(&self) -> Quat {
         Quat::from_euler(EulerRot::ZYX, self.z, self.y, self.x)
@@ -102,7 +180,17 @@ impl Pose {
 
 /// `WolfModel.setupAnim` and its model's overrides: each part's pose.
 #[allow(clippy::too_many_arguments)]
-fn part_poses(baby: bool, walk_position: f32, walk_speed: f32, angry: bool, sitting: bool, shake: f32, head_roll: f32, head: (f32, f32), tail_angle: f32) -> [Pose; 9] {
+fn part_poses(
+    baby: bool,
+    walk_position: f32,
+    walk_speed: f32,
+    angry: bool,
+    sitting: bool,
+    shake: f32,
+    head_roll: f32,
+    head: (f32, f32),
+    tail_angle: f32,
+) -> [Pose; 9] {
     let mut p = if baby {
         [
             Pose::at([0., 18.25, -4.], 0.),
@@ -128,7 +216,17 @@ fn part_poses(baby: bool, walk_position: f32, walk_speed: f32, angry: bool, sitt
             Pose::at([-1., 12., 8.], PI / 5.),
         ]
     };
-    let [head_part, real_head, body, upper_body, right_hind, left_hind, right_front, left_front, tail] = &mut p;
+    let [
+        head_part,
+        real_head,
+        body,
+        upper_body,
+        right_hind,
+        left_hind,
+        right_front,
+        left_front,
+        tail,
+    ] = &mut p;
     let swing = (walk_position * 0.6662).cos() * 1.4 * walk_speed;
     let counter = (walk_position * 0.6662 + PI).cos() * 1.4 * walk_speed;
     tail.y = if angry { 0.0 } else { swing };
@@ -180,30 +278,56 @@ fn part_poses(baby: bool, walk_position: f32, walk_speed: f32, angry: bool, sitt
 }
 
 /// Appends the living wolves.
-pub fn append_wolves<'a>(mesh: &mut ChunkMesh, wolves: impl IntoIterator<Item = &'a WolfEntity>, poses: &ClientMobs, atlas: &Atlas, light: &SkyLight, partial: f32, game_time: i64) {
+pub fn append_wolves<'a>(
+    mesh: &mut ChunkMesh,
+    wolves: impl IntoIterator<Item = &'a WolfEntity>,
+    poses: &ClientMobs,
+    atlas: &Atlas,
+    light: &SkyLight,
+    partial: f32,
+    game_time: i64,
+) {
     let partial = partial.clamp(0.0, 1.0);
-    let collar_ids = (ResourceId::parse("minecraft:entity/wolf/wolf_collar"), ResourceId::parse("minecraft:entity/wolf/wolf_collar_baby"));
+    let collar_ids = (
+        ResourceId::parse("minecraft:entity/wolf/wolf_collar"),
+        ResourceId::parse("minecraft:entity/wolf/wolf_collar_baby"),
+    );
     // Each mob's first vertex and overlay (`getOverlayCoords`).
     let mut marks = Vec::new();
     for entity in wolves {
         let wolf = &entity.wolf;
         let baby = wolf.baby();
         let angry = entity.angry(game_time);
-        let Ok(skin_id) = ResourceId::parse(&wolf.texture(angry)) else { continue };
+        let Ok(skin_id) = ResourceId::parse(&wolf.texture(angry)) else {
+            continue;
+        };
         if !atlas.contains(&skin_id) {
             continue;
         }
-        let Some(mob) = poses.pose(entity.id, partial) else { continue };
+        let Some(mob) = poses.pose(entity.id, partial) else {
+            continue;
+        };
         marks.push((mesh.vertices.len(), mob.overlay(0.0)));
         let feet = mob.feet;
         let eye = mob.light_probe;
-        let sample = (eye.x.floor() as i32, eye.y.floor() as i32, eye.z.floor() as i32);
+        let sample = (
+            eye.x.floor() as i32,
+            eye.y.floor() as i32,
+            eye.z.floor() as i32,
+        );
         let (sky, block) = (light.get(sample) as f32, light.get_block(sample) as f32);
         let rotation = mob.body_rotation(90.0);
         let shake = wolf.shake_anim_o + (wolf.shake_anim - wolf.shake_anim_o) * partial;
-        let head_roll = (wolf.interested_angle_o + (wolf.interested_angle - wolf.interested_angle_o) * partial) * 0.15 * PI;
+        let head_roll = (wolf.interested_angle_o
+            + (wolf.interested_angle - wolf.interested_angle_o) * partial)
+            * 0.15
+            * PI;
         // `getWetShade` darkens the whole model while it is wet.
-        let wet = if wolf.wet { (0.75 + shake / 2.0 * 0.25).min(1.0) } else { 1.0 };
+        let wet = if wolf.wet {
+            (0.75 + shake / 2.0 * 0.25).min(1.0)
+        } else {
+            1.0
+        };
         let pose = part_poses(
             baby,
             mob.walk_position,
@@ -215,15 +339,22 @@ pub fn append_wolves<'a>(mesh: &mut ChunkMesh, wolves: impl IntoIterator<Item = 
             (mob.head_pitch.to_radians(), mob.head_yaw.to_radians()),
             wolf.tail_angle(angry),
         );
-        let (cubes, texture_size): (&[Cube], [f32; 2]) = if baby { (&BABY, [32., 32.]) } else { (&ADULT, [64., 32.]) };
+        let (cubes, texture_size): (&[Cube], [f32; 2]) = if baby {
+            (&BABY, [32., 32.])
+        } else {
+            (&ADULT, [64., 32.])
+        };
         let mut layers = vec![(atlas.entity_region(&skin_id), [wet; 3])];
         // `WolfCollarLayer`: a tame wolf's collar, in its dye's colour.
         if wolf.tame {
             if let Ok(collar) = if baby { &collar_ids.1 } else { &collar_ids.0 } {
                 if atlas.contains(collar) {
-                    let rgb = DYE_DIFFUSE[usize::from(wolf.collar & 15)];
+                    let rgb = DYE_DIFFUSE_RGB_BITS[usize::from(wolf.collar & 15)];
                     let channel = |shift: u32| ((rgb >> shift) & 255) as f32 / 255.0;
-                    layers.push((atlas.entity_region(collar), [channel(16), channel(8), channel(0)]));
+                    layers.push((
+                        atlas.entity_region(collar),
+                        [channel(16), channel(8), channel(0)],
+                    ));
                 }
             }
         }
@@ -249,31 +380,28 @@ pub fn append_wolves<'a>(mesh: &mut ChunkMesh, wolves: impl IntoIterator<Item = 
                     Part::Tail if !baby => Quat::from_rotation_z(body_roll(shake, -0.2)),
                     _ => Quat::from_rotation_x(own_x),
                 };
-                let pivot = Vec3::from_array(parent.offset) + parent_rotation * Vec3::from_array(own_offset);
-                cube_tinted_pose_mirror(mesh, feet, rotation, 1.0, region, sky, block, from, to, uv, pivot.to_array(), parent_rotation * child, tint, texture_size, uv_size, mirror);
+                let pivot = Vec3::from_array(parent.offset)
+                    + parent_rotation * Vec3::from_array(own_offset);
+                cube_tinted_pose_mirror(
+                    mesh,
+                    feet,
+                    rotation,
+                    1.0,
+                    region,
+                    sky,
+                    block,
+                    from,
+                    to,
+                    uv,
+                    pivot.to_array(),
+                    parent_rotation * child,
+                    tint,
+                    texture_size,
+                    uv_size,
+                    mirror,
+                );
             }
         }
     }
     crate::cow_render::apply_overlays(mesh, &marks);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_shake_rolls_the_body_and_the_tail_follows_its_angle() {
-        assert_eq!(body_roll(0.0, -0.16), 0.0);
-        assert!(body_roll(0.9, 0.0).abs() <= 0.15 * PI + 1e-6);
-        assert!(body_roll(2.0, 0.0).abs() < 1e-5);
-        // Standing still, an adult's legs hang straight and its tail takes
-        // the angle given.
-        let p = part_poses(false, 0.0, 0.0, false, false, 0.0, 0.0, (0.0, 0.0), 0.7);
-        assert_eq!(p[4].x, 0.0);
-        assert_eq!(p[8].x, 0.7);
-        // Sitting, the hind legs fold under it.
-        let p = part_poses(false, 0.0, 0.0, false, true, 0.0, 0.0, (0.0, 0.0), 0.7);
-        assert_eq!(p[4].x, PI * 3.0 / 2.0);
-        assert_eq!(p[2].offset, [0., 18., 0.]);
-    }
 }

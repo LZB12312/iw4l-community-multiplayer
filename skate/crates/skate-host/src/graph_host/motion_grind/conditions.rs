@@ -35,13 +35,13 @@ impl Condition {
 
     pub fn evaluate(self, p: &Physical) -> bool {
         match self {
-            Self::BluntingBackslash => p.blunting_136 == 4, //82BBDC08
+            Self::BluntingBackslash => p.blunting_136 == 4,
             Self::Approach { forwards } => {
                 p.filtered_grinding_80 && p.approach_268 == u32::from(forwards)
-            } //82BBDC80
-            Self::TrickOutType { value } => p.trick_out_240 == value, //82BBDA10
-            Self::LandingIntoGrind => p.air_grind_443 && p.air_time_184 < 0.2, //82BBDD70
-            Self::DroppingIn => p.dropping_in_324,          //82BA41F0
+            }
+            Self::TrickOutType { value } => p.trick_out_240 == value,
+            Self::LandingIntoGrind => p.air_grind_443 && p.air_time_184 < 0.2,
+            Self::DroppingIn => p.dropping_in_324,
         }
     }
 }

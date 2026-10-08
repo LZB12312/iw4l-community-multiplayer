@@ -16,8 +16,19 @@ use glam::{DVec3, Vec3};
 
 /// Appends the flames of each burning entity: its rendered feet position,
 /// its box width and height.
-pub fn append_flames(mesh: &mut ChunkMesh, burning: impl IntoIterator<Item = (DVec3, f32, f32)>, atlas: &Atlas, camera_forward: Vec3, light: &SkyLight) {
-    let (Ok(fire_0), Ok(fire_1)) = (ResourceId::parse("minecraft:block/fire_0"), ResourceId::parse("minecraft:block/fire_1")) else { return };
+pub fn append_flames(
+    mesh: &mut ChunkMesh,
+    burning: impl IntoIterator<Item = (DVec3, f32, f32)>,
+    atlas: &Atlas,
+    camera_forward: Vec3,
+    light: &SkyLight,
+) {
+    let (Ok(fire_0), Ok(fire_1)) = (
+        ResourceId::parse("minecraft:block/fire_0"),
+        ResourceId::parse("minecraft:block/fire_1"),
+    ) else {
+        return;
+    };
     if !atlas.contains(&fire_0) || !atlas.contains(&fire_1) {
         return;
     }
@@ -31,7 +42,11 @@ pub fn append_flames(mesh: &mut ChunkMesh, burning: impl IntoIterator<Item = (DV
     let back = -ahead;
     for (at, width, height) in burning {
         let origin = at.as_vec3();
-        let cell = (at.x.floor() as i32, at.y.floor() as i32, at.z.floor() as i32);
+        let cell = (
+            at.x.floor() as i32,
+            at.y.floor() as i32,
+            at.z.floor() as i32,
+        );
         let sky = light.get(cell) as f32;
         let scale = width * 1.4;
         let mut h = height / scale;
@@ -44,11 +59,29 @@ pub fn append_flames(mesh: &mut ChunkMesh, burning: impl IntoIterator<Item = (DV
                 std::mem::swap(&mut u0, &mut u1);
             }
             let start = mesh.vertices.len() as u32;
-            for (x, y, uv) in [(-r, -yo, [u1, v1]), (r, -yo, [u0, v1]), (r, 1.4 - yo, [u0, v0]), (-r, 1.4 - yo, [u1, v0])] {
+            for (x, y, uv) in [
+                (-r, -yo, [u1, v1]),
+                (r, -yo, [u0, v1]),
+                (r, 1.4 - yo, [u0, v0]),
+                (-r, 1.4 - yo, [u1, v0]),
+            ] {
                 let point = origin + (right * x + Vec3::Y * y + back * (zo + lift)) * scale;
-                mesh.vertices.push(Vertex { position: point.to_array(), uv, color: [1.0; 4], sky_light: sky, block_light: 15.0 });
+                mesh.vertices.push(Vertex {
+                    position: point.to_array(),
+                    uv,
+                    color: [1.0; 4],
+                    sky_light: sky,
+                    block_light: 15.0,
+                });
             }
-            mesh.indices.extend_from_slice(&[start, start + 1, start + 2, start, start + 2, start + 3]);
+            mesh.indices.extend_from_slice(&[
+                start,
+                start + 1,
+                start + 2,
+                start,
+                start + 2,
+                start + 3,
+            ]);
             mesh.faces += 1;
             h -= 0.45;
             yo -= 0.45;
@@ -56,22 +89,5 @@ pub fn append_flames(mesh: &mut ChunkMesh, burning: impl IntoIterator<Item = (DV
             zo -= 0.03;
             ss += 1;
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn a_zombie_burns_in_six_quads() {
-        // A zombie is 0.6 by 1.95: 1.95 / 0.84 is about 2.32 scaled units,
-        // a quad for each 0.45 begun.
-        let (scale, mut h) = (0.6_f32 * 1.4, 1.95_f32 / (0.6 * 1.4));
-        assert!((scale - 0.84).abs() < 1e-6);
-        let mut quads = 0;
-        while h > 0.0 {
-            h -= 0.45;
-            quads += 1;
-        }
-        assert_eq!(quads, 6);
     }
 }

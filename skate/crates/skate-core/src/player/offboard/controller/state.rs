@@ -76,7 +76,6 @@ impl State {
             alternate_709: false,
         }
     }
-    ///82D7B1C0 deliberately leaves phase716..736 and vectors576/592 alone.
     pub fn reset(&mut self) {
         self.motion = reset_motion(self.motion.correction_576);
         self.intent = movement_intent::State::default();

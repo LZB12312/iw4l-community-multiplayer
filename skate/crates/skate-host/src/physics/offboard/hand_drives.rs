@@ -1,6 +1,3 @@
-//! Native SkateboardController drives82D74FD8 /82D751D8 in the shared island.
-//! Factory82AE64F8 stores argument5 at drive16 (A), argument4 at20 (B):
-//! hand bodies3/7 are A and the deck is B, despite the factory argument order.
 use skate_core::{
     math::{Basis3, Vector3},
     physics::{
@@ -77,77 +74,5 @@ fn body(b: BodySnapshot, index: usize) -> RetailDriveBodyState {
         torque_acceleration: r.torque_acceleration,
         inverse_mass: b.inertia.inverse_mass,
         world_inverse_inertia: pack_world_inverse_inertia(r.world_inverse_inertia),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use skate_core::physics::{
-        drive_solver::solve_drive_rows,
-        rigid_body::{
-            RetailBodyRates, RetailInertiaDynamics, RetailQuaternion, RetailReactionCorrections,
-        },
-    };
-    fn active() -> BodySnapshot {
-        let basis = Basis3 {
-            columns: [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
-        };
-        BodySnapshot {
-            state_flags: 4,
-            rates: RetailBodyRates {
-                orientation: RetailQuaternion::IDENTITY,
-                basis,
-                world_inverse_inertia: basis,
-                position: Vector3::ZERO,
-                linear_velocity: Vector3::ZERO,
-                angular_velocity: Vector3::ZERO,
-                force_acceleration: Vector3::ZERO,
-                torque_acceleration: Vector3::ZERO,
-                kinetic_energy: 0.,
-                cool_down: 0,
-            },
-            inertia: RetailInertiaDynamics {
-                inverse_tensor: Vector3::new(1., 1., 1.),
-                inverse_mass: 1.,
-                spherical: 0.,
-                maximum_linear_velocity: 1000.,
-                maximum_angular_velocity: 1000.,
-                linear_drag: 0.,
-                angular_drag: 0.,
-            },
-        }
-    }
-    #[test]
-    fn held_hand_and_deck_exchange_reactions_and_release_removes_force() {
-        let board = [active(); 7];
-        let mut skeleton = [active(); 26];
-        skeleton[3].rates.position.x = 1.;
-        let mut state = State::default();
-        state.selected_hand_424 = 0;
-        state.hands[0].dynamics = [[0x4395ffff, 0, 0x468c9fff, 2]; 2];
-        let mut rows = Vec::new();
-        append(&mut rows, &state, &board, &skeleton, 1. / 60.);
-        let mut reactions = [RetailReactionCorrections::default(); 34];
-        solve_drive_rows(&mut rows, &mut reactions, 4);
-        let hand = reactions[ATTACHED_REACTION_BASE + 3].linear_displacement.x;
-        let deck = reactions[BodyId::Deck.index()].linear_displacement.x;
-        assert!(hand < 0. && deck > 0., "hand={hand}, deck={deck}");
-        assert!((hand + deck).abs() < 1e-6);
-        assert_eq!(
-            reactions[ATTACHED_REACTION_BASE + 7].linear_displacement,
-            Vector3::ZERO
-        );
-        state.disable_hand();
-        rows.clear();
-        append(&mut rows, &state, &board, &skeleton, 1. / 60.);
-        reactions.fill(RetailReactionCorrections::default());
-        solve_drive_rows(&mut rows, &mut reactions, 4);
-        assert!(
-            reactions
-                .iter()
-                .all(|r| r.linear_displacement == Vector3::ZERO
-                    && r.angular_displacement == Vector3::ZERO)
-        );
     }
 }

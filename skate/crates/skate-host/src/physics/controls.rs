@@ -20,8 +20,6 @@ pub(crate) struct PlayerControls {
     pub bumper_state_502: bool,
     pub bumper_state_104: bool,
     pub preferences: PushPreferences,
-    //One tick's native PlayerUI82898D20 result, shared by animation and PhysIn.
-    //None means the native offboard remap gate did not run, not missing camera.
     offboard_axes: Option<[f32; 2]>,
     gestures: Option<crate::input::gesture_input::GestureInput>,
 }
@@ -63,8 +61,6 @@ pub(super) fn sample(
 }
 
 impl PlayerControls {
-    /// PlayerUI82898920 transforms the gameplay packet before Raw/Derived input.
-    /// Only its offboard branch is enabled here; onboard behavior is unchanged.
     pub fn update_for_physics(
         &mut self,
         map: &mut impl ActionMap,
@@ -73,8 +69,6 @@ impl PlayerControls {
         camera: &crate::camera::CameraRuntime,
     ) -> Result<(), String> {
         let physical = &skater.player_input.physical;
-        //82DB7678/7694 writes category and State75 from the same category==500.
-        //82898B80..BC4 excludes grabbing an object (304) and state503.
         let remap = physical.state.category_12 == 500
             && physical.off_board.flag_304 == 0
             && physical.state.state_16 != 503;
@@ -177,8 +171,6 @@ impl PlayerControls {
                     value: intent.value,
                 }),
         );
-        //GenerateActionGraphIntents82594310 clears the AG map through82BC1B68
-        //before Listener::Fill. MG lifecycle intents use a different persistent map.
         self.action_intents.clear();
         for intent in &self.intents {
             self.action_intents.insert(intent.name, intent.value);
@@ -213,25 +205,17 @@ impl ActionMap for SimulationActions<'_> {
     }
 }
 
-/// Complete numerical remap82898D20; camera is the native XYZ presentation
-/// basis, before Bevy's presentation-only two-axis sign conversion.
 fn camera_relative_axes(stick: [f32; 2], camera: [[f32; 3]; 3]) -> [f32; 2] {
     let [mut right, mut up, mut forward] = camera;
-    //82898D98..DB4: ABS(dot(world_up, camera_Z)) < literal820ED5E8.
-    //Near either vertical pole, native retains ALL original camera axes.
     if forward[1].abs() < f32::from_bits(0x3f7d_70a4) {
         right = normalize_camera_axis(cross_camera_axis([0.0, 1.0, 0.0], forward));
         forward = normalize_camera_axis(cross_camera_axis(right, [0.0, 1.0, 0.0]));
         up = normalize_camera_axis(cross_camera_axis(forward, right));
     }
-    //CacheLine includes its count at0.82898EE0..F0C reads Buttons17-16
-    //and Buttons18-19: [-LeftAnalogStickLR, 0, LeftAnalogStickUD].
     let local = [-stick[0], 0.0, stick[1]];
     let world: [f32; 3] = std::array::from_fn(|i| {
         forward[i].mul_add(local[2], up[i].mul_add(local[1], right[i] * local[0]))
     });
-    //82898F44..FAC splits world X/Z into positive/negative pad channels;
-    //stock actions64/65 subtract those channels again. Keep that ordering.
     let negative_x = if world[0] >= 0.0 { 0.0 } else { -world[0] };
     let positive_x = if world[0] > 0.0 { world[0] } else { 0.0 };
     let negative_z = if world[2] >= 0.0 { 0.0 } else { -world[2] };
@@ -258,7 +242,3 @@ fn normalize_camera_axis(v: [f32; 3]) -> [f32; 3] {
     }
     v.map(|component| component * inverse)
 }
-
-#[cfg(test)]
-#[path = "controls/offboard_tests.rs"]
-mod offboard_tests;

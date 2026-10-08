@@ -1,5 +1,3 @@
-//! Stock classes are verified against original8289D180 and828A0054..00A0:
-//! physics_reckoning7CE1B6B581709C6F, physics_bodyspin05EC9CB03A5B2EEE.
 use skate_core::{
     air::{body_flip::BodyFlipSettings, body_spin::BodySpinSettings, reckoning::Settings},
     point_graph::PointGraph,
@@ -17,7 +15,6 @@ pub(super) fn load(data: &Collections) -> Result<(Settings, [Mode; 5]), String> 
         .words::<4>("physics_reckoning", "default", "GroundNormalSmoothing")?
         .map(f32::from_bits);
     let mut modes = Vec::with_capacity(5);
-    //Player ctor82DB1B08..1B78 installs these exact physics_mode keys.
     for name in ["easy", "normal", "hardcore", "motorized", "test"] {
         modes.push(Mode {
             easy_body_spins: data.boolean("physics_mode", name, "EasyBodySpins")?,
@@ -37,7 +34,6 @@ pub(super) fn load(data: &Collections) -> Result<(Settings, [Mode; 5]), String> 
             body_spin: BodySpinSettings {
                 derivative_floor: float("physics_bodyspin", "MinDerivativeScalar")?,
                 acceleration_limit: float("physics_bodyspin", "MaxDeltaOppositeDirection")?,
-                //Original82D8BE38 copies layouts160,240,320,480,400,80,0.
                 curves: [
                     negative_graph(data, "physics_bodyspin", "Hash_BEA30B5DC6AFF26A")?,
                     negative_graph(data, "physics_bodyspin", "MaxDeltaVsTime")?,
@@ -47,7 +43,6 @@ pub(super) fn load(data: &Collections) -> Result<(Settings, [Mode; 5]), String> 
                     negative_graph(data, "physics_bodyspin", "Hash_D7C6855B7814D048")?,
                     negative_graph(data, "physics_bodyspin", "PropBodySpinVsTime")?,
                 ],
-                //82F82690 splats original821647E0 into830BD300.
                 input_fade_threshold: [f32::from_bits(0x3780_0000); 4],
             },
             body_flip: BodyFlipSettings {

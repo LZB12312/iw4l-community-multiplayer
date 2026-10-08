@@ -13,7 +13,6 @@ pub struct PublicationInput {
     ///Actual hand manager flags105/106/107 and217/218/219.
     pub hand_flags: [[bool; 3]; 2],
 }
-///Only fields written by82D32D38/82D785F8; caller preserves all other output.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Publication {
     pub physics_counter_36: u32,

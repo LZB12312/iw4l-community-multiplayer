@@ -1,4 +1,3 @@
-//! Five-step vertex/edge region walk82ADF008..82ADF5BC.
 use super::{
     native_arithmetic,
     triangle_closest::ClosestTrianglePoint,

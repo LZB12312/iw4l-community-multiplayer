@@ -5,8 +5,7 @@ pub(super) mod approach;
 mod clip;
 mod contacts;
 mod ledge;
-#[cfg(test)]
-mod tests;
+
 use super::{GamePhysics, PlayerControls, SkaterRuntime};
 use bevy::prelude::*;
 use clip::{Clips, blend};

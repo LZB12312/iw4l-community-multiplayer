@@ -1,6 +1,3 @@
-//! Production animated-board and COM-controlled air Skeleton updates.
-//! Original TU3 82BDDA10 / 82BDE600. All owners are the same objects used by
-//! ProcessData, GeneralUpdate, the shared solve and final pose publication.
 use super::skeleton_input_runtime::{CollisionInput, SkeletonInputRuntime, SkeletonOwners};
 use skate_core::{
     animation::output::{NativeMatrix, physics_packet::PhysicsPosePacket},
@@ -28,8 +25,6 @@ pub(crate) struct SkeletonAir {
 impl SkeletonAir {
     pub fn load(data: &Collections) -> Result<Self, String> {
         let graph = |name| -> Result<PointGraph<8>, String> {
-            //Original82C01900: Globals260 layout4, graphs0/80;
-            //stock physics_airstates/default has80-byte PointNegGraphData8.
             let words = data
                 .words::<20>("physics_airstates", "default", name)?
                 .map(f32::from_bits);
@@ -47,8 +42,6 @@ impl SkeletonAir {
         })
     }
 
-    ///Original82D38000 GroundUpdate ->82D38008 UpdatePhysicsError. Call after
-    ///Skeleton Ground GeneralUpdate and before the physical solve, every tick.
     pub fn capture_physics_error(&mut self, board: &BoardRuntime, animated_target: &Transform) {
         self.board_animation.capture_physics_error(
             animated_target,
@@ -56,13 +49,10 @@ impl SkeletonAir {
         );
     }
 
-    ///82C0606C; preserves the source's independently retained blending flag.
     pub fn reset_board(&mut self) {
         self.board_animation.reset();
     }
 
-    ///82C041C0: publish the effective matrix to the separate deck constraint
-    ///anchor. It does not teleport the dynamic board assembly.
     pub(crate) fn apply_board(
         &mut self,
         board: &mut BoardRuntime,
@@ -76,9 +66,6 @@ impl SkeletonAir {
 }
 
 impl SkeletonInputRuntime {
-    ///82BDDA10. PhysicsAir passes fast=false; GroundAnimation passes true.
-    ///Returns Processed0..48 / Skeleton15952, the UNBLENDED animation target.
-    ///The effective blended matrix is published to Skeleton12496 separately.
     pub fn update_animated(
         &mut self,
         air: &mut SkeletonAir,
@@ -92,7 +79,6 @@ impl SkeletonInputRuntime {
         fast_blend: bool,
     ) -> Result<Transform, String> {
         let s = &mut owners.animated;
-        //Unlike Ground82BDF530, this does NOT force initialize_heading=true.
         s.update_roots(board, reckoning, p.timestep_2604);
         let target = skeleton_air_frames::prepare_animated(
             &s.roots,
@@ -102,16 +88,11 @@ impl SkeletonInputRuntime {
         );
         s.board_frames.physical_board = air.apply_board(board, &target, fast_blend);
         self.general_update(p, owners, globals, collision, simulation)?;
-        //82BDDC20..54 clears only next trajectory, after GeneralUpdate.
         owners.animated.finish_ground();
         owners.animation_input.fields.flags2468 = p.flags_2468;
         Ok(target)
     }
 
-    ///82BDE600. target_com is PhysicsAir's actually integrated COM trajectory
-    ///position (82D34A28 r5), not a predicted board position or skeleton root.
-    ///The animation packet is the real82B985E8 publication, including its
-    ///consumed dismount-revert request and retained frame count.
     pub fn update_known_air(
         &mut self,
         air: &mut SkeletonAir,
@@ -146,7 +127,6 @@ impl SkeletonInputRuntime {
         );
         let effective = air.apply_board(board, &target, true);
         s.board_frames.physical_board = effective;
-        //82C04270 uses the deck BODY COM, not Part6's mass-offset transform.
         let pos = board.bodies()[BodyId::Deck.index()].rates.position;
         let velocity = target_velocity(effective[3], [pos.x, pos.y, pos.z, 0.0], p.timestep_2604);
         for body in board.bodies_mut() {

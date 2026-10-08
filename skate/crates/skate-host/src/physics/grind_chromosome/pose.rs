@@ -2,8 +2,6 @@ use super::Family;
 pub(super) type V = [f32; 4];
 pub(super) use skate_core::riding::ground_correction_math::dot_product as dot;
 
-/// Consumed subset of the144-byte record copied by82DEEAF8. Ground80 and
-/// Skeleton144/160 are copied by the original but not read by these producers.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ApproachPose {
     pub right: V,
@@ -33,7 +31,6 @@ pub(crate) struct Input {
     pub across: V,
 }
 
-///82DEED98: twist uses Basic128, not Basic32 or a substituted deck-forward.
 pub(super) fn straight(input: Input) -> bool {
     let projected = sub(
         input.basic_twist_axis_128,
@@ -58,7 +55,6 @@ pub(super) fn straight(input: Input) -> bool {
     along.abs() > 0.9397
 }
 
-///82DEEEE0: sign the Basic32 axis from Basic48 minus contact.
 pub(super) fn low(input: Input) -> bool {
     let axis = signed(
         input.basic_forward_32,

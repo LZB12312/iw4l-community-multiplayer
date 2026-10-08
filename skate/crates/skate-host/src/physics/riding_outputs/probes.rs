@@ -25,7 +25,6 @@ struct Pending {
 }
 impl Default for BoardProbes {
     fn default() -> Self {
-        //Skateboard ctor82C0111C starts optional wall line byte291 clear.
         Self {
             deck: BoardProbeState::default(),
             wall: BoardProbeState::default(),
@@ -35,8 +34,6 @@ impl Default for BoardProbes {
     }
 }
 impl BoardProbes {
-    ///ResetBoardBody82C0D680 clears published probe records, preserving
-    ///query handles204C/2050 and the wall-query enable bit.
     pub fn reset_results(&mut self) {
         self.deck = BoardProbeState::default();
         self.wall = BoardProbeState::default();
@@ -57,10 +54,6 @@ impl BoardProbes {
             scalar_2756: time2756,
         }
     }
-    /// PostPhysics82C02138 calls82C01F10 before updating board contact output.
-    /// Its saved endpoints and enabled291 feed the NEXT StartBoard82DB6310.
-    /// Processed112 is the input phase's cached deck translation, published by
-    ///82C01460, not the newly solved body's current transform.
     pub fn prepare_wall(&mut self, input: &ProcessedPhysicsInput, toolkit: &BoardToolkit) {
         let vector = |value: [f32; 4]| Vector3::new(value[0], value[1], value[2]);
         self.wall_line = board_probes::wall_probe(WallLineInput {

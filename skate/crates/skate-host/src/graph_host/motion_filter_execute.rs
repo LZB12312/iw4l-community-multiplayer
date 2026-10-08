@@ -18,8 +18,6 @@ impl MotionHost {
         match phase {
             0 => operation.begin(state, &mut self.animation.filtered_intents),
             1 => {
-                //82BB17D0 reads live ISkaterAnim v12/v28; earlier graph
-                //operations can change these flags during the same traversal.
                 let flags = self
                     .animation
                     .skater_animation_flags

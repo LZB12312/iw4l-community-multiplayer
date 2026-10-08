@@ -1,4 +1,3 @@
-//! TU3 82D2DAB8 result storage and 82D30300 OffBoard publication.
 use super::Vector;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -19,7 +18,6 @@ pub struct TrajectoryResult {
     pub word_408: u32,
 }
 impl TrajectoryResult {
-    ///82D2DAB8 retains result+80/+96/+124. Do not zero the whole packet.
     pub fn reset(&mut self) {
         self.position_272 = [0.0; 4];
         self.velocity_288 = [0.0; 4];

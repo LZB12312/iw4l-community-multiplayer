@@ -1,5 +1,3 @@
-//! PhysicalPlayerHiLOD StartSkeletonLineTests82DB63C0 / result publication
-//!82DB6580. These are radius-bearing trajectory tests from actual physical parts.
 use skate_core::{
     camera::TrajectoryQuery,
     math::Vector3,
@@ -13,7 +11,6 @@ use skate_core::{
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SkeletonLineHit {
-    /// Result0 and32, copied to the physical query record by82DB65E0/F0.
     pub position: [f32; 4],
     pub normal: [f32; 4],
     /// Result132 and collisionTime48>=0, not an arbitrary geometry-present flag.
@@ -23,8 +20,6 @@ pub(crate) struct SkeletonLineHit {
 }
 impl SkeletonLineHit {
     fn pending_result() -> Self {
-        // Valid test result initialized by8276C9D8: position0, normalY,
-        //time-1 and surface132=0. A no-hit result still has this real record.
         Self {
             position: [0.0; 4],
             normal: [0.0, 1.0, 0.0, 0.0],
@@ -40,9 +35,6 @@ pub(crate) struct SkeletonLineTests {
     pub feet: [SkeletonLineHit; 2],
 }
 impl SkeletonLineTests {
-    /// EndSkeletonLineTests82DB6580 publishes the completed tests in the
-    /// order hips, left toe, right toe. ProcessInput copies these retained
-    /// records into Processed1056/960/1008 during its input phase.
     pub fn publish(&self, player: &mut PlayerInputState) {
         let fields = |hit: SkeletonLineHit| LineTestFields {
             position: hit.position.map(f32::to_bits),
@@ -58,8 +50,6 @@ impl SkeletonLineTests {
 
 pub(crate) fn query(world: &BoardWorld, body: &SkeletonBody) -> Result<SkeletonLineTests, String> {
     let parts = body.part_transforms();
-    //82DB63EC..647C selects hips23,lefttoe15,righttoe19 from the
-    //physical pose. Body COM and the reparented animated targets are different.
     let hips = query_trajectory(world, parts[23][3], [0.0, -100.0, 0.0, 0.0])?;
     let raised = [0.0, f32::from_bits(0x3EA8_F5C3), 0.0, 0.0];
     let lowered = [0.0, -1.5, 0.0, 0.0];
@@ -79,11 +69,6 @@ fn query_trajectory(
     start: [f32; 4],
     velocity: [f32; 4],
 ) -> Result<SkeletonLineHit, String> {
-    //82E0B4E0 -> TestBatchManager backend virtual28. Its ctor82E0B460
-    //uses Island virtual84=82764CF8, then82775E48/8276E010 creates
-    //ClusteredMeshTrajectoryBatch vtable8231093C, AddTest8276E280.
-    //S2 named827BDCC0 corroborates radius/time/error fields; TU3 preserves
-    //f1..f4 through AggregateTrajectoryBatch8276EDD0 when multiple batches exist.
     let request = TrajectoryQuery {
         position: start,
         velocity,
@@ -106,8 +91,6 @@ fn query_trajectory(
                 fraction: 0.0,
                 volume_parameter: [0.0; 3],
             };
-            //Same source82771D08 leaf as camera: zero triangle fatness,
-            //authored face normal, fraction clamp and first equal hit retained.
             if triangle_segment(
                 &mut geometry,
                 origin,

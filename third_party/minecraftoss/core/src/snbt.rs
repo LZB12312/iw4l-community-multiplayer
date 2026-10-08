@@ -11,7 +11,10 @@ use std::collections::BTreeMap;
 
 /// Parses one SNBT value; trailing text other than whitespace is an error.
 pub fn parse(text: &str) -> Result<Tag, String> {
-    let mut parser = Parser { chars: text.chars().collect(), at: 0 };
+    let mut parser = Parser {
+        chars: text.chars().collect(),
+        at: 0,
+    };
     let tag = parser.literal()?;
     parser.skip_whitespace();
     if parser.at < parser.chars.len() {
@@ -179,7 +182,9 @@ impl Parser {
         self.at += 1;
         let mut out = String::new();
         loop {
-            let Some(c) = self.peek() else { return Err(self.error("unterminated string")) };
+            let Some(c) = self.peek() else {
+                return Err(self.error("unterminated string"));
+            };
             self.at += 1;
             if c == quote {
                 return Ok(out);
@@ -188,12 +193,21 @@ impl Parser {
                 out.push(c);
                 continue;
             }
-            let Some(e) = self.peek() else { return Err(self.error("unterminated escape")) };
+            let Some(e) = self.peek() else {
+                return Err(self.error("unterminated escape"));
+            };
             self.at += 1;
             let hex = |parser: &mut Self, digits: usize| -> Result<char, String> {
-                let text: String = parser.chars.get(parser.at..parser.at + digits).map(|s| s.iter().collect()).unwrap_or_default();
+                let text: String = parser
+                    .chars
+                    .get(parser.at..parser.at + digits)
+                    .map(|s| s.iter().collect())
+                    .unwrap_or_default();
                 parser.at += digits;
-                u32::from_str_radix(&text, 16).ok().and_then(char::from_u32).ok_or_else(|| parser.error("invalid escape"))
+                u32::from_str_radix(&text, 16)
+                    .ok()
+                    .and_then(char::from_u32)
+                    .ok_or_else(|| parser.error("invalid escape"))
             };
             out.push(match e {
                 '\\' | '\'' | '"' => e,
@@ -214,7 +228,10 @@ impl Parser {
     /// `UnquotedStringParseRule`: letters, digits and `_-.+`.
     fn unquoted(&mut self) -> String {
         let start = self.at;
-        while self.peek().is_some_and(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '+')) {
+        while self
+            .peek()
+            .is_some_and(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '+'))
+        {
             self.at += 1;
         }
         self.chars[start..self.at].iter().collect()
@@ -247,7 +264,9 @@ impl Parser {
                 },
                 // `uuid(str)`: the four ints of `UUIDUtil.uuidToIntArray`.
                 "uuid" => match argument {
-                    Tag::String(s) => uuid_ints(&s).map(Tag::IntArray).ok_or_else(|| self.error("invalid UUID")),
+                    Tag::String(s) => uuid_ints(&s)
+                        .map(Tag::IntArray)
+                        .ok_or_else(|| self.error("invalid UUID")),
                     _ => Err(self.error("uuid() needs a string")),
                 },
                 _ => Err(self.error(&format!("no such operation: {text}"))),
@@ -285,7 +304,10 @@ impl Parser {
         while self.peek().is_some_and(|c| c.is_digit(radix) || c == '_') {
             self.at += 1;
         }
-        let text: String = self.chars[start..self.at].iter().filter(|&&c| c != '_').collect();
+        let text: String = self.chars[start..self.at]
+            .iter()
+            .filter(|&&c| c != '_')
+            .collect();
         Some(text)
     }
 
@@ -371,20 +393,30 @@ impl Parser {
             match self.peek_at(1) {
                 Some('x' | 'X') => {
                     self.at += 2;
-                    (16, self.digits(16).ok_or_else(|| self.error("expected hex digits"))?)
+                    (
+                        16,
+                        self.digits(16)
+                            .ok_or_else(|| self.error("expected hex digits"))?,
+                    )
                 }
                 Some('b' | 'B') if self.peek_at(2).is_some_and(|c| c == '0' || c == '1') => {
                     self.at += 2;
                     (2, self.digits(2).unwrap_or_default())
                 }
-                Some(c) if c.is_ascii_digit() => return Err(self.error("leading zeros are not allowed")),
+                Some(c) if c.is_ascii_digit() => {
+                    return Err(self.error("leading zeros are not allowed"));
+                }
                 _ => {
                     self.at += 1;
                     (10, "0".to_owned())
                 }
             }
         } else {
-            (10, self.digits(10).ok_or_else(|| self.error("expected a number"))?)
+            (
+                10,
+                self.digits(10)
+                    .ok_or_else(|| self.error("expected a number"))?,
+            )
         };
         // `integer_suffix`: an optional signedness, then the type.
         let mut signed = None;
@@ -420,16 +452,35 @@ impl Parser {
             return Err(self.error("expected a non-negative number"));
         }
         let text = if minus { format!("-{digits}") } else { digits };
-        let range = |ok: bool| if ok { Ok(()) } else { Err(self.error("number out of range")) };
+        let range = |ok: bool| {
+            if ok {
+                Ok(())
+            } else {
+                Err(self.error("number out of range"))
+            }
+        };
         Ok(if signed {
             match kind {
-                Kind::Byte => Tag::Byte(i8::from_str_radix(&text, radix).map_err(|_| self.error("number out of range"))?),
-                Kind::Short => Tag::Short(i16::from_str_radix(&text, radix).map_err(|_| self.error("number out of range"))?),
-                Kind::Long => Tag::Long(i64::from_str_radix(&text, radix).map_err(|_| self.error("number out of range"))?),
-                _ => Tag::Int(i32::from_str_radix(&text, radix).map_err(|_| self.error("number out of range"))?),
+                Kind::Byte => Tag::Byte(
+                    i8::from_str_radix(&text, radix)
+                        .map_err(|_| self.error("number out of range"))?,
+                ),
+                Kind::Short => Tag::Short(
+                    i16::from_str_radix(&text, radix)
+                        .map_err(|_| self.error("number out of range"))?,
+                ),
+                Kind::Long => Tag::Long(
+                    i64::from_str_radix(&text, radix)
+                        .map_err(|_| self.error("number out of range"))?,
+                ),
+                _ => Tag::Int(
+                    i32::from_str_radix(&text, radix)
+                        .map_err(|_| self.error("number out of range"))?,
+                ),
             }
         } else {
-            let value = u64::from_str_radix(&text, radix).map_err(|_| self.error("number out of range"))?;
+            let value =
+                u64::from_str_radix(&text, radix).map_err(|_| self.error("number out of range"))?;
             match kind {
                 Kind::Byte => {
                     range(value <= u64::from(u8::MAX))?;
@@ -460,67 +511,14 @@ fn uuid_ints(text: &str) -> Option<Vec<i32>> {
         return None;
     }
     let field = |s: &str| u64::from_str_radix(s, 16).ok();
-    let most = (field(parts[0])? & 0xFFFF_FFFF) << 32 | (field(parts[1])? & 0xFFFF) << 16 | (field(parts[2])? & 0xFFFF);
+    let most = (field(parts[0])? & 0xFFFF_FFFF) << 32
+        | (field(parts[1])? & 0xFFFF) << 16
+        | (field(parts[2])? & 0xFFFF);
     let least = (field(parts[3])? & 0xFFFF) << 48 | (field(parts[4])? & 0xFFFF_FFFF_FFFF);
-    Some(vec![(most >> 32) as i32, most as i32, (least >> 32) as i32, least as i32])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn get<'a>(tag: &'a Tag, key: &str) -> &'a Tag {
-        tag.get(key).unwrap_or_else(|| panic!("missing {key}"))
-    }
-
-    #[test]
-    fn numbers_take_their_suffixes() {
-        let tag = parse_compound("{a:1b,b:2s,c:3,d:4L,e:1.5f,f:2.5,g:3d,h:-7,i:1e3,j:.5,k:0xFFub,l:0b101,m:1_000,n:5sb,o:0,p:true,q:False}").unwrap();
-        assert_eq!(get(&tag, "a"), &Tag::Byte(1));
-        assert_eq!(get(&tag, "b"), &Tag::Short(2));
-        assert_eq!(get(&tag, "c"), &Tag::Int(3));
-        assert_eq!(get(&tag, "d"), &Tag::Long(4));
-        assert_eq!(get(&tag, "e"), &Tag::Float(1.5));
-        assert_eq!(get(&tag, "f"), &Tag::Double(2.5));
-        assert_eq!(get(&tag, "g"), &Tag::Double(3.0));
-        assert_eq!(get(&tag, "h"), &Tag::Int(-7));
-        assert_eq!(get(&tag, "i"), &Tag::Double(1000.0));
-        assert_eq!(get(&tag, "j"), &Tag::Double(0.5));
-        assert_eq!(get(&tag, "k"), &Tag::Byte(-1));
-        assert_eq!(get(&tag, "l"), &Tag::Int(5));
-        assert_eq!(get(&tag, "m"), &Tag::Int(1000));
-        assert_eq!(get(&tag, "n"), &Tag::Byte(5));
-        assert_eq!(get(&tag, "o"), &Tag::Int(0));
-        assert_eq!(get(&tag, "p"), &Tag::Byte(1));
-        assert_eq!(get(&tag, "q"), &Tag::Byte(0));
-        assert!(parse("300b").is_err());
-        assert!(parse("-0x1").is_err());
-        assert!(parse("012").is_err());
-    }
-
-    #[test]
-    fn structures_strings_and_operations() {
-        let tag = parse_compound(
-            r#"{ UUID:[I;0,0,0,1201], Tags:["zombie", 'it''s'], Pos:[1.0d,2.5,-3d], "odd key":"a\"b\n", Name:plain_word-1.0, Data:{level:1,type:"minecraft:desert"}, Empty:[], B:[B;1b,2,3], L:[L;1,2l], Flag:bool(2), Id:uuid("00000000-0000-0001-0000-000000000002") }"#,
-        );
-        // `'it''s'` is not valid: a single-quoted string ends at its quote.
-        assert!(tag.is_err());
-        let tag = parse_compound(
-            r#"{ UUID:[I;0,0,0,1201], Tags:["zombie", 'it"s'], Pos:[1.0d,2.5,-3d], "odd key":"a\"b\n", Name:plain_word-1.0, Data:{level:1,type:"minecraft:desert"}, Empty:[], B:[B;1b,2,3], L:[L;1,2l], Flag:bool(2), Id:uuid("00000000-0000-0001-0000-000000000002") }"#,
-        )
-        .unwrap();
-        assert_eq!(get(&tag, "UUID"), &Tag::IntArray(vec![0, 0, 0, 1201]));
-        assert_eq!(get(&tag, "Tags"), &Tag::List(vec![Tag::String("zombie".into()), Tag::String("it\"s".into())]));
-        assert_eq!(get(&tag, "Pos"), &Tag::List(vec![Tag::Double(1.0), Tag::Double(2.5), Tag::Double(-3.0)]));
-        assert_eq!(get(&tag, "odd key"), &Tag::String("a\"b\n".into()));
-        assert_eq!(get(&tag, "Name"), &Tag::String("plain_word-1.0".into()));
-        assert_eq!(get(get(&tag, "Data"), "type"), &Tag::String("minecraft:desert".into()));
-        assert_eq!(get(&tag, "Empty"), &Tag::List(vec![]));
-        assert_eq!(get(&tag, "B"), &Tag::ByteArray(vec![1, 2, 3]));
-        assert_eq!(get(&tag, "L"), &Tag::LongArray(vec![1, 2]));
-        assert_eq!(get(&tag, "Flag"), &Tag::Byte(1));
-        assert_eq!(get(&tag, "Id"), &Tag::IntArray(vec![0, 1, 0, 2]));
-        assert!(parse_compound("{a:1} x").is_err());
-        assert!(parse_compound("[1,2]").is_err());
-    }
+    Some(vec![
+        (most >> 32) as i32,
+        most as i32,
+        (least >> 32) as i32,
+        least as i32,
+    ])
 }

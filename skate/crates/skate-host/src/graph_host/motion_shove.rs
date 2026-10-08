@@ -1,5 +1,3 @@
-//! Original TU3 Shove constructor82BBCCF0, Begin82BBCDD0,
-//! Update82BBCDF0 and End82BBD540. The host owns channels and graph values.
 use super::motion_animation::MotionAnimation;
 use skate_core::animation::{
     channel_playback::ChannelSettings,
@@ -37,7 +35,6 @@ impl ShoveOperation {
 
 #[derive(Clone, Copy, Debug)]
 pub struct ShovePhysical {
-    ///PhysOutInteraction (bundle52)+56; ProcessOutput82DB7E38 owns this.
     pub interaction_trigger: bool,
     ///PhysOutGround240, the interaction direction published by that producer.
     pub direction: [f32; 4],
@@ -63,7 +60,6 @@ impl ShoveState {
         }
     }
     pub fn begin(&mut self) {
-        //82BBCDD0 clears both fields; this does not terminate any channel.
         self.angle = 0.0;
         self.board_anticipation = false;
     }
@@ -132,8 +128,6 @@ impl ShoveState {
         Ok(())
     }
     pub fn end(&mut self, animation: &mut MotionAnimation, keep_channels: bool) {
-        //SpecificMotionGraph virtual212=8258FC30, bit18. Native reset clears it.
-        //Virtual44 is EndChannelPrematurely82D1D6A8, preserving fade timing.
         if !keep_channels {
             for name in ["SkitchAntic", "Shove"] {
                 if animation.channels.has(name) {
@@ -169,8 +163,6 @@ fn start_channel(
         hold_during_blend_out: false,
         use_attributes: false,
     };
-    //Vtable16 is TransitionTo82D1D090. Stack booleans at87/95/103 are1:
-    //allow resurrection, create missing and use channel weights.
     let transition = TransitionSettings {
         kind: 2,
         seconds: f32::from_bits(0x3dcccccd),
@@ -181,8 +173,6 @@ fn start_channel(
     animation.transition_channel(channel, tree, settings, transition, true, true)?;
     Ok(())
 }
-///82BBD250..D390: original one-refinement reciprocal followed by82473B98.
-///Unlike left-stick angle, zero direction has no extra zero-vector guard.
 fn direction_angle(direction: [f32; 4], mirrored: bool) -> f32 {
     let x = direction[0];
     let z = if mirrored {

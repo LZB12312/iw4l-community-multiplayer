@@ -39,7 +39,6 @@ pub struct SyncInput {
     pub position_592: Vector,
     pub flags_2488: u32,
 }
-///Complete numeric result82D794A0; offsets describe original output, not Rust ABI.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct UpdateOutput {
     pub can_land: bool,           //0

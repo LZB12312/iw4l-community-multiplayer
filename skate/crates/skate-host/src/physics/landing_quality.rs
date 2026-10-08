@@ -1,4 +1,3 @@
-//! Stock PhysicsAnimation cache +560/+576 and +592/+608, TU3 82DE6480.
 use skate_core::{animation::landing_quality::Settings, point_graph::PointGraph};
 use skate_data::collections::Collections;
 

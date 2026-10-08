@@ -1,4 +1,3 @@
-//! Separate native state instances: common ctor82D3F210 and Enter82D3F318.
 use super::{Family, output};
 pub(super) type V = [f32; 4];
 
@@ -55,7 +54,6 @@ impl State {
         self.leaving_updates = 0;
         self.output.jump_velocity = [0.; 4];
         if matches!(family, Family::Boardslide | Family::Darkslide) {
-            // Derived Enter82D41100 clears bytes240/241, not impulse224.
             self.output.slide_wipeout = false;
             self.preparing_jump = false;
         }

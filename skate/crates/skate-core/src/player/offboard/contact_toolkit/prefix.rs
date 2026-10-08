@@ -1,4 +1,3 @@
-//! Exact semantic fields of the 184-byte prefix copied by82D31040.
 use super::{Frame, IDENTITY, Input, UP, Vector, ZERO, dot, sub};
 use crate::air::trajectory::QueryResult;
 
@@ -19,7 +18,6 @@ pub struct ContactPrefix {
     pub support_180: u32,
 }
 impl ContactPrefix {
-    ///82D2DDD0. Note edge normal144 resets to ZERO, not world up.
     pub const fn reset() -> Self {
         Self {
             position: ZERO,
@@ -60,7 +58,6 @@ impl ContactPrefix {
             self.support_180 = main.geometry;
         }
         for (hit, flag) in [(hits[1], 0x10), (hits[2], 0x20)] {
-            //82D85660 strict bounds, no contact-time proximity surrogate.
             let height = dot(sub(hit.contact_position, input.position), input.up);
             if hit.valid() && height < 0.2 && height > -0.2 {
                 self.flags_176 |= flag;

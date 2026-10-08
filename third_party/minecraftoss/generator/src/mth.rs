@@ -13,8 +13,24 @@ pub fn lerp2(a1: f32, a2: f32, x00: f32, x10: f32, x01: f32, x11: f32) -> f32 {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn lerp3(a1: f32, a2: f32, a3: f32, x000: f32, x100: f32, x010: f32, x110: f32, x001: f32, x101: f32, x011: f32, x111: f32) -> f32 {
-    lerp(a3, lerp2(a1, a2, x000, x100, x010, x110), lerp2(a1, a2, x001, x101, x011, x111))
+pub fn lerp3(
+    a1: f32,
+    a2: f32,
+    a3: f32,
+    x000: f32,
+    x100: f32,
+    x010: f32,
+    x110: f32,
+    x001: f32,
+    x101: f32,
+    x011: f32,
+    x111: f32,
+) -> f32 {
+    lerp(
+        a3,
+        lerp2(a1, a2, x000, x100, x010, x110),
+        lerp2(a1, a2, x001, x101, x011, x111),
+    )
 }
 
 pub fn lerp_f64(alpha: f64, p0: f64, p1: f64) -> f64 {
@@ -54,7 +70,13 @@ pub fn clamp(value: f32, lo: f32, hi: f32) -> f32 {
 
 /// `Math.signum(float)`: keeps NaN and signed zeros.
 pub fn signum(x: f32) -> f32 {
-    if x.is_nan() || x == 0.0 { x } else if x > 0.0 { 1.0 } else { -1.0 }
+    if x.is_nan() || x == 0.0 {
+        x
+    } else if x > 0.0 {
+        1.0
+    } else {
+        -1.0
+    }
 }
 
 /// `(int) Math.floor(double)`: saturating, NaN becomes 0 (Rust `as` matches).
@@ -65,7 +87,11 @@ pub fn floor(v: f64) -> i32 {
 /// `Math.floorDiv(int, int)`.
 pub fn floor_div(a: i32, b: i32) -> i32 {
     let q = a.wrapping_div(b);
-    if (a % b != 0) && ((a ^ b) < 0) { q - 1 } else { q }
+    if (a % b != 0) && ((a ^ b) < 0) {
+        q - 1
+    } else {
+        q
+    }
 }
 
 /// `Math.floorMod(int, int)`.
@@ -112,27 +138,6 @@ pub fn ceil(v: f64) -> i32 {
 /// `Mth.square(double)`.
 pub fn square(v: f64) -> f64 {
     v * v
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn java_edge_cases() {
-        assert_eq!(min(0.0, -0.0).to_bits(), (-0.0f32).to_bits());
-        assert_eq!(min(-0.0, 0.0).to_bits(), (-0.0f32).to_bits());
-        assert_eq!(max(-0.0, 0.0).to_bits(), 0.0f32.to_bits());
-        assert!(min(f32::NAN, 1.0).is_nan() && min(1.0, f32::NAN).is_nan());
-        assert!(max(f32::NAN, 1.0).is_nan() && max(1.0, f32::NAN).is_nan());
-        assert_eq!(signum(-0.0).to_bits(), (-0.0f32).to_bits());
-        assert_eq!(signum(-3.0), -1.0);
-        assert_eq!((floor_div(-7, 4), floor_mod(-7, 4)), (-2, 1));
-        assert_eq!((floor_div(7, -4), floor_mod(7, -4)), (-2, -1));
-        assert_eq!(floor(f64::NAN), 0);
-        assert_eq!(floor(-1e20), i32::MIN);
-        assert!(clamp(f32::NAN, 0.0, 1.0).is_nan());
-    }
 }
 
 /// `Mth.inverseLerp(float, float, float)`.

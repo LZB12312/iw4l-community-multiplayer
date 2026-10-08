@@ -1,4 +1,3 @@
-//!82D7EEAC..F454 moving support history and800C0 output filtering.
 use super::math::*;
 use super::{Frame, GroundMotionInput, GroundMotionState};
 use crate::trigonometry;
@@ -62,7 +61,6 @@ pub(super) fn update(s: &mut GroundMotionState, i: &GroundMotionInput) -> Frame 
     delta
 }
 
-///82D800C0: reference-frame local acceleration, mirrored X/Z, cap then filter.
 fn filter(s: &mut GroundMotionState, i: &GroundMotionInput) {
     let f = i.reference_frame_128;
     let columns = [

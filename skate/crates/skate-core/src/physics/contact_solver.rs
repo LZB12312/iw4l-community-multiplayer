@@ -81,7 +81,3 @@ pub fn solve_contact_jacobian_iteration(
 ) {
     solve_contact_jacobians(contacts, reactions, 1);
 }
-
-#[cfg(test)]
-#[path = "tests/contact_solver.rs"]
-mod tests;

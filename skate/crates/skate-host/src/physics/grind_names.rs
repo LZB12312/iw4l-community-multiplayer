@@ -1,6 +1,3 @@
-//! ZIP short names verified entry-for-entry from original S3 initializer82DE6678.
-//!82F92AC0 splits384 records;82DEE508 publishes skating IDs and scoring IDs
-//! separately. S2 82E2F9D0 uses160 records (two orientations, five families).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Name {
     pub skating_id: i32,

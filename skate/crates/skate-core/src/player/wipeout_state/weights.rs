@@ -1,4 +1,3 @@
-//! Wipeout Update82D3BE04..82D3BFE8, after the selected physical control.
 use super::{State, math};
 
 #[derive(Clone, Copy)]

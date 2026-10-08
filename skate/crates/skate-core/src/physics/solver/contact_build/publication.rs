@@ -1,4 +1,3 @@
-//! Scaled Jacobian and restitution target publication, `82AE1590..82AE15F4`.
 use super::ContactPreparation;
 use crate::math::Vector3;
 

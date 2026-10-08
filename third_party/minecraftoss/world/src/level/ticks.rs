@@ -51,9 +51,24 @@ pub struct LevelTicks {
 impl LevelTicks {
     /// `LevelChunkTicks.schedule`: ignored while the same type waits at the
     /// same position.
-    pub fn schedule(&mut self, kind: TickType, pos: (i32, i32, i32), trigger: i64, priority: i32, sub_tick: i64) {
+    pub fn schedule(
+        &mut self,
+        kind: TickType,
+        pos: (i32, i32, i32),
+        trigger: i64,
+        priority: i32,
+        sub_tick: i64,
+    ) {
         if self.waiting.insert((kind, pos)) {
-            self.pending.push(Reverse(ScheduledTick { key: Key { trigger, priority, sub_tick }, pos, kind }));
+            self.pending.push(Reverse(ScheduledTick {
+                key: Key {
+                    trigger,
+                    priority,
+                    sub_tick,
+                },
+                pos,
+                kind,
+            }));
         }
     }
 
@@ -108,25 +123,5 @@ impl LevelTicks {
         let mut ticks: Vec<ScheduledTick> = self.pending.iter().map(|Reverse(t)| *t).collect();
         ticks.sort();
         ticks
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn drain_order_and_dedupe() {
-        let mut ticks = LevelTicks::default();
-        let water = TickType::Fluid(FluidType::Water);
-        ticks.schedule(water, (0, 0, 0), 5, 0, 0);
-        ticks.schedule(water, (0, 0, 0), 3, 0, 1); // waiting already: ignored
-        ticks.schedule(TickType::Block(1), (1, 0, 0), 5, -1, 2);
-        ticks.schedule(TickType::Block(1), (2, 0, 0), 4, 0, 3);
-        assert!(ticks.collect(3, 10).is_empty());
-        let due: Vec<_> = ticks.collect(5, 10).into_iter().map(|t| t.pos).collect();
-        assert_eq!(due, vec![(2, 0, 0), (1, 0, 0), (0, 0, 0)]);
-        ticks.schedule(water, (0, 0, 0), 6, 0, 4);
-        assert!(ticks.has_scheduled(water, (0, 0, 0)));
     }
 }

@@ -1,8 +1,3 @@
-//! Direct stock Andale bank storage and format descriptions.
-//!
-//! Source: TU3 DataBase::SetDBContent82D1B340, Clip::Init827B8AB0,
-//! FetchSys::BatchFetch82D20560/82D20788 and codec identifier82D17A60.
-//! This module owns bytes and bounds checks; codec arithmetic belongs to core.
 mod bank;
 mod reader;
 pub use bank::Bank;
@@ -37,11 +32,11 @@ pub enum Codec {
     Other(u32),
 }
 impl Codec {
-    ///82D17A60 reverses the disk word and compares RD\0\0 and VBR\0.
     pub fn from_word(word: u32) -> Self {
+        const VBR_MAGIC: u32 = 0x0052_4256;
         match word {
             0x0000_4452 => Self::Raw,
-            0x0052_4256 => Self::Vbr,
+            VBR_MAGIC => Self::Vbr,
             v => Self::Other(v),
         }
     }

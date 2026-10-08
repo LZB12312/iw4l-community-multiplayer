@@ -1,4 +1,3 @@
-//! Live bindings for TU3 SkateboardController, 82DB6150 and 82D76D20.
 use super::super::board_possession::{Effects, Materials, VolumeFlags, settings, vector};
 use super::native;
 use crate::physics::{GamePhysics, SkaterRuntime};
@@ -111,8 +110,6 @@ pub(crate) fn observe(physics: &GamePhysics, skater: &SkaterRuntime) -> Observat
     let p = &skater.player_input.processed;
     let frames = &skater.skeleton_input.drive_frames;
     let mut board = crate::physics::solve::deck_frame(&physics.board);
-    //82C01440..60: Processed64 is the unmodified deck part transform.
-    //The effective axes are written separately at320/352.
     if let Some(toolkit) = &skater.player_input.toolkit {
         board = toolkit.deck;
     }
@@ -132,7 +129,6 @@ pub(crate) fn observe(physics: &GamePhysics, skater: &SkaterRuntime) -> Observat
         },
         board_collision_flags_872: physics.riding.ground.collision_flags,
         board_state_840: surface(physics),
-        //82D761F0 reads Collision1232 + part*112 +99 (group byte1331).
         hand_contacts: [
             skater.collision_feedback.bones[3].groups[3],
             skater.collision_feedback.bones[7].groups[3],
@@ -143,7 +139,6 @@ pub(crate) fn observe(physics: &GamePhysics, skater: &SkaterRuntime) -> Observat
         ],
         animation_board_frame_12624: frames[0],
         animation_hand_frames: [frames[3], frames[7]],
-        //82BE3170 composes Skeleton11920 with current12624; not physical pose.
         attachment_frame_0: compose_affine(
             &skater.animated_skeleton.roots.animation_to_world,
             &frames[0],
@@ -151,8 +146,6 @@ pub(crate) fn observe(physics: &GamePhysics, skater: &SkaterRuntime) -> Observat
     }
 }
 
-///82C08818 votes only four wheel surfaces; physical contact counts four,
-/// line-only support counts one. Ties retain the lowest nonzero surface.
 fn surface(physics: &GamePhysics) -> u32 {
     if physics.riding.ground.collision_flags & 0x0200_0000 != 0 {
         return 12;
@@ -179,8 +172,6 @@ fn surface(physics: &GamePhysics) -> u32 {
     best as u32
 }
 
-/// Insert immediately after frame.rs's selected physical-state Update match,
-/// before state_timer_1344 and solve. TU3 82DB6150..61B0.
 pub(crate) fn update(physics: &mut GamePhysics, skater: &mut SkaterRuntime) {
     if !skater.skateboard_controller.fields.system_on_452 {
         return;
@@ -199,8 +190,6 @@ pub(crate) fn update(physics: &mut GamePhysics, skater: &mut SkaterRuntime) {
     skater.board_possession_live.publish_volumes(physics);
 }
 
-///82DB8998 brackets board/skeleton teleport with this operation. Call before
-///board.reset_physical, then again after Skeleton update_teleport.
 pub(crate) fn reset_for_teleport(physics: &mut GamePhysics, skater: &mut SkaterRuntime) {
     let observation = observe(physics, skater);
     let mut effects = skater.board_possession_live.effects(
@@ -217,8 +206,6 @@ pub(crate) fn reset_for_teleport(physics: &mut GamePhysics, skater: &mut SkaterR
     skater.board_possession_live.publish_volumes(physics);
 }
 
-///82DB8E10..8E24, AFTER teleport's SetPhysicsState(Ground). Standard-board
-///restoration must follow Stop's released-material writes, not precede them.
 pub(crate) fn finish_teleport(physics: &mut GamePhysics, skater: &mut SkaterRuntime) {
     use native::lifecycle::Effects as _;
     skater
@@ -232,8 +219,6 @@ pub(crate) fn finish_teleport(physics: &mut GamePhysics, skater: &mut SkaterRunt
     skater.board_possession_live.publish_volumes(physics);
 }
 
-/// Insert after finish_skater (completed contacts), before next input. The
-/// alignment test is82C0837C..8428 and publishes the actual release bit872.
 pub(crate) fn publish(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Fill {
     let live = &skater.board_possession_live;
     if live.alignment_active {

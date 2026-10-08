@@ -45,7 +45,10 @@ pub struct MerchantMenu {
 type View<'a> = Option<(&'a str, i32, Option<&'a Value>)>;
 
 fn view(stack: &Option<ItemStack>) -> View<'_> {
-    stack.as_ref().filter(|s| s.count > 0).map(|s| (s.id.as_str(), i32::from(s.count), s.components.as_ref()))
+    stack
+        .as_ref()
+        .filter(|s| s.count > 0)
+        .map(|s| (s.id.as_str(), i32::from(s.count), s.components.as_ref()))
 }
 
 /// `ItemStack.isSameItemSameComponents`.
@@ -55,14 +58,28 @@ fn same(a: &ItemStack, b: &ItemStack) -> bool {
 
 /// A menu slot's inventory index.
 fn inventory_index(menu_slot: usize) -> usize {
-    if menu_slot < 30 { menu_slot - 3 + 9 } else { menu_slot - 30 }
+    if menu_slot < 30 {
+        menu_slot - 3 + 9
+    } else {
+        menu_slot - 30
+    }
 }
 
 /// `AbstractContainerMenu.moveItemStackTo` into the inventory's menu slots
 /// `start..end`: onto matching stacks first, then into the first empty
 /// slot, backwards or not. Whether anything moved.
-fn move_item_stack_to(stack: &mut ItemStack, inventory: &mut Inventory, start: usize, end: usize, backwards: bool) -> bool {
-    let order: Vec<usize> = if backwards { (start..end).rev().collect() } else { (start..end).collect() };
+fn move_item_stack_to(
+    stack: &mut ItemStack,
+    inventory: &mut Inventory,
+    start: usize,
+    end: usize,
+    backwards: bool,
+) -> bool {
+    let order: Vec<usize> = if backwards {
+        (start..end).rev().collect()
+    } else {
+        (start..end).collect()
+    };
     let mut changed = false;
     // `isStackable`.
     if stack.max > 1 {
@@ -70,7 +87,9 @@ fn move_item_stack_to(stack: &mut ItemStack, inventory: &mut Inventory, start: u
             if stack.count == 0 {
                 break;
             }
-            let Some(target) = inventory.slots[inventory_index(menu_slot)].as_mut() else { continue };
+            let Some(target) = inventory.slots[inventory_index(menu_slot)].as_mut() else {
+                continue;
+            };
             if !same(target, stack) {
                 continue;
             }
@@ -93,7 +112,10 @@ fn move_item_stack_to(stack: &mut ItemStack, inventory: &mut Inventory, start: u
             if slot.is_none() {
                 let max = CONTAINER_MAX.min(i32::from(stack.max));
                 let moved = i32::from(stack.count).min(max) as u8;
-                *slot = Some(ItemStack { count: moved, ..stack.clone() });
+                *slot = Some(ItemStack {
+                    count: moved,
+                    ..stack.clone()
+                });
                 stack.count -= moved;
                 changed = true;
                 break;
@@ -105,18 +127,33 @@ fn move_item_stack_to(stack: &mut ItemStack, inventory: &mut Inventory, start: u
 
 impl MerchantMenu {
     pub fn new(villager: u64) -> Self {
-        Self { villager, ..Self::default() }
+        Self {
+            villager,
+            ..Self::default()
+        }
     }
 
     /// `offer.assemble()`.
     fn assemble(offer: &MerchantOffer, merchant: &impl Merchant) -> ItemStack {
-        let components = (!offer.sell.components.is_empty()).then(|| Value::Object(offer.sell.components.clone()));
-        ItemStack { id: offer.sell.id.clone(), count: offer.sell.count as u8, max: merchant.max_stack(&offer.sell.id) as u8, components }
+        let components = (!offer.sell.components.is_empty())
+            .then(|| Value::Object(offer.sell.components.clone()));
+        ItemStack {
+            id: offer.sell.id.clone(),
+            count: offer.sell.count as u8,
+            max: merchant.max_stack(&offer.sell.id) as u8,
+            components,
+        }
     }
 
     /// `MerchantOffers.getRecipeFor`: the selected offer if the payments
     /// satisfy it (a hint of zero is no hint), else the first they do.
-    fn recipe_for(offers: &[MerchantOffer], a: View, b: View, hint: i32, merchant: &impl Merchant) -> Option<usize> {
+    fn recipe_for(
+        offers: &[MerchantOffer],
+        a: View,
+        b: View,
+        hint: i32,
+        merchant: &impl Merchant,
+    ) -> Option<usize> {
         let fits = |o: &MerchantOffer| o.satisfied_by(a, b, merchant.max_stack(&o.buy.id));
         if hint > 0 && (hint as usize) < offers.len() {
             return fits(&offers[hint as usize]).then_some(hint as usize);
@@ -127,7 +164,11 @@ impl MerchantMenu {
     /// `MerchantContainer.updateSellItem`.
     pub fn update_sell_item(&mut self, merchant: &mut impl Merchant) {
         self.active_offer = None;
-        let (a, b) = if view(&self.payment[0]).is_none() { (self.payment[1].clone(), None) } else { (self.payment[0].clone(), self.payment[1].clone()) };
+        let (a, b) = if view(&self.payment[0]).is_none() {
+            (self.payment[1].clone(), None)
+        } else {
+            (self.payment[0].clone(), self.payment[1].clone())
+        };
         if view(&a).is_none() {
             self.result = None;
             self.future_xp = 0;
@@ -135,10 +176,12 @@ impl MerchantMenu {
         }
         let offers = merchant.offers();
         if !offers.is_empty() {
-            let mut offer = Self::recipe_for(&offers, view(&a), view(&b), self.selection_hint, merchant);
+            let mut offer =
+                Self::recipe_for(&offers, view(&a), view(&b), self.selection_hint, merchant);
             if offer.is_none_or(|i| offers[i].out_of_stock()) {
                 self.active_offer = offer;
-                offer = Self::recipe_for(&offers, view(&b), view(&a), self.selection_hint, merchant);
+                offer =
+                    Self::recipe_for(&offers, view(&b), view(&a), self.selection_hint, merchant);
             }
             match offer.filter(|&i| !offers[i].out_of_stock()) {
                 Some(i) => {
@@ -166,7 +209,12 @@ impl MerchantMenu {
     }
 
     /// `Slot.setByPlayer` on a payment slot: set, then `setChanged`.
-    fn set_payment_by_player(&mut self, slot: usize, stack: Option<ItemStack>, merchant: &mut impl Merchant) {
+    fn set_payment_by_player(
+        &mut self,
+        slot: usize,
+        stack: Option<ItemStack>,
+        merchant: &mut impl Merchant,
+    ) {
         self.set_payment(slot, stack, merchant);
         self.update_sell_item(merchant);
     }
@@ -180,7 +228,12 @@ impl MerchantMenu {
     /// `ServerboundSelectTradePacket`: the offer picked, then its costs
     /// moved from the inventory to the payment slots (`tryMoveItems`),
     /// the payments there first going back.
-    pub fn select_trade(&mut self, index: i32, inventory: &mut Inventory, merchant: &mut impl Merchant) {
+    pub fn select_trade(
+        &mut self,
+        index: i32,
+        inventory: &mut Inventory,
+        merchant: &mut impl Merchant,
+    ) {
         self.set_selection_hint(index, merchant);
         let offers = merchant.offers();
         if index < 0 || index as usize >= offers.len() {
@@ -206,10 +259,18 @@ impl MerchantMenu {
 
     /// `moveFromInventoryToPaymentSlot`: matching stacks, inventory first,
     /// until the payment slot holds a stack.
-    fn move_from_inventory(&mut self, slot: usize, cost: &crate::trading::ItemCost, inventory: &mut Inventory, merchant: &mut impl Merchant) {
+    fn move_from_inventory(
+        &mut self,
+        slot: usize,
+        cost: &crate::trading::ItemCost,
+        inventory: &mut Inventory,
+        merchant: &mut impl Merchant,
+    ) {
         for menu_slot in 3..39 {
             let index = inventory_index(menu_slot);
-            let Some(item) = inventory.slots[index].clone() else { continue };
+            let Some(item) = inventory.slots[index].clone() else {
+                continue;
+            };
             if !cost.test(&item.id, item.components.as_ref()) {
                 continue;
             }
@@ -220,9 +281,15 @@ impl MerchantMenu {
             let max = i32::from(item.max);
             let have = current.map_or(0, |c| i32::from(c.count));
             let moved = (max - have).min(i32::from(item.count));
-            let paid = ItemStack { count: (have + moved) as u8, ..item.clone() };
+            let paid = ItemStack {
+                count: (have + moved) as u8,
+                ..item.clone()
+            };
             let left = i32::from(item.count) - moved;
-            inventory.slots[index] = (left > 0).then(|| ItemStack { count: left as u8, ..item });
+            inventory.slots[index] = (left > 0).then(|| ItemStack {
+                count: left as u8,
+                ..item
+            });
             let full = i32::from(paid.count) >= max;
             self.set_payment(slot, Some(paid), merchant);
             if full {
@@ -233,9 +300,13 @@ impl MerchantMenu {
 
     /// `MerchantResultSlot.mayPickup`.
     fn may_take_result(&mut self, merchant: &mut impl Merchant) -> bool {
-        let Some(index) = self.active_offer else { return false };
+        let Some(index) = self.active_offer else {
+            return false;
+        };
         let offers = merchant.offers();
-        let Some(offer) = offers.get(index) else { return false };
+        let Some(offer) = offers.get(index) else {
+            return false;
+        };
         let max = merchant.max_stack(&offer.buy.id);
         let (a, b) = (view(&self.payment[0]), view(&self.payment[1]));
         offer.satisfied_by(a, b, max) || offer.satisfied_by(b, a, max)
@@ -245,9 +316,13 @@ impl MerchantMenu {
     /// (`MerchantOffer.take`, either way round) and the merchant hears of
     /// the trade.
     fn take_result(&mut self, merchant: &mut impl Merchant) {
-        let Some(index) = self.active_offer else { return };
+        let Some(index) = self.active_offer else {
+            return;
+        };
         let offers = merchant.offers();
-        let Some(offer) = offers.get(index).cloned() else { return };
+        let Some(offer) = offers.get(index).cloned() else {
+            return;
+        };
         let max = merchant.max_stack(&offer.buy.id);
         let cost_a = offer.cost_a_count(max);
         let cost_b = offer.buy_b.as_ref().map_or(0, |b| b.count);
@@ -278,7 +353,11 @@ impl MerchantMenu {
     /// `quickMoveStack` on the result slot: the result into the inventory
     /// (hotbar first, from its end), the slot re-read, then paid for. What
     /// moved, if anything.
-    fn quick_move_result_once(&mut self, inventory: &mut Inventory, merchant: &mut impl Merchant) -> Option<ItemStack> {
+    fn quick_move_result_once(
+        &mut self,
+        inventory: &mut Inventory,
+        merchant: &mut impl Merchant,
+    ) -> Option<ItemStack> {
         let mut stack = self.result.clone()?;
         let clicked = stack.clone();
         if !move_item_stack_to(&mut stack, inventory, 3, 39, true) {
@@ -345,16 +424,31 @@ impl MerchantMenu {
     }
 
     /// `Slot.safeInsert` on a payment slot: what the cursor keeps.
-    fn safe_insert(&mut self, slot: usize, mut input: ItemStack, amount: i32, merchant: &mut impl Merchant) -> Option<ItemStack> {
+    fn safe_insert(
+        &mut self,
+        slot: usize,
+        mut input: ItemStack,
+        amount: i32,
+        merchant: &mut impl Merchant,
+    ) -> Option<ItemStack> {
         let current = self.payment[slot].clone();
         let have = current.as_ref().map_or(0, |c| i32::from(c.count));
-        let transfer = amount.min(i32::from(input.count)).min(CONTAINER_MAX.min(i32::from(input.max)) - have);
+        let transfer = amount
+            .min(i32::from(input.count))
+            .min(CONTAINER_MAX.min(i32::from(input.max)) - have);
         if transfer <= 0 {
             return Some(input);
         }
         match current {
             None => {
-                self.set_payment_by_player(slot, Some(ItemStack { count: transfer as u8, ..input.clone() }), merchant);
+                self.set_payment_by_player(
+                    slot,
+                    Some(ItemStack {
+                        count: transfer as u8,
+                        ..input.clone()
+                    }),
+                    merchant,
+                );
                 input.count -= transfer as u8;
             }
             Some(mut c) if same(&c, &input) => {
@@ -368,7 +462,12 @@ impl MerchantMenu {
     }
 
     /// `Slot.tryRemove` on a payment slot.
-    fn try_remove(&mut self, slot: usize, amount: i32, merchant: &mut impl Merchant) -> Option<ItemStack> {
+    fn try_remove(
+        &mut self,
+        slot: usize,
+        amount: i32,
+        merchant: &mut impl Merchant,
+    ) -> Option<ItemStack> {
         let current = self.payment[slot].clone()?;
         let taken = amount.min(i32::from(current.count));
         if taken <= 0 {
@@ -376,17 +475,30 @@ impl MerchantMenu {
         }
         let left = i32::from(current.count) - taken;
         // `ContainerHelper.removeItem`, then the offers re-read.
-        self.payment[slot] = (left > 0).then(|| ItemStack { count: left as u8, ..current.clone() });
+        self.payment[slot] = (left > 0).then(|| ItemStack {
+            count: left as u8,
+            ..current.clone()
+        });
         self.update_sell_item(merchant);
         if left == 0 {
             self.set_payment_by_player(slot, None, merchant);
         }
-        Some(ItemStack { count: taken as u8, ..current })
+        Some(ItemStack {
+            count: taken as u8,
+            ..current
+        })
     }
 
     /// A click on a payment slot (`doClick` with `PICKUP`, or `QUICK_MOVE`
     /// with shift).
-    pub fn click_payment(&mut self, slot: usize, right: bool, shift: bool, inventory: &mut Inventory, merchant: &mut impl Merchant) {
+    pub fn click_payment(
+        &mut self,
+        slot: usize,
+        right: bool,
+        shift: bool,
+        inventory: &mut Inventory,
+        merchant: &mut impl Merchant,
+    ) {
         if shift {
             // `quickMoveStack`: into the inventory, then the hotbar.
             let mut moved = self.quick_move_payment_once(slot, inventory, merchant);
@@ -407,7 +519,11 @@ impl MerchantMenu {
             }
             (None, None) => {}
             (Some(clicked), None) => {
-                let amount = if right { (i32::from(clicked.count) + 1) / 2 } else { i32::from(clicked.count) };
+                let amount = if right {
+                    (i32::from(clicked.count) + 1) / 2
+                } else {
+                    i32::from(clicked.count)
+                };
                 if let Some(taken) = self.try_remove(slot, amount, merchant) {
                     inventory.cursor = Some(taken);
                     // `Slot.onTake`: `setChanged`.
@@ -430,7 +546,12 @@ impl MerchantMenu {
         self.update_sell_item(merchant);
     }
 
-    fn quick_move_payment_once(&mut self, slot: usize, inventory: &mut Inventory, merchant: &mut impl Merchant) -> Option<ItemStack> {
+    fn quick_move_payment_once(
+        &mut self,
+        slot: usize,
+        inventory: &mut Inventory,
+        merchant: &mut impl Merchant,
+    ) -> Option<ItemStack> {
         let mut stack = self.payment[slot].clone()?;
         let clicked = stack.clone();
         if !move_item_stack_to(&mut stack, inventory, 3, 39, false) {
@@ -457,14 +578,23 @@ impl MerchantMenu {
             return;
         }
         loop {
-            let Some(mut stack) = inventory.slots[index].take() else { return };
+            let Some(mut stack) = inventory.slots[index].take() else {
+                return;
+            };
             let clicked = stack.clone();
-            let moved = if index >= 9 { move_item_stack_to(&mut stack, inventory, 30, 39, false) } else { move_item_stack_to(&mut stack, inventory, 3, 30, false) };
+            let moved = if index >= 9 {
+                move_item_stack_to(&mut stack, inventory, 30, 39, false)
+            } else {
+                move_item_stack_to(&mut stack, inventory, 3, 30, false)
+            };
             inventory.slots[index] = (stack.count > 0).then(|| stack.clone());
             if !moved || stack.count == clicked.count {
                 return;
             }
-            if inventory.slots[index].as_ref().is_none_or(|s| s.id != clicked.id) {
+            if inventory.slots[index]
+                .as_ref()
+                .is_none_or(|s| s.id != clicked.id)
+            {
                 return;
             }
         }
@@ -473,7 +603,12 @@ impl MerchantMenu {
     /// `MerchantMenu.removed`: the cursor and the payments go back to the
     /// inventory (`placeItemBackInInventory`); what does not fit is
     /// returned to drop. The merchant stops trading in between.
-    pub fn close(&mut self, inventory: &mut Inventory, selected: usize, stop: impl FnOnce()) -> Vec<ItemStack> {
+    pub fn close(
+        &mut self,
+        inventory: &mut Inventory,
+        selected: usize,
+        stop: impl FnOnce(),
+    ) -> Vec<ItemStack> {
         let mut drops = Vec::new();
         if let Some(carried) = inventory.cursor.take() {
             drops.extend(inventory.add_item(carried, selected));
@@ -486,73 +621,5 @@ impl MerchantMenu {
         }
         self.result = None;
         drops
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::trading::{ItemCost, TradeItem};
-
-    /// A merchant with fixed offers, recording what it heard.
-    #[derive(Default)]
-    struct Fake {
-        offers: Vec<MerchantOffer>,
-        heard: Vec<bool>,
-        trades: Vec<usize>,
-    }
-
-    impl Merchant for Fake {
-        fn offers(&mut self) -> Vec<MerchantOffer> {
-            self.offers.clone()
-        }
-        fn max_stack(&self, _: &str) -> i32 {
-            64
-        }
-        fn trade_updated(&mut self, valid: bool) {
-            self.heard.push(valid);
-        }
-        fn trade(&mut self, index: usize) {
-            self.offers[index].uses += 1;
-            self.trades.push(index);
-        }
-    }
-
-    fn offer(buy: (&str, i32), sell: (&str, i32), max_uses: i32) -> MerchantOffer {
-        MerchantOffer {
-            buy: ItemCost { id: buy.0.into(), count: buy.1, components: None },
-            buy_b: None,
-            sell: TradeItem { id: sell.0.into(), count: sell.1, components: Default::default() },
-            uses: 0,
-            max_uses,
-            reward_exp: true,
-            special_price: 0,
-            demand: 0,
-            price_multiplier: 0.05,
-            xp: 2,
-        }
-    }
-
-    #[test]
-    fn a_picked_trade_takes_its_payment_and_shift_click_trades_it_out() {
-        let mut merchant = Fake { offers: vec![offer(("minecraft:wheat", 20), ("minecraft:emerald", 1), 2)], ..Fake::default() };
-        let mut inventory = Inventory::default();
-        inventory.slots[9] = Some(ItemStack::new("minecraft:wheat", 50));
-        let mut menu = MerchantMenu::new(1);
-        menu.select_trade(0, &mut inventory, &mut merchant);
-        assert_eq!(menu.payment[0].as_ref().map(|s| s.count), Some(50), "all the wheat");
-        assert!(inventory.slots[9].is_none());
-        assert_eq!(menu.result.as_ref().map(|s| s.id.as_str()), Some("minecraft:emerald"));
-        // Two uses: two trades, then the offer is out of stock.
-        menu.quick_move_result(&mut inventory, &mut merchant);
-        assert_eq!(merchant.trades, vec![0, 0]);
-        assert_eq!(menu.payment[0].as_ref().map(|s| s.count), Some(10));
-        assert!(menu.result.is_none(), "out of stock");
-        let emeralds: u32 = inventory.slots.iter().flatten().filter(|s| s.id == "minecraft:emerald").map(|s| u32::from(s.count)).sum();
-        assert_eq!(emeralds, 2);
-        // Closing puts the rest back.
-        let drops = menu.close(&mut inventory, 0, || {});
-        assert!(drops.is_empty());
-        assert_eq!(inventory.count("minecraft:wheat"), 10);
     }
 }

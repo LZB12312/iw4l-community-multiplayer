@@ -1,4 +1,3 @@
-//! SkateboardWobble constructor82BF2E48, trigger82BF2F18, update82BF2FB8.
 use crate::point_graph::PointGraph;
 
 pub struct Settings {
@@ -72,8 +71,6 @@ impl Wobble {
     }
 }
 
-/// PostWipeoutCheck82BD857C..86D4 modifies the observed board record only.
-///This wobble is not a force or a SetPartTransform on the simulated deck.
 pub fn apply(
     output: Output,
     board: &mut crate::physics::skeleton_animation_record::AnimationPartTransform,
@@ -83,7 +80,6 @@ pub fn apply(
     }
     use crate::{physics::skeleton_animation_record::compose_affine, trigonometry::sin_cos};
     let (sine, cosine) = sin_cos(output.tilt);
-    //822FB890 permute and vrlimi mask2 retain the native packed W lanes.
     let rotation = [
         [cosine, sine, 0.0, cosine],
         [-sine, cosine, 0.0, -sine],

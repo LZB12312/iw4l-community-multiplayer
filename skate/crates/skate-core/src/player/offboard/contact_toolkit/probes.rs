@@ -1,4 +1,3 @@
-//! Original descriptors82D856C8 and query geometry82D811C8.
 use super::{Vector, cross};
 use crate::air::trajectory::{QueryRequest, Trajectory};
 
@@ -63,7 +62,6 @@ fn probe(x0: f32, y0: f32, z0: f32, x1: f32, y1: f32, z1: f32, radius: f32) -> L
 }
 impl ProbeLayout {
     pub fn stock() -> Self {
-        // Live TU3 data8303744C = 3f4ccccd (0.8); not a tuned foot height.
         let trajectories = [
             probe(0., 1.2, 0., 0., -0.8, 0., 0.01),
             probe(-0.12, 0.8, 0., -0.17, -0.2, 0., 0.03),
@@ -114,7 +112,6 @@ impl ProbeLayout {
     }
     pub fn prepare(&self, input: Input, matching_group: i32) -> Batch {
         let surface = [input.right, input.up, input.forward, input.position];
-        // 82D81298..12E4 computes animation_right x animation_up.
         let animated = [
             input.animation_right,
             input.animation_up,

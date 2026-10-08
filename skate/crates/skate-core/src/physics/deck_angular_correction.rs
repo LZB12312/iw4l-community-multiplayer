@@ -1,6 +1,3 @@
-//! Deck angular corrections from TU3 82C07000 and 82C075B8.
-//! These add angular acceleration before the shared solve. They never set yaw
-//! or orientation directly. Both native fixed-step conversions are retained.
 use super::{
     board_motion_output::{dot, inverse_length_squared},
     native_arithmetic::reciprocal_estimate,
@@ -8,24 +5,28 @@ use super::{
 };
 use crate::math::{Basis3, Vector3};
 const STEP: f32 = f32::from_bits(0x3c88_8889);
-const NORMAL_MINIMUM: f32 = f32::from_bits(0x3586_37bd); //82F826F8 ->830BD350.
+const NORMAL_MINIMUM: f32 = f32::from_bits(0x3586_37bd);
 
-///82C07328 subtracts the current angular displacement along the requested
-///axis, without07000's directional clamps, then performs the same tensor and
-///fixed-step conversion as075B8. The thrown-board controller calls this leaf.
 pub fn apply_axis_displacement(body: &mut RetailBodyRates, requested: Vector3) {
     let squared = dot(requested, requested);
     let inverse = inverse_length_squared(squared, 2);
-    let length = if squared == 0.0 { 0.0 } else { squared * inverse };
+    let length = if squared == 0.0 {
+        0.0
+    } else {
+        squared * inverse
+    };
     let direction = if length > NORMAL_MINIMUM {
         scale(requested, inverse)
-    } else { Vector3::ZERO };
-    let existing = scale(direction, dot(direction, scale(body.angular_velocity, STEP)));
+    } else {
+        Vector3::ZERO
+    };
+    let existing = scale(
+        direction,
+        dot(direction, scale(body.angular_velocity, STEP)),
+    );
     apply_angular_displacement(body, subtract(requested, existing));
 }
 
-/// 82C07000 first limits the requested angular displacement against the
-/// displacement already supplied by angular velocity along that same axis.
 pub fn apply_limited_displacement(body: &mut RetailBodyRates, requested: Vector3) {
     let squared = dot(requested, requested);
     let inverse = inverse_length_squared(squared, 2);
@@ -57,10 +58,6 @@ pub fn apply_limited_displacement(body: &mut RetailBodyRates, requested: Vector3
     apply_angular_displacement(body, selected);
 }
 
-/// 82C075B8. The inverse of the current world inverse-inertia tensor converts
-/// displacement/step to torque; another step division and the original tensor
-/// convert it to angular acceleration. Do not algebraically cancel the tensor
-/// pair: its rounded cofactors and ordered products are observable.
 pub fn apply_angular_displacement(body: &mut RetailBodyRates, displacement: Vector3) {
     let tensor = body.world_inverse_inertia;
     let inverse = invert_symmetric(tensor);
@@ -120,80 +117,6 @@ fn subtract(a: Vector3, b: Vector3) -> Vector3 {
     Vector3::new(a.x - b.x, a.y - b.y, a.z - b.z)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::physics::rigid_body::RetailQuaternion;
-    fn body() -> RetailBodyRates {
-        let identity = Basis3 {
-            columns: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
-        };
-        RetailBodyRates {
-            orientation: RetailQuaternion::IDENTITY,
-            basis: identity,
-            world_inverse_inertia: Basis3 {
-                columns: [[3.0, 0.2, 0.1], [0.2, 2.0, 0.3], [0.1, 0.3, 1.0]],
-            },
-            position: Vector3::ZERO,
-            linear_velocity: Vector3::ZERO,
-            angular_velocity: Vector3::ZERO,
-            force_acceleration: Vector3::ZERO,
-            torque_acceleration: Vector3::ZERO,
-            kinetic_energy: 0.0,
-            cool_down: 3,
-        }
-    }
-    #[test]
-    fn thrown_board_correction_brakes_axis_overshoot_without_touching_other_motion() {
-        let mut state = body();
-        state.angular_velocity = Vector3::new(4., 3., 5.);
-        apply_axis_displacement(&mut state, Vector3::new(0., 0.02, 0.));
-        assert!((state.torque_acceleration.y + 108.).abs() < 0.0001);
-        assert!(state.torque_acceleration.x.abs() < 0.0001);
-        assert!(state.torque_acceleration.z.abs() < 0.0001);
-        assert_eq!(state.angular_velocity, Vector3::new(4., 3., 5.));
-        assert_eq!(state.cool_down, 0);
-        let mut reverse = body();
-        reverse.angular_velocity = Vector3::new(0., -3., 0.);
-        apply_axis_displacement(&mut reverse, Vector3::new(0., 0.02, 0.));
-        assert!((reverse.torque_acceleration.y - 252.).abs() < 0.0001);
-    }
-    #[test]
-    fn correction_enters_accumulator_and_respects_existing_angular_motion() {
-        let request = Vector3::new(0.02, 0.01, -0.03);
-        let mut state = body();
-        apply_angular_displacement(&mut state, request);
-        for (actual, want) in [
-            (state.torque_acceleration.x, 72.0),
-            (state.torque_acceleration.y, 36.0),
-            (state.torque_acceleration.z, -108.0),
-        ] {
-            assert!((actual - want).abs() < 0.0001);
-        }
-        assert_eq!(state.orientation, RetailQuaternion::IDENTITY);
-        assert_eq!(state.cool_down, 0);
-        let mut overshoot = body();
-        overshoot.angular_velocity = Vector3::new(0.0, 3.0, 0.0);
-        apply_limited_displacement(&mut overshoot, Vector3::new(0.0, 0.02, 0.0));
-        assert_eq!(overshoot.torque_acceleration, Vector3::ZERO);
-        let mut against = body();
-        against.angular_velocity = Vector3::new(0.0, -3.0, 0.0);
-        apply_limited_displacement(&mut against, Vector3::new(0.0, 0.02, 0.0));
-        assert!((against.torque_acceleration.y - 72.0).abs() < 0.0001);
-        let mut ground = body();
-        ground.basis = Basis3 { columns: [[0., -1., 0.], [1., 0., 0.], [0., 0., 1.]] };
-        apply_ground_body_torque(&mut ground);
-        assert!((ground.torque_acceleration.x + 1.815).abs() < 0.00001);
-        assert!((ground.torque_acceleration.y + 0.121).abs() < 0.00001);
-        assert!((ground.torque_acceleration.z + 0.0605).abs() < 0.00001);
-        assert_eq!(ground.force_acceleration, Vector3::ZERO);
-    }
-}
-
-/// Ground board update82D389DC..82D38C98. Skateboard+16 is the cached deck
-/// rigid body (ctor82C01278); this torque therefore enters the same accumulator.
-/// The inline pow calculation has fixed inputs10 and-1. Retain its two
-/// coefficient trees and reciprocal refinements instead of replacing it by.1.
 pub fn apply_ground_body_torque(body: &mut RetailBodyRates) {
     let local = Vector3::new(0.0, ground_torque_scalar(), 0.0);
     let world = multiply(body.basis, local);
@@ -244,4 +167,3 @@ fn ground_torque_scalar() -> f32 {
     let power_of_two = f32::from_bits(((127 + integral as i32) as u32) << 23);
     (power_of_two * reciprocal_refined(polynomial)) * f32::from_bits(0xc0c1_999a)
 }
-

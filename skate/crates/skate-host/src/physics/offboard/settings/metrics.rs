@@ -1,5 +1,3 @@
-//!82D16680 uses first matching record, status4, length=frames/fps.
-//!82D164F8 multiplies the authored end by that length, including end=-1.
 use skate_core::player::offboard::controller::ClipMetric;
 use skate_data::animation_metadata::{AnimationMetadata, ClipMetadata};
 const CLIPS: [&str; 3] = ["NB_WALK_FWD_CYC", "NB_RUN_FWD_CYC", "NB_SPRINT_FWD_CYC"];

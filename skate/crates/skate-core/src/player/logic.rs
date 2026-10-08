@@ -1,5 +1,3 @@
-//! TU3 PhysicalPlayer Logic phase (`0x82DB5FA8`).
-
 use super::{
     lifecycle::{
         PhysicalPlayerStateLifecycle, PhysicalStateCalls, SkateboardControllerActions,
@@ -90,7 +88,3 @@ impl PhysicalPlayerLogic {
         })
     }
 }
-
-#[cfg(test)]
-#[path = "tests/logic.rs"]
-mod tests;

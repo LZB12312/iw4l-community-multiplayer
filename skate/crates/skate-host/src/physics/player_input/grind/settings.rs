@@ -35,7 +35,6 @@ impl Settings {
             deck_to_truck: f("DeckCenterToTruck")?,
             test_above: f("TestDepthEpsilon")?,
             test_below: f("TestDepth")?,
-            //physics_wipeout layout256,82D87358; not trajectory grind speed.
             max_impact: data.float(
                 "physics_wipeout",
                 "default",

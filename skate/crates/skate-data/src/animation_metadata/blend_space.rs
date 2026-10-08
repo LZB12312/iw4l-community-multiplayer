@@ -1,4 +1,3 @@
-//! Andale type6: construction82D1B8D0, layout82D22DA0, simplex82D23898.
 use super::validate_name;
 use crate::abin::{Error, Reader, RecordHeader, Result};
 use serde::Deserialize;

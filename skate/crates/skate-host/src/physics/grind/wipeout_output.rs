@@ -10,8 +10,4 @@ pub(crate) fn publish(skater: &mut SkaterRuntime) {
         output.vector_16 = impulse.map(f32::to_bits);
         output.flag_32 = 1;
     }
-    // No inactive clearing: the ordinary physical output reset owns this block.
-    // ProcessInput82DB4CCC/4CDC publishes bit2472.11 and vector816; existing
-    // Wipeout Enter82D3B5E8 caches them, Update82D3BFEC applies deck force.
-    // This is not a direct body impulse/velocity or animation packet mutation.
 }

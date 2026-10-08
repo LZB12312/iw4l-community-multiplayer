@@ -1,4 +1,3 @@
-//! Stock GrindAirAdjust settings82D72B40; lengths from the actual deck/truck collections.
 use skate_core::physics::grind_air::Settings;
 use skate_data::collections::Collections;
 pub(super) fn load(data: &Collections) -> Result<Settings, String> {

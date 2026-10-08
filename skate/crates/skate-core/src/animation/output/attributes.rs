@@ -1,7 +1,3 @@
-//! Attribute copying and ordered packet merge from TU3 8258EED0/8258F210.
-//! Binary names stay at this typed boundary. This module does not interpret
-//! Skeleton attributes or invent a physics effect from their names.
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AttributeName(pub [u32; 5]);
 
@@ -24,8 +20,6 @@ pub struct AnimationAttribute {
 }
 
 impl AnimationAttribute {
-    /// Complete observable field assignment8258EED0. Native padding at54/55
-    /// and60..63 is not copied and has no represented domain field.
     pub fn copy_from(&mut self, source: &Self) {
         self.kind = source.kind;
         self.name = source.name;
@@ -42,8 +36,6 @@ impl AnimationAttribute {
         self.payload.0[..lanes].copy_from_slice(&source.payload.0[..lanes]);
     }
 
-    /// Copy-construction8258EE68 initializes name storage then performs the
-    /// assignment above. Its inactive union lanes are unspecified, not zero.
     fn copy_construct(source: &Self) -> Self {
         let mut result = Self {
             payload: AttributePayload([None; 6]),
@@ -61,7 +53,6 @@ pub struct MotionGraphAttribute {
     pub value: f32,
 }
 impl MotionGraphAttribute {
-    ///8258F210 makes an untimed scalar attribute with status6 and sequence-1.
     pub fn to_animation(self) -> AnimationAttribute {
         let mut payload = AttributePayload([None; 6]);
         payload.0[0] = Some(self.value.to_bits());
@@ -101,9 +92,6 @@ impl PacketAttributes {
         self.active_len += 1;
     }
 
-    /// Exact list operation order at82593750..825937E4: discard prior active
-    /// list, append converted MG records, then tree records in stored order.
-    /// Duplicate names remain distinct records for the later Skeleton dispatch.
     pub fn replace_from(
         &mut self,
         motion_graph: &[MotionGraphAttribute],

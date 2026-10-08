@@ -10,6 +10,7 @@ mod menu_load;
 mod options;
 mod plugin;
 mod screen;
+mod skate_ui;
 
 pub use classes::equip_txn::{
     EquipTxnWatch, apply_pending_class_equip, resolve_class_equip_transaction,

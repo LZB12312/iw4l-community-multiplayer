@@ -1,8 +1,3 @@
-//! Deck collision children constructed by TU3 82C09290 and 82C0A2A0/3E0/510.
-//! Allocation is host-owned; dimensions, child order, flags and arithmetic are
-//! source-derived. Mass uses the actual primitive/triangle-AABB dispatch in
-//! 82AE7058, including children whose collision-enable bit is clear.
-
 use super::{MassMoments, MassShape, primitive_mass};
 use crate::{
     math::Vector3,
@@ -94,8 +89,6 @@ impl DeckGeometry {
             collision_enabled: settings.enable_deck_volume_collisions,
         }];
 
-        // 82E0B1E0: midpoint = first + (second-first)/2. These endpoints are
-        // parallel to local Z, so the orientation branch leaves identity.
         let longitudinal_half_delta = (-half_length - half_length) * 0.5;
         let capsule_half_length = vector_length_z(longitudinal_half_delta);
         let capsule_center_z = half_length + longitudinal_half_delta;
@@ -110,8 +103,6 @@ impl DeckGeometry {
                 collision_enabled: settings.enable_end_volume_collisions,
             });
         }
-        // 82C0A3E0 retains the sphere constructor's enabled flag, independent
-        // of the two authored deck collision toggles.
         for z in [f32::from_bits(0x3E70_A3D7), f32::from_bits(0xBE70_A3D7)] {
             children.push(DeckChild {
                 shape: DeckShape::Sphere { radius: 0.035 },
@@ -168,7 +159,6 @@ impl DeckGeometry {
         for child in &self.children {
             total.add(child.mass_moments());
         }
-        // The aggregate volume's transform is identity (82AD7740).
         total.transform(RetailAffineTransform::IDENTITY.basis, Vector3::ZERO);
         total
     }
@@ -201,10 +191,6 @@ impl DeckChild {
             DeckShape::Triangle {
                 vertices, fatness, ..
             } => {
-                // TU3 TriangleVolume::GetBBox 82ADDC40, null transform branch:
-                // min(v0,min(v1,v2))-fatness, max(v0,max(v1,v2))+fatness.
-                // 82AE7058 deliberately uses this box for triangle mass; no
-                // triangle pose transform is applied again after this branch.
                 let axis = |get: fn(Vector3) -> f32| {
                     let a = get(vertices[0]);
                     let b = get(vertices[1]);
@@ -281,8 +267,6 @@ fn fan_triangle(
     }
 }
 
-/// Length path in 82E0B1E0; the shared estimate retains its explicitly marked
-/// Xenon arithmetic approximation boundary until hardware validation.
 fn vector_length_z(z: f32) -> f32 {
     let squared = native_arithmetic::dot3([0.0, 0.0, z, 0.0], [0.0, 0.0, z, 0.0]);
     let mut inverse = native_arithmetic::reciprocal_square_root_estimate(squared);
@@ -297,7 +281,6 @@ fn vector_length_z(z: f32) -> f32 {
     }
 }
 
-/// Standalone cosine 82473930. Its even-power tree differs from SinCos.
 fn cosine(angle: f32) -> f32 {
     let turns = (angle * f32::from_bits(0x3E22_F983)).round_ties_even();
     let x = (-f32::from_bits(0x40C9_0FDB)).mul_add(turns, angle);

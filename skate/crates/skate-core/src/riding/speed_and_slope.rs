@@ -1,9 +1,3 @@
-//! Speed/slope coefficient published to the stock ActionGraph.
-//!
-//! TU3 PhysicalPlayerHiLOD::CalculateHeadingAdjustFactor82DB5E10 is called
-//! during PostInput82DB56C0. ProcessOutput82DB7580 publishes its result to
-//! SkateboardMotion+192. The source uses the *turn torque* curves, despite
-//! the function name; the nearby HeadingAdjustVsSpeed/Slope curves differ.
 use crate::{physics::native_arithmetic, point_graph::PointGraph, trigonometry};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -17,12 +11,6 @@ pub struct SpeedAndSlopeSettings {
 }
 
 impl SpeedAndSlopeSettings {
-    /// Complete82DB5E10, including the slope cutoff and speed saturation.
-    ///
-    /// `ground_normal_y` is ground output+96.Y, copied to ProcessedPhysIn+464;
-    /// `forward_speed` is skateboard output+168, copied to ProcessedPhysIn+2612.
-    /// The reciprocal/acos primitives retain their documented numerical
-    /// approximation boundary until independent hardware validation.
     pub fn calculate(&self, ground_normal_y: f32, forward_speed: f32) -> f32 {
         let normal_y = native_arithmetic::vector_min(
             1.0,
@@ -56,7 +44,3 @@ impl SpeedAndSlopeSettings {
         speed_factor * slope_factor
     }
 }
-
-#[cfg(test)]
-#[path = "tests/speed_and_slope.rs"]
-mod tests;

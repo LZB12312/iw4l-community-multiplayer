@@ -18,7 +18,10 @@ pub struct Aabb {
 
 impl Aabb {
     pub fn new(min_x: f64, min_y: f64, min_z: f64, max_x: f64, max_y: f64, max_z: f64) -> Self {
-        Self { min: [min_x.min(max_x), min_y.min(max_y), min_z.min(max_z)], max: [min_x.max(max_x), min_y.max(max_y), min_z.max(max_z)] }
+        Self {
+            min: [min_x.min(max_x), min_y.min(max_y), min_z.min(max_z)],
+            max: [min_x.max(max_x), min_y.max(max_y), min_z.max(max_z)],
+        }
     }
 
     /// `EntityDimensions.makeBoundingBox`: centred on x/z, standing on y.
@@ -29,7 +32,10 @@ impl Aabb {
     }
 
     pub fn moved(&self, d: [f64; 3]) -> Self {
-        Self { min: [self.min[0] + d[0], self.min[1] + d[1], self.min[2] + d[2]], max: [self.max[0] + d[0], self.max[1] + d[1], self.max[2] + d[2]] }
+        Self {
+            min: [self.min[0] + d[0], self.min[1] + d[1], self.min[2] + d[2]],
+            max: [self.max[0] + d[0], self.max[1] + d[1], self.max[2] + d[2]],
+        }
     }
 
     /// `AABB.expandTowards`.
@@ -118,7 +124,11 @@ impl VoxelShape {
     /// `Shapes.block().move(pos)`.
     pub fn block(pos: BlockPos) -> Self {
         let (x, y, z) = (f64::from(pos.x), f64::from(pos.y), f64::from(pos.z));
-        Self { coords: [vec![x, x + 1.0], vec![y, y + 1.0], vec![z, z + 1.0]], full: vec![true], boxes: vec![[x, y, z, x + 1.0, y + 1.0, z + 1.0]] }
+        Self {
+            coords: [vec![x, x + 1.0], vec![y, y + 1.0], vec![z, z + 1.0]],
+            full: vec![true],
+            boxes: vec![[x, y, z, x + 1.0, y + 1.0, z + 1.0]],
+        }
     }
 
     /// A catalog shape (its boxes over its voxel grid) moved to a position.
@@ -127,7 +137,8 @@ impl VoxelShape {
         let local: [Vec<f64>; 3] = match grid {
             Some(grid) => grid.clone(),
             None => std::array::from_fn(|axis| {
-                let mut values: Vec<f64> = boxes.iter().flat_map(|b| [b[axis], b[axis + 3]]).collect();
+                let mut values: Vec<f64> =
+                    boxes.iter().flat_map(|b| [b[axis], b[axis + 3]]).collect();
                 values.sort_by(f64::total_cmp);
                 values.dedup();
                 values
@@ -141,14 +152,37 @@ impl VoxelShape {
                 let cy = (local[1][y] + local[1][y + 1]) / 2.0;
                 for z in 0..sizes[2] {
                     let cz = (local[2][z] + local[2][z + 1]) / 2.0;
-                    full[(x * sizes[1] + y) * sizes[2] + z] =
-                        boxes.iter().any(|b| b[0] <= cx && cx <= b[3] && b[1] <= cy && cy <= b[4] && b[2] <= cz && cz <= b[5]);
+                    full[(x * sizes[1] + y) * sizes[2] + z] = boxes.iter().any(|b| {
+                        b[0] <= cx
+                            && cx <= b[3]
+                            && b[1] <= cy
+                            && cy <= b[4]
+                            && b[2] <= cz
+                            && cz <= b[5]
+                    });
                 }
             }
         }
-        let coords = std::array::from_fn(|axis| local[axis].iter().map(|v| v + offset[axis]).collect());
-        let boxes = boxes.iter().map(|b| [b[0] + offset[0], b[1] + offset[1], b[2] + offset[2], b[3] + offset[0], b[4] + offset[1], b[5] + offset[2]]).collect();
-        Self { coords, full, boxes }
+        let coords =
+            std::array::from_fn(|axis| local[axis].iter().map(|v| v + offset[axis]).collect());
+        let boxes = boxes
+            .iter()
+            .map(|b| {
+                [
+                    b[0] + offset[0],
+                    b[1] + offset[1],
+                    b[2] + offset[2],
+                    b[3] + offset[0],
+                    b[4] + offset[1],
+                    b[5] + offset[2],
+                ]
+            })
+            .collect();
+        Self {
+            coords,
+            full,
+            boxes,
+        }
     }
 
     /// `Shapes.box(0, 0, 0, 1, height, 1)` at a position.
@@ -167,26 +201,43 @@ impl VoxelShape {
         if d[0] * d[0] + d[1] * d[1] + d[2] * d[2] < 1.0e-7 {
             return false;
         }
-        let test = [from[0] + d[0] * 0.001, from[1] + d[1] * 0.001, from[2] + d[2] * 0.001];
-        let cell = [self.find_index(0, test[0]), self.find_index(1, test[1]), self.find_index(2, test[2])];
-        if (0..3).all(|a| cell[a] >= 0 && (cell[a] as usize) < self.size(a)) && self.is_full(cell.map(|c| c as usize)) {
+        let test = [
+            from[0] + d[0] * 0.001,
+            from[1] + d[1] * 0.001,
+            from[2] + d[2] * 0.001,
+        ];
+        let cell = [
+            self.find_index(0, test[0]),
+            self.find_index(1, test[1]),
+            self.find_index(2, test[2]),
+        ];
+        if (0..3).all(|a| cell[a] >= 0 && (cell[a] as usize) < self.size(a))
+            && self.is_full(cell.map(|c| c as usize))
+        {
             return true;
         }
         self.boxes.iter().any(|b| {
             let (min, max) = ([b[0], b[1], b[2]], [b[3], b[4], b[5]]);
-            [(0usize, 1usize, 2usize), (1, 2, 0), (2, 0, 1)].into_iter().any(|(a, b, c)| {
-                let face = if d[a] > 1.0e-7 {
-                    min[a]
-                } else if d[a] < -1.0e-7 {
-                    max[a]
-                } else {
-                    return false;
-                };
-                let s = (face - from[a]) / d[a];
-                let pb = from[b] + s * d[b];
-                let pc = from[c] + s * d[c];
-                0.0 < s && s < 1.0 && min[b] - 1.0e-7 < pb && pb < max[b] + 1.0e-7 && min[c] - 1.0e-7 < pc && pc < max[c] + 1.0e-7
-            })
+            [(0usize, 1usize, 2usize), (1, 2, 0), (2, 0, 1)]
+                .into_iter()
+                .any(|(a, b, c)| {
+                    let face = if d[a] > 1.0e-7 {
+                        min[a]
+                    } else if d[a] < -1.0e-7 {
+                        max[a]
+                    } else {
+                        return false;
+                    };
+                    let s = (face - from[a]) / d[a];
+                    let pb = from[b] + s * d[b];
+                    let pc = from[c] + s * d[c];
+                    0.0 < s
+                        && s < 1.0
+                        && min[b] - 1.0e-7 < pb
+                        && pb < max[b] + 1.0e-7
+                        && min[c] - 1.0e-7 < pc
+                        && pc < max[c] + 1.0e-7
+                })
         })
     }
 
@@ -219,9 +270,11 @@ impl VoxelShape {
         let a_min = self.find_index(axis, min_a + 1.0e-7);
         let a_max = self.find_index(axis, max_a - 1.0e-7);
         let b_min = self.find_index(b_axis, moving.min[b_axis] + 1.0e-7).max(0);
-        let b_max = (self.find_index(b_axis, moving.max[b_axis] - 1.0e-7) + 1).min(self.size(b_axis) as i64);
+        let b_max = (self.find_index(b_axis, moving.max[b_axis] - 1.0e-7) + 1)
+            .min(self.size(b_axis) as i64);
         let c_min = self.find_index(c_axis, moving.min[c_axis] + 1.0e-7).max(0);
-        let c_max = (self.find_index(c_axis, moving.max[c_axis] - 1.0e-7) + 1).min(self.size(c_axis) as i64);
+        let c_max = (self.find_index(c_axis, moving.max[c_axis] - 1.0e-7) + 1)
+            .min(self.size(c_axis) as i64);
         let a_size = self.size(axis) as i64;
         let cell = |a: i64, b: i64, c: i64| {
             let mut cell = [0usize; 3];
@@ -230,7 +283,8 @@ impl VoxelShape {
             cell[c_axis] = c as usize;
             cell
         };
-        let layer_full = |a: i64| (b_min..b_max).any(|b| (c_min..c_max).any(|c| self.is_full(cell(a, b, c))));
+        let layer_full =
+            |a: i64| (b_min..b_max).any(|b| (c_min..c_max).any(|c| self.is_full(cell(a, b, c))));
         if distance > 0.0 {
             for a in (a_max + 1).max(0)..a_size {
                 if layer_full(a) {
@@ -269,7 +323,10 @@ impl VoxelShape {
                     continue;
                 }
                 for z in 0..nz {
-                    if self.coords[2][z] < other.max[2] && self.coords[2][z + 1] > other.min[2] && self.is_full([x, y, z]) {
+                    if self.coords[2][z] < other.max[2]
+                        && self.coords[2][z + 1] > other.min[2]
+                        && self.is_full([x, y, z])
+                    {
                         return true;
                     }
                 }
@@ -305,14 +362,19 @@ fn axis_step_order(movement: [f64; 3]) -> [usize; 3] {
 }
 
 /// `Entity.collideWithShapes`.
-pub fn collide_with_shapes(movement: [f64; 3], bounding_box: &Aabb, shapes: &[VoxelShape]) -> [f64; 3] {
+pub fn collide_with_shapes(
+    movement: [f64; 3],
+    bounding_box: &Aabb,
+    shapes: &[VoxelShape],
+) -> [f64; 3] {
     if shapes.is_empty() {
         return movement;
     }
     let mut resolved = [0.0; 3];
     for axis in axis_step_order(movement) {
         if movement[axis] != 0.0 {
-            resolved[axis] = collide_shapes(axis, &bounding_box.moved(resolved), shapes, movement[axis]);
+            resolved[axis] =
+                collide_shapes(axis, &bounding_box.moved(resolved), shapes, movement[axis]);
         }
     }
     resolved
@@ -327,14 +389,20 @@ impl Level<'_> {
         match blocks.collision_shape(state)? {
             FaceShape::Empty => None,
             FaceShape::Full => Some(VoxelShape::block(pos)),
-            FaceShape::Boxes(boxes) => Some(VoxelShape::from_boxes(boxes, blocks.collision_grid(state), pos)),
+            FaceShape::Boxes(boxes) => Some(VoxelShape::from_boxes(
+                boxes,
+                blocks.collision_grid(state),
+                pos,
+            )),
         }
     }
 
     /// `BlockState.hasLargeCollisionShape`: a collision box leaving the block.
     fn has_large_collision_shape(&self, state: BlockStateId) -> bool {
         match self.registries().blocks.collision_shape(state) {
-            Some(FaceShape::Boxes(boxes)) => boxes.iter().any(|b| b[0] < 0.0 || b[1] < 0.0 || b[2] < 0.0 || b[3] > 1.0 || b[4] > 1.0 || b[5] > 1.0),
+            Some(FaceShape::Boxes(boxes)) => boxes.iter().any(|b| {
+                b[0] < 0.0 || b[1] < 0.0 || b[2] < 0.0 || b[3] > 1.0 || b[4] > 1.0 || b[5] > 1.0
+            }),
             _ => false,
         }
     }
@@ -344,22 +412,47 @@ impl Level<'_> {
     /// fluid shape (`ClipContext.Fluid.WATER`). Vanilla caches each fluid
     /// state's shape at its first use; the height is computed here directly.
     pub fn clip_hits(&self, from: [f64; 3], to: [f64; 3], blocks: ClipBlocks, water: bool) -> bool {
-        self.clip_first_hit(from, to, blocks, if water { ClipFluids::Water } else { ClipFluids::None }).is_some()
+        self.clip_first_hit(
+            from,
+            to,
+            blocks,
+            if water {
+                ClipFluids::Water
+            } else {
+                ClipFluids::None
+            },
+        )
+        .is_some()
     }
 
     /// `BlockGetter.clip`'s hit block: the first block along the segment
     /// whose tested shape the segment enters.
-    pub fn clip_first_hit(&self, from: [f64; 3], to: [f64; 3], blocks: ClipBlocks, fluids: ClipFluids) -> Option<BlockPos> {
+    pub fn clip_first_hit(
+        &self,
+        from: [f64; 3],
+        to: [f64; 3],
+        blocks: ClipBlocks,
+        fluids: ClipFluids,
+    ) -> Option<BlockPos> {
         if from == to {
             return None;
         }
-        let fall_resetting = self.lib.registries.block_tags.require("minecraft:fall_damage_resetting").expect("tag exists");
+        let fall_resetting = self
+            .lib
+            .registries
+            .block_tags
+            .require("minecraft:fall_damage_resetting")
+            .expect("tag exists");
         let hits_at = |x: i32, y: i32, z: i32| {
             let pos = BlockPos::new(x, y, z);
             let state = self.block(pos);
             let shape = match blocks {
                 ClipBlocks::Collider => self.block_collision_shape(state, pos),
-                ClipBlocks::FallDamageResetting => self.lib.registries.block_in_tag(state, fall_resetting).then(|| VoxelShape::block(pos)),
+                ClipBlocks::FallDamageResetting => self
+                    .lib
+                    .registries
+                    .block_in_tag(state, fall_resetting)
+                    .then(|| VoxelShape::block(pos)),
             };
             if shape.is_some_and(|shape| shape.clip_hits(from, to)) {
                 return true;
@@ -370,22 +463,53 @@ impl Level<'_> {
                 ClipFluids::SourceOnly => f.source,
             });
             if let Some(fluid) = fluid {
-                let above = self.fluid_state(self.block(pos.above())).is_some_and(|f| f.kind == fluid.kind);
-                let height = if above { 1.0 } else { f64::from(f32::from(fluid.amount) / 9.0) };
+                let above = self
+                    .fluid_state(self.block(pos.above()))
+                    .is_some_and(|f| f.kind == fluid.kind);
+                let height = if above {
+                    1.0
+                } else {
+                    f64::from(f32::from(fluid.amount) / 9.0)
+                };
                 return VoxelShape::column(pos, height).clip_hits(from, to);
             }
             false
         };
-        let t = [lerp(-1.0e-7, to[0], from[0]), lerp(-1.0e-7, to[1], from[1]), lerp(-1.0e-7, to[2], from[2])];
-        let f = [lerp(-1.0e-7, from[0], to[0]), lerp(-1.0e-7, from[1], to[1]), lerp(-1.0e-7, from[2], to[2])];
-        let mut block = [f[0].floor() as i32, f[1].floor() as i32, f[2].floor() as i32];
+        let t = [
+            lerp(-1.0e-7, to[0], from[0]),
+            lerp(-1.0e-7, to[1], from[1]),
+            lerp(-1.0e-7, to[2], from[2]),
+        ];
+        let f = [
+            lerp(-1.0e-7, from[0], to[0]),
+            lerp(-1.0e-7, from[1], to[1]),
+            lerp(-1.0e-7, from[2], to[2]),
+        ];
+        let mut block = [
+            f[0].floor() as i32,
+            f[1].floor() as i32,
+            f[2].floor() as i32,
+        ];
         if hits_at(block[0], block[1], block[2]) {
             return Some(BlockPos::new(block[0], block[1], block[2]));
         }
         let d = [t[0] - f[0], t[1] - f[1], t[2] - f[2]];
         let s = [sign(d[0]), sign(d[1]), sign(d[2])];
-        let t_delta: [f64; 3] = std::array::from_fn(|a| if s[a] == 0 { f64::MAX } else { f64::from(s[a]) / d[a] });
-        let mut tt: [f64; 3] = std::array::from_fn(|a| t_delta[a] * if s[a] > 0 { 1.0 - frac(f[a]) } else { frac(f[a]) });
+        let t_delta: [f64; 3] = std::array::from_fn(|a| {
+            if s[a] == 0 {
+                f64::MAX
+            } else {
+                f64::from(s[a]) / d[a]
+            }
+        });
+        let mut tt: [f64; 3] = std::array::from_fn(|a| {
+            t_delta[a]
+                * if s[a] > 0 {
+                    1.0 - frac(f[a])
+                } else {
+                    frac(f[a])
+                }
+        });
         while tt[0] <= 1.0 || tt[1] <= 1.0 || tt[2] <= 1.0 {
             let axis = if tt[0] < tt[1] {
                 if tt[0] < tt[2] { 0 } else { 2 }
@@ -410,7 +534,11 @@ impl Level<'_> {
         out
     }
 
-    fn for_block_collisions(&self, bounding_box: &Aabb, mut visit: impl FnMut(BlockPos, VoxelShape)) {
+    fn for_block_collisions(
+        &self,
+        bounding_box: &Aabb,
+        mut visit: impl FnMut(BlockPos, VoxelShape),
+    ) {
         let lo = |v: f64| (v - 1.0e-7).floor() as i32 - 1;
         let hi = |v: f64| (v + 1.0e-7).floor() as i32 + 1;
         let (x0, x1) = (lo(bounding_box.min[0]), hi(bounding_box.max[0]));
@@ -420,7 +548,9 @@ impl Level<'_> {
             for y in y0..=y1 {
                 for x in x0..=x1 {
                     // `Cursor3D.getNextType`: how many faces of the range the cell is on.
-                    let face_type = i32::from(x == x0 || x == x1) + i32::from(y == y0 || y == y1) + i32::from(z == z0 || z == z1);
+                    let face_type = i32::from(x == x0 || x == x1)
+                        + i32::from(y == y0 || y == y1)
+                        + i32::from(z == z0 || z == z1);
                     if face_type == 3 {
                         continue;
                     }
@@ -435,7 +565,9 @@ impl Level<'_> {
                     if face_type == 2 && self.name(state) != "minecraft:moving_piston" {
                         continue;
                     }
-                    let Some(shape) = self.block_collision_shape(state, pos) else { continue };
+                    let Some(shape) = self.block_collision_shape(state, pos) else {
+                        continue;
+                    };
                     if shape.overlaps(bounding_box) {
                         visit(pos, shape);
                     }
@@ -454,26 +586,5 @@ impl Level<'_> {
     /// `CollisionGetter.noCollision(entity, box)` for blocks.
     pub fn no_block_collision(&self, bounding_box: &Aabb) -> bool {
         self.block_collisions(bounding_box).is_empty()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn falling_box_lands_on_a_block() {
-        let floor = VoxelShape::block(BlockPos::new(0, 0, 0));
-        let item = Aabb::for_entity(0.5, 1.5, 0.5, 0.25, 0.25);
-        let moved = collide_with_shapes([0.0, -1.0, 0.0], &item, &[floor]);
-        assert!((moved[1] + 0.5).abs() < 1e-12, "{moved:?}");
-    }
-
-    #[test]
-    fn slab_grid_stops_on_its_top() {
-        let slab = VoxelShape::from_boxes(&[[0.0, 0.0, 0.0, 1.0, 0.5, 1.0]], Some(&[vec![0.0, 1.0], vec![0.0, 0.5, 1.0], vec![0.0, 1.0]]), BlockPos::new(0, 0, 0));
-        let item = Aabb::for_entity(0.5, 1.0, 0.5, 0.25, 0.25);
-        let moved = collide_with_shapes([0.0, -1.0, 0.0], &item, &[slab]);
-        assert!((moved[1] + 0.5).abs() < 1e-12, "{moved:?}");
     }
 }

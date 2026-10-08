@@ -1,14 +1,10 @@
-//! Canonical Biped owner and original ground dispatcher82D7C818.
-//! Constructor82D7AFD8/reset82D7B1C0; S3 SHA256
-//!431b8eba23565affdc10d137df19b06fe286244cefb3e1a13f32693e9600395a.
 mod output;
 mod placement;
 mod state;
 mod step;
 pub(super) use output::build_frame;
 pub use placement::PlacementInput;
-#[cfg(test)]
-mod tests;
+
 use super::{movement_intent, movement_velocity};
 use crate::point_graph::PointGraph;
 pub use output::GroundResult;

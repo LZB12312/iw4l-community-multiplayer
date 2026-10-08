@@ -1,4 +1,3 @@
-//!Complete PhysicsGround Exit82D37B20, on the real board and controller owners.
 use super::{GamePhysics, SkaterRuntime};
 use skate_core::air::state::clamp_jump_velocity;
 pub(super) fn exit(physics: &mut GamePhysics, skater: &mut SkaterRuntime) {

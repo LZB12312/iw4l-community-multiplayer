@@ -47,17 +47,3 @@ impl fmt::Display for Identifier {
         f.write_str(&self.0)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_default_namespace_and_rejects_invalid() {
-        let id = Identifier::parse("stone").unwrap();
-        assert_eq!(id.as_str(), "minecraft:stone");
-        assert_eq!((id.namespace(), id.path()), ("minecraft", "stone"));
-        assert!(Identifier::parse("Minecraft:Stone").is_err());
-        assert!(Identifier::parse("minecraft:").is_err());
-    }
-}

@@ -1,4 +1,3 @@
-//! Concrete Ground grab decision82D324B0. Query readiness belongs to ONE owner.
 use super::grab_runtime::Owner;
 use skate_core::player::offboard::{
     grab_scene::{self, Descriptor, Query},
@@ -63,7 +62,6 @@ pub(crate) fn sync(state: &mut State, owner: &mut Owner, settings: BoardSettings
         context: p.context,
     });
     if state.flags_144_to_150[0] {
-        //82585DD8 descriptor initialization followed by827602E0 actual data request.
         owner.request_primary(Descriptor {
             kind: state.counter_152,
             id: state.counter_156,

@@ -1,4 +1,3 @@
-//! Wipeout300's material corrections and collision-policy requests82D3EC08.
 use crate::physics::skeleton_controller::SkeletonControllerState;
 use skate_core::{
     physics::skeleton_body::{

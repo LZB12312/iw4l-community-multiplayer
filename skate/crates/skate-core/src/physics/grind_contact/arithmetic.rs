@@ -1,5 +1,3 @@
-//! Refinement sequence used by S3 82D861D8/82D88518/82D886B8.
-//! Seeds use existing independent PC math, not a Xenon bit-exact claim.
 use crate::physics::native_arithmetic;
 
 pub(super) fn reciprocal(value: f32) -> f32 {

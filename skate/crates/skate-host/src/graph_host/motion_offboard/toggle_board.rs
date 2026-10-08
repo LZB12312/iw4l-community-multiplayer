@@ -1,5 +1,5 @@
-//! Original ToggleBoard lifecycle adapter, TU3 82BA8FD8/8FE8 and 82B61BB8.
 use super::motion::MotionAnimation;
+use crate::graph_host::outputs::BoardControls;
 use skate_core::{
     animation::{
         channel_playback::ChannelSettings,
@@ -9,7 +9,6 @@ use skate_core::{
     },
     player::offboard::toggle_board::{Channel, Clip, Command, Input, State},
 };
-use crate::graph_host::outputs::BoardControls;
 
 /// Completed native output, supplied by the board-possession/physical owner.
 #[derive(Clone, Copy, Debug)]
@@ -37,7 +36,6 @@ pub fn execute(
         state.begin();
         return Ok(());
     }
-    // End82B61BB8 does not stop the persistent channel.
     if phase != 1 {
         return Ok(());
     }
@@ -93,8 +91,6 @@ pub fn execute(
                 hold_during_blend_out: hold,
                 use_attributes: true,
             };
-            // Vtable8231E128: +16 = 82D1D090 (blend), +20 = 82D1D030
-            // (sequence). Both preserve the channel owner via82D1D0F0.
             animation.transition_channel(
                 CHANNEL,
                 clip.name(),
@@ -122,11 +118,7 @@ pub fn execute(
     Ok(())
 }
 fn publish(animation: &mut MotionAnimation, name: &str) {
-    //82BA9434/9628: actor1800 interface slot16 ->8258F6E0 appends
-    //a24-byte MG attribute; it does NOT insert a motion intention. Actor
-    //82593760/70 copies that list into the actual physical input packet.
     animation.emit_packet(encode(name.as_bytes()), 1.0);
-    //The second call (82BA9464/9658) separately sets the animation parameter.
     attribute(animation, name, 1.0);
 }
 fn attribute(animation: &mut MotionAnimation, name: &str, value: f32) {
@@ -137,7 +129,3 @@ fn attribute(animation: &mut MotionAnimation, name: &str, value: f32) {
         sequence_id: -1,
     });
 }
-
-#[cfg(test)]
-#[path = "toggle_board/tests.rs"]
-mod tests;

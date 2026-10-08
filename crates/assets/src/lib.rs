@@ -1,9 +1,7 @@
 mod artifact_cache;
 mod asset_graph;
 pub mod bot_model;
-pub mod minecraft_map;
-pub mod minecraft_setup;
-pub mod skate_board;
+pub mod character;
 mod gltf_export;
 mod iwd;
 mod lane;
@@ -12,9 +10,12 @@ pub mod loading_screen;
 mod map_load_process;
 mod map_scripts;
 mod match_load;
+pub mod minecraft_map;
+pub mod minecraft_setup;
 pub mod plugin;
 pub mod prepared;
 pub mod session_load;
+pub mod skate_board;
 mod teardown;
 
 pub use artifact_cache::{cache_flight, cache_get, cache_put, fnv1a64, fnv1a64_more};

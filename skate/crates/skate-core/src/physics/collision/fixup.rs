@@ -1,5 +1,3 @@
-//! Complete TU3 FixUpTriangleResult (82AD3130), including 82AD2CB0,
-//! 82AD2E00 and contact-point reprojection (82AD2BF0).
 use super::{arithmetic::*, edge::edge_cos_test};
 use crate::math::Vector3;
 
@@ -34,8 +32,6 @@ impl TriangleFeature {
         self.flags & (0x200 << vertex) != 0
     }
 
-    /// ComputeTriangleFeatureTypeFromNormal (82AD2A50), taking the normalized
-    /// in-plane direction produced by FixUpTriangleResult.
     pub fn classify(self, direction: Vector3) -> TriangleRegion {
         use TriangleRegion::*;
         let [a, b, c] = self.edges.map(|e| dot(direction, e));

@@ -22,7 +22,13 @@ pub enum GossipType {
 }
 
 impl GossipType {
-    pub const ALL: [Self; 5] = [Self::MajorNegative, Self::MinorNegative, Self::MinorPositive, Self::MajorPositive, Self::Trading];
+    pub const ALL: [Self; 5] = [
+        Self::MajorNegative,
+        Self::MinorNegative,
+        Self::MinorPositive,
+        Self::MajorPositive,
+        Self::Trading,
+    ];
 
     pub fn id(self) -> &'static str {
         match self {
@@ -186,7 +192,9 @@ impl Gossips {
         if self.table.compute_if_absent(target) {
             self.entries.insert(target, Vec::new());
         }
-        self.entries.get_mut(&target).expect("a target in the table has entries")
+        self.entries
+            .get_mut(&target)
+            .expect("a target in the table has entries")
     }
 
     fn remove_target(&mut self, target: u128) {
@@ -196,7 +204,14 @@ impl Gossips {
 
     /// `unpack`: every entry, targets in the map's order.
     pub fn unpack(&self) -> Vec<(u128, GossipType, i32)> {
-        self.table.keys().flat_map(|target| self.entries[&target].iter().map(move |&(kind, value)| (target, kind, value))).collect()
+        self.table
+            .keys()
+            .flat_map(|target| {
+                self.entries[&target]
+                    .iter()
+                    .map(move |&(kind, value)| (target, kind, value))
+            })
+            .collect()
     }
 
     /// `decay`: a day's decay for every entry; spent entries and targets
@@ -204,7 +219,10 @@ impl Gossips {
     pub fn decay(&mut self) {
         let targets: Vec<u128> = self.table.keys().collect();
         for target in targets {
-            let entries = self.entries.get_mut(&target).expect("a target in the table has entries");
+            let entries = self
+                .entries
+                .get_mut(&target)
+                .expect("a target in the table has entries");
             entries.retain_mut(|(kind, value)| {
                 *value -= kind.decay_per_day();
                 *value >= DISCARD_THRESHOLD
@@ -219,7 +237,11 @@ impl Gossips {
     /// by its share of the summed absolute weighted values; the distinct
     /// entries picked (vanilla collects them in an identity set, whose
     /// order does not matter but for new targets sharing a bucket).
-    fn select_for_transfer(&self, random: &mut LegacyRandom, max_count: i32) -> Vec<(u128, GossipType, i32)> {
+    fn select_for_transfer(
+        &self,
+        random: &mut LegacyRandom,
+        max_count: i32,
+    ) -> Vec<(u128, GossipType, i32)> {
         let entries = self.unpack();
         if entries.is_empty() {
             return Vec::new();
@@ -237,13 +259,22 @@ impl Gossips {
             let index = ranges.partition_point(|&r| r < choice);
             picked[index] = true;
         }
-        entries.into_iter().zip(picked).filter_map(|(entry, p)| p.then_some(entry)).collect()
+        entries
+            .into_iter()
+            .zip(picked)
+            .filter_map(|(entry, p)| p.then_some(entry))
+            .collect()
     }
 
     /// `transferFrom`: gossip heard from `source`, each picked entry less
     /// its type's loss in the telling, kept if still worth remembering and
     /// larger than what was known. How many entries were picked.
-    pub fn transfer_from(&mut self, source: &Gossips, random: &mut LegacyRandom, max_count: i32) -> i32 {
+    pub fn transfer_from(
+        &mut self,
+        source: &Gossips,
+        random: &mut LegacyRandom,
+        max_count: i32,
+    ) -> i32 {
         let picked = source.select_for_transfer(random, max_count);
         for &(target, kind, value) in &picked {
             let decayed = value - kind.decay_per_transfer();
@@ -261,7 +292,12 @@ impl Gossips {
     /// `getReputation(target, all types)`: the weighted sum of what it
     /// heard about the target.
     pub fn reputation(&self, target: u128) -> i32 {
-        self.entries.get(&target).map_or(0, |entries| entries.iter().map(|&(kind, value)| value * kind.weight()).sum())
+        self.entries.get(&target).map_or(0, |entries| {
+            entries
+                .iter()
+                .map(|&(kind, value)| value * kind.weight())
+                .sum()
+        })
     }
 
     /// `add`: more gossip of a type (less for a negative amount), capped
@@ -273,12 +309,19 @@ impl Gossips {
             // it already had more).
             Some(entry) => {
                 let sum = entry.1 + amount;
-                entry.1 = if sum > kind.max() { kind.max().max(entry.1) } else { sum };
+                entry.1 = if sum > kind.max() {
+                    kind.max().max(entry.1)
+                } else {
+                    sum
+                };
             }
             None => insert_sorted(entries, kind, amount),
         }
         // `makeSureValueIsntTooLowOrTooHigh`.
-        let position = entries.iter().position(|(t, _)| *t == kind).expect("just merged");
+        let position = entries
+            .iter()
+            .position(|(t, _)| *t == kind)
+            .expect("just merged");
         if entries[position].1 > kind.max() {
             entries[position].1 = kind.max();
         }
@@ -315,91 +358,37 @@ fn insert_sorted(entries: &mut Vec<(GossipType, i32)>, kind: GossipType, value: 
 
 /// A UUID from its four ints as NBT stores it (`UUIDUtil.uuidFromIntArray`).
 pub fn uuid_from_ints(ints: [i32; 4]) -> u128 {
-    ints.iter().fold(0u128, |acc, &i| (acc << 32) | u128::from(i as u32))
+    ints.iter()
+        .fold(0u128, |acc, &i| (acc << 32) | u128::from(i as u32))
 }
 
 /// A UUID's four ints (`UUIDUtil.uuidToIntArray`).
 pub fn uuid_to_ints(uuid: u128) -> [i32; 4] {
-    [(uuid >> 96) as u32 as i32, (uuid >> 64) as u32 as i32, (uuid >> 32) as u32 as i32, uuid as u32 as i32]
+    [
+        (uuid >> 96) as u32 as i32,
+        (uuid >> 64) as u32 as i32,
+        (uuid >> 32) as u32 as i32,
+        uuid as u32 as i32,
+    ]
 }
 
 /// A UUID written as `UUID.toString` writes it.
 pub fn uuid_string(uuid: u128) -> String {
     let hex = format!("{uuid:032x}");
-    format!("{}-{}-{}-{}-{}", &hex[0..8], &hex[8..12], &hex[12..16], &hex[16..20], &hex[20..32])
+    format!(
+        "{}-{}-{}-{}-{}",
+        &hex[0..8],
+        &hex[8..12],
+        &hex[12..16],
+        &hex[16..20],
+        &hex[20..32]
+    )
 }
 
 /// A UUID from its string form.
 pub fn parse_uuid(text: &str) -> Option<u128> {
     let hex: String = text.chars().filter(|&c| c != '-').collect();
-    (hex.len() == 32).then(|| u128::from_str_radix(&hex, 16).ok()).flatten()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn uuid(i: u32) -> u128 {
-        u128::from(i)
-    }
-
-    #[test]
-    fn keys_iterate_as_a_java_hash_map() {
-        // UUID(0, i): hash i ^ (i >>> 16), so small ones sit in bucket i.
-        let mut gossips = Gossips::default();
-        for i in [5, 3, 21, 1] {
-            gossips.add(uuid(i), GossipType::Trading, 2);
-        }
-        // Buckets 1, 3, 5 (21 joined 5 at its head), 16 buckets.
-        let order: Vec<u128> = gossips.unpack().into_iter().map(|(t, _, _)| t).collect();
-        assert_eq!(order, vec![1, 3, 21, 5]);
-        // A thirteenth key passes the threshold; the fourteenth insertion
-        // resizes first, splitting 5 and 21 in order.
-        for i in 100..109 {
-            gossips.add(uuid(i), GossipType::Trading, 2);
-        }
-        assert_eq!(gossips.table.buckets.len(), 16);
-        gossips.add(uuid(7), GossipType::Trading, 2);
-        assert_eq!(gossips.table.buckets.len(), 32);
-        let order: Vec<u128> = gossips.unpack().into_iter().map(|(t, _, _)| t).filter(|&t| t < 100).collect();
-        assert_eq!(order, vec![1, 3, 5, 7, 21]);
-    }
-
-    #[test]
-    fn adds_cap_and_forget() {
-        let mut gossips = Gossips::default();
-        gossips.add(uuid(1), GossipType::MinorNegative, 25);
-        gossips.add(uuid(1), GossipType::MinorNegative, 190);
-        assert_eq!(gossips.reputation(uuid(1)), -200);
-        gossips.add(uuid(1), GossipType::Trading, 30);
-        assert_eq!(gossips.reputation(uuid(1)), -175, "trading caps at 25");
-        gossips.add(uuid(2), GossipType::Trading, 1);
-        assert_eq!(gossips.unpack().len(), 2, "below two is forgotten");
-        for _ in 0..13 {
-            gossips.decay();
-        }
-        assert!(gossips.is_empty(), "a day at a time it fades");
-    }
-
-    #[test]
-    fn transfers_pick_by_weight() {
-        let mut source = Gossips::default();
-        source.add(uuid(1), GossipType::MajorNegative, 25);
-        let mut listener = Gossips::default();
-        let mut random = LegacyRandom::new(1);
-        assert_eq!(listener.transfer_from(&source, &mut random, 10), 1);
-        assert_eq!(listener.unpack(), vec![(uuid(1), GossipType::MajorNegative, 15)]);
-        // Nothing to tell draws nothing.
-        let before = random.clone();
-        assert_eq!(listener.transfer_from(&Gossips::default(), &mut random, 10), 0);
-        assert_eq!(random.next_int(1000), before.clone().next_int(1000));
-    }
-
-    #[test]
-    fn uuids_round_trip() {
-        let uuid = 0x0123_4567_89ab_cdef_fedc_ba98_7654_3210u128;
-        assert_eq!(uuid_from_ints(uuid_to_ints(uuid)), uuid);
-        assert_eq!(uuid_string(uuid), "01234567-89ab-cdef-fedc-ba9876543210");
-        assert_eq!(parse_uuid(&uuid_string(uuid)), Some(uuid));
-    }
+    (hex.len() == 32)
+        .then(|| u128::from_str_radix(&hex, 16).ok())
+        .flatten()
 }

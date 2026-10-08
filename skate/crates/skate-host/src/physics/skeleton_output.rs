@@ -1,4 +1,3 @@
-//! Production adapter for the original physical-pose job82DB6698/82DB95E8.
 use super::animated_skeleton::AnimatedSkeleton;
 use skate_core::{
     animation::foot_ik::drive::Geometry,
@@ -57,7 +56,6 @@ impl SkeletonOutput {
                 .ok_or_else(|| format!("Missing stock output bone {name}"))
         };
         let scalar = |key| data.float("physics_skeleton", "default", key);
-        //82BD7DD0..7E88 names and stores these six ids; no authored index literals.
         let board_bones = board::BoneIndices {
             front_truck: bone("Truck_Front")?,
             back_truck: bone("Truck_Back")?,
@@ -90,8 +88,6 @@ impl SkeletonOutput {
             wobble: wobble::Wobble::default(),
             deck_wobble: wobble::Output::default(),
             correction: skeleton_output::correction::CorrectionState::default(),
-            //8289F128 global220 = AF781D7B614DAB50 physicstrucks/default;
-            //82C08D04..18 copies layout16 to SkateboardBody8380.
             compression_rest_height: data.float("physicstrucks", "default", "TruckYPos")?,
             wobble_settings: wobble::Settings {
                 takeoff_tilt: graph("TiltVsTimeTakeOff")?,
@@ -102,12 +98,9 @@ impl SkeletonOutput {
             },
         })
     }
-    ///82BF2F18 is called on the actual landing/takeoff transition; reverse is
-    ///the native stance decision passed by that transition's caller.
     pub fn trigger_wobble(&mut self, landing: bool, reverse: bool) {
         self.wobble.trigger(landing, reverse);
     }
-    ///82C08968 observes the solved COM frames, not geometric part frames.
     pub fn average_compressions(&self, board: &BoardRuntime) -> [f32; 2] {
         let deck = to_matrix(board.body_transform(BodyId::Deck));
         let wheels = core::array::from_fn(|i| to_matrix(board.body_transform(BodyId::ORDER[i]))[3]);
@@ -117,7 +110,6 @@ impl SkeletonOutput {
             self.compression_rest_height,
         )
     }
-    ///Call in82BD83E0's post-wipeout-check phase, before the pose job.
     pub fn advance_wobble(&mut self, physical: &mut SkeletonBody, deck: &Transform) -> Transform {
         self.deck_wobble = self.wobble.update(&self.wobble_settings);
         if self.deck_wobble.sampled {

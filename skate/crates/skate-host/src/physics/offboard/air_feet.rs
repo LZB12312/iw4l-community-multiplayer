@@ -76,7 +76,6 @@ pub(crate) fn update_air(
     }
 }
 
-///82D770D8: retain state56 across500/501/502; clear actual IK reset fields otherwise.
 pub(crate) fn enter(
     skater: &mut SkaterRuntime,
     manager: &mut skate_core::player::offboard::board_possession::manager::State,
@@ -94,7 +93,6 @@ pub(crate) fn enter(
     manager.flags_304_to_307[0] = p.state_2508 == 502;
 }
 
-///82D785F8: only these two output bytes belong to the feet service.
 pub(crate) fn publish(
     manager: &skate_core::player::offboard::board_possession::manager::State,
     output: &mut skate_core::player::input_phase::OffBoardOutputFields,

@@ -1,7 +1,5 @@
 use super::{MaximumFeature, closest_feature_segment, prism_math::*};
 
-/// Complete TU3 82ACC298. Projects an exterior point onto the selected edge;
-/// returns its edge/region code without modifying the feature header itself.
 pub fn clamp_point_to_feature(
     face: &MaximumFeature,
     normal: [u32; 4],
@@ -39,9 +37,6 @@ pub fn clamp_point_to_feature(
     }
 }
 
-/// Complete TU3 82ACC400 interval clipping. `interval` stores the two scalar
-/// limits; `outside` stores the last rejecting edge origin and normalized plane.
-/// Those vectors are preserved unless a near-parallel exterior edge writes them.
 pub fn clip_segment_to_feature(
     face: &MaximumFeature,
     segment: &MaximumFeature,

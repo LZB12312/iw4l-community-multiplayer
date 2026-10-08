@@ -1,11 +1,3 @@
-//! Drive-frame preparation in TU3 Island::Step_Solver2 82763B08.
-//! The active-drive list is visited before thaw/partition and island-table
-//! construction. Every island mode runs this loop, regardless of body flags.
-
-/// Normalize each nonnull frame record in native active-list order. Entries
-/// are frame-record indices, not drive/body indices; duplicate references are
-/// processed repeatedly just as live pointers are in 82763BB4..82763C50.
-/// Null frames are skipped. Translations and all their packed lanes survive.
 pub fn normalize_active_drive_frames(
     frames: &mut [[u32; 16]],
     active_frame_indices: &[Option<usize>],

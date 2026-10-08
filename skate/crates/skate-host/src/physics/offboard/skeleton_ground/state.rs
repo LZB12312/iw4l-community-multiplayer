@@ -9,8 +9,6 @@ use skate_core::{
 use skate_data::collections::Collections;
 
 pub(crate) struct State {
-    //82BDE158..17C copies mapped12624 here only when2484bit0 is clear.
-    //This must never alias physical_board12496 or be reset on each update.
     pub(super) retained_board: Transform,
     ground_normal_smoothing: [f32; 4],
     tilt_vs_rotation: PointGraph<8>,
@@ -29,7 +27,6 @@ impl State {
             })
         };
         Ok(Self {
-            //Skeleton ctor82BD7760..7884 initializes16016 to identity.
             retained_board: IDENTITY,
             ground_normal_smoothing: data
                 .words::<4>("physics_reckoning", "default", "GroundNormalSmoothing")?
@@ -39,8 +36,6 @@ impl State {
         })
     }
 
-    ///Apply after GeneralUpdate and trajectory clear, replacing the riding job.
-    ///82BDE2CC explicitly passes r7=1: consume physical body spin2812.
     pub(crate) fn finish_reckoning(
         &self,
         update: ReckoningUpdate,

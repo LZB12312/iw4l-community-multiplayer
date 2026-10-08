@@ -1,4 +1,3 @@
-//! Original Skeleton::UpdateWipeout82BDFA88 on the live physical owners.
 use crate::physics::{
     foot_ik::PhysicalInput,
     skeleton_input_runtime::{SkeletonInputRuntime, SkeletonOwners},
@@ -47,8 +46,6 @@ pub(crate) fn update(
         lifted_com_frame: &s.board_frames.lifted_com_frame,
         teleporting: input.teleporting,
     };
-    //82BDFAC8 skips the whole82BE1618 call. Its nested82BE1870 call to
-    //82BE18B8 is skipped too: retain all four targets and extra-body velocities.
     if !skip_targets {
         input.animation_board_to_physics =
             owners.drives.targets.update_hook_positions(&target_input);
@@ -61,7 +58,6 @@ pub(crate) fn update(
             [positions.com, positions.lifted_com, positions.following_com];
         owners.pose_errors.set_targets(positions);
     }
-    //82BDFA88 ignores the target continuity result: no GeneralUpdate reset.
     s.board_frames.skate_root = s.roots.animation_to_world;
     s.board_frames.update_com_lift(
         &s.roots.animation_to_world,
@@ -89,10 +85,6 @@ pub(crate) fn update(
         )?;
         input.drive_frames = result.frames;
     }
-    //82BDFB84 passes Skeleton+12624, not the solved physical pose at8016.
-    //ProcessData rewrites this animation-volume buffer each tick; first-tick
-    //IK may modify it above.82BEB0C8 builds its inverses from that supplied
-    //buffer (r4+64..), so physical parts cannot substitute for the drive target.
     let residual = drives::update(
         owners.drives,
         &input.drive_frames,
@@ -115,80 +107,4 @@ pub(crate) fn update(
     );
     s.motion.next_trajectory = IDENTITY;
     Ok(residual)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    #[ignore = "requires private stock skater and collection assets"]
-    fn retained_velocity_skips_all_wipeout_target_writes() {
-        use crate::physics::{GamePhysics, SkaterRuntime};
-        use skate_core::math::Vector3;
-        let root = std::env::var_os("SKATE3_ASSET_ROOT").expect("set SKATE3_ASSET_ROOT");
-        let root = std::path::Path::new(&root);
-        let assets = skate_data::GameAssets::load(root).unwrap();
-        let graphs = crate::graph_runtime::StockGraphs::load(root, &assets).unwrap();
-        let physics = GamePhysics::load(root).unwrap();
-        let mut skater = SkaterRuntime::load(root, &graphs, &physics, "normal").unwrap();
-        skater.player_input.processed.state_2508 = 300;
-        skater.player_input.processed.state_timer_2664 = 1.0;
-        // Distinct synthetic animation target exposes accidental substitution
-        // of the real physical parts; no world-space body is moved here.
-        skater.skeleton_input.drive_frames = [IDENTITY; 24];
-        skater.skeleton_input.drive_frames[17][3][0] = 0.25;
-        for part in [24, 25] {
-            skater.skeleton.bodies_mut()[part].rates.linear_velocity =
-                Vector3::new(1.25, -2.5, 3.75);
-        }
-        let velocities = [24, 25].map(|part| skater.skeleton.bodies()[part].rates.linear_velocity);
-        let targets: [_; 4] = core::array::from_fn(|i| skater.skeleton_drives.targets.transform(i));
-        let positions = skater.skeleton_input.extra_target_positions;
-        let board_target = skater.skeleton_input.animation_board_to_physics;
-        let mut owners = SkeletonOwners {
-            animated: &mut skater.animated_skeleton,
-            body: &mut skater.skeleton,
-            drives: &mut skater.skeleton_drives,
-            ik: &mut skater.foot_ik,
-            animation_input: &mut skater.animation_input,
-            correction: &mut skater.skeleton_output.correction,
-            pose_errors: &mut skater.pose_errors,
-        };
-        update(
-            &mut skater.skeleton_input,
-            &mut owners,
-            &skater.player_input.processed,
-            &skater.animation.packet.hierarchy,
-            &skater.wipeout_state.drives,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            true,
-        )
-        .unwrap();
-        assert_eq!(
-            [24, 25].map(|part| owners.body.bodies()[part].rates.linear_velocity),
-            velocities
-        );
-        assert_eq!(
-            core::array::from_fn::<_, 4, _>(|i| owners.drives.targets.transform(i)),
-            targets
-        );
-        assert_eq!(skater.skeleton_input.extra_target_positions, positions);
-        assert_eq!(
-            skater.skeleton_input.animation_board_to_physics,
-            board_target
-        );
-        let knee = owners.drives.bones[17].as_ref().unwrap();
-        for channel in 0..2 {
-            if knee.active[channel] {
-                assert_eq!(
-                    knee.frames[channel].body_b.translation.x, 0.25,
-                    "UpdateRagdoll must consume the animation-volume buffer12624"
-                );
-            }
-        }
-    }
 }

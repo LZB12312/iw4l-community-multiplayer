@@ -137,8 +137,6 @@ impl PhysicsSettings {
                 restitution: f("physicswheels", "WheelRestitution")?,
             },
             floor_material: RetailContactMaterial {
-                // Ground job8277C5D8 uses context83034F34/38/3C. The
-                // max/max/min combine preserves the moving volume material.
                 static_friction: 0.0,
                 dynamic_friction: 0.0,
                 restitution: 1.0,

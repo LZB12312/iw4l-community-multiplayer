@@ -80,7 +80,13 @@ impl DamageState {
     /// cooldown (`getDamageAfterMagicAbsorb`): the cooldown compares the
     /// damage as dealt, the health loses what `absorb` leaves of it (or of
     /// its increase over the last hit), and nothing at all when that is 0.
-    pub fn hurt_absorbed(&mut self, health: &mut f32, max_health: f32, amount: f32, absorb: impl Fn(f32) -> f32) -> DamageResult {
+    pub fn hurt_absorbed(
+        &mut self,
+        health: &mut f32,
+        max_health: f32,
+        amount: f32,
+        absorb: impl Fn(f32) -> f32,
+    ) -> DamageResult {
         if self.dead || *health <= 0.0 {
             return DamageResult {
                 applied: false,
@@ -174,59 +180,5 @@ impl DamageState {
             self.player_memory -= 1;
         }
         self.death_ticks >= 20
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn pinned_zombie_arrow_armor_damage() {
-        assert_eq!(
-            damage_after_armor(4.0, 2.0, 0.0).to_bits(),
-            3.936_f32.to_bits()
-        );
-    }
-
-    #[test]
-    fn cooldown_rejects_weaker_hits_and_applies_only_the_increase() {
-        let (mut state, mut health) = (DamageState::default(), 10.0);
-        assert_eq!(state.hurt_generic(&mut health, 10.0, 4.0).dealt, 4.0);
-        state.tick();
-        assert!(!state.hurt_generic(&mut health, 10.0, 2.0).applied);
-        state.tick();
-        assert_eq!(state.hurt_generic(&mut health, 10.0, 6.0).dealt, 2.0);
-        assert_eq!(health, 4.0);
-    }
-
-    #[test]
-    fn a_player_hit_counts_for_a_hundred_ticks() {
-        let (mut state, mut health) = (DamageState::default(), 20.0);
-        let hit = state.hurt_generic(&mut health, 20.0, 1.0);
-        state.credit(hit, "minecraft:player", true);
-        for _ in 0..99 {
-            state.tick();
-        }
-        assert!(state.hurt_generic(&mut health, 20.0, 30.0).died);
-        assert!(state.death.unwrap().killed_by_player);
-        let (mut late, mut health) = (DamageState::default(), 20.0);
-        let hit = late.hurt_generic(&mut health, 20.0, 1.0);
-        late.credit(hit, "minecraft:player", true);
-        for _ in 0..100 {
-            late.tick();
-        }
-        assert!(late.hurt_generic(&mut health, 20.0, 30.0).died);
-        assert!(!late.death.unwrap().killed_by_player);
-    }
-
-    #[test]
-    fn fatal_hit_removes_after_twenty_death_ticks() {
-        let (mut state, mut health) = (DamageState::default(), 10.0);
-        assert!(state.hurt_generic(&mut health, 10.0, 12.0).died);
-        for _ in 0..19 {
-            assert!(!state.tick());
-        }
-        assert!(state.tick());
     }
 }

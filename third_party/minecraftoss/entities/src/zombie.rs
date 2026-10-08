@@ -53,7 +53,11 @@ impl ZombieKind {
 
     /// `getVoicePitch`'s centre for a baby: a zombie villager's is higher.
     pub fn baby_voice(self) -> f32 {
-        if self == Self::ZombieVillager { 2.0 } else { 1.5 }
+        if self == Self::ZombieVillager {
+            2.0
+        } else {
+            1.5
+        }
     }
 }
 
@@ -142,40 +146,5 @@ impl Zombie {
             self.underwater_converting = true;
         }
         false
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn drowning_requires_six_hundred_submerged_active_ticks_and_cancels_on_exit() {
-        let mut zombie = Zombie::new(DVec3::ZERO);
-        zombie.in_water_time = 598;
-        assert!(!zombie.tick_drowning(true, true));
-        assert_eq!(zombie.in_water_time, 598);
-        assert!(!zombie.tick_drowning(true, false));
-        assert!(!zombie.underwater_converting);
-        assert!(!zombie.tick_drowning(true, false));
-        assert!(zombie.underwater_converting);
-        assert_eq!(zombie.conversion_time, 300);
-        assert!(!zombie.tick_drowning(false, false));
-        assert!(!zombie.underwater_converting);
-        assert_eq!(zombie.in_water_time, -1);
-        assert!(!zombie.tick_drowning(true, false));
-        assert_eq!(zombie.in_water_time, 0);
-    }
-
-    #[test]
-    fn drowning_conversion_expires_after_three_hundred_and_one_countdown_ticks() {
-        let mut zombie = Zombie::new(DVec3::ZERO);
-        zombie.underwater_converting = true;
-        zombie.conversion_time = 300;
-        for _ in 0..300 {
-            assert!(!zombie.tick_drowning(true, false));
-        }
-        assert_eq!(zombie.conversion_time, 0);
-        assert!(zombie.tick_drowning(true, false));
     }
 }

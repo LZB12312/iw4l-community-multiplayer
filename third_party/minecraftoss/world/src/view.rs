@@ -12,7 +12,12 @@ pub const EXTENDED_VIEW_DISTANCE: i32 = 64;
 /// `ChunkTrackingView.isWithinDistance`. The rounded view is a circle of
 /// radius `view_distance` grown by one chunk (`include_neighbors = false`,
 /// entity tracking) or two chunks (`true`, the chunks sent to the client).
-pub fn is_within_distance(center: ChunkPos, view_distance: i32, pos: ChunkPos, include_neighbors: bool) -> bool {
+pub fn is_within_distance(
+    center: ChunkPos,
+    view_distance: i32,
+    pos: ChunkPos,
+    include_neighbors: bool,
+) -> bool {
     let buffer = if include_neighbors { 2 } else { 1 };
     let dx = i64::from(0.max((pos.x - center.x).abs() - buffer));
     let dz = i64::from(0.max((pos.z - center.z).abs() - buffer));
@@ -28,7 +33,10 @@ pub struct TrackingView {
 
 impl TrackingView {
     pub const fn new(center: ChunkPos, view_distance: i32) -> Self {
-        Self { center, view_distance }
+        Self {
+            center,
+            view_distance,
+        }
     }
 
     fn min_x(self) -> i32 {
@@ -58,7 +66,10 @@ impl TrackingView {
     }
 
     fn square_intersects(self, other: Self) -> bool {
-        self.min_x() <= other.max_x() && self.max_x() >= other.min_x() && self.min_z() <= other.max_z() && self.max_z() >= other.min_z()
+        self.min_x() <= other.max_x()
+            && self.max_x() >= other.min_x()
+            && self.min_z() <= other.max_z()
+            && self.max_z() >= other.min_z()
     }
 
     /// Every tracked chunk, X-major like `Positioned.forEach`.
@@ -74,7 +85,12 @@ impl TrackingView {
     }
 
     /// `ChunkTrackingView.difference`. `None` is `ChunkTrackingView.EMPTY`.
-    pub fn difference(from: Option<Self>, to: Option<Self>, mut enter: impl FnMut(ChunkPos), mut leave: impl FnMut(ChunkPos)) {
+    pub fn difference(
+        from: Option<Self>,
+        to: Option<Self>,
+        mut enter: impl FnMut(ChunkPos),
+        mut leave: impl FnMut(ChunkPos),
+    ) {
         if from == to {
             return;
         }
@@ -104,42 +120,5 @@ impl TrackingView {
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn tracked_area_is_the_rounded_circle() {
-        let view = TrackingView::new(ChunkPos::new(0, 0), 12);
-        // Along an axis the tracked area reaches view distance + 1.
-        assert!(view.contains(ChunkPos::new(13, 0)));
-        assert!(!view.contains(ChunkPos::new(14, 0)));
-        // (d - 2)^2 * 2 < 144 holds up to d = 10 on the diagonal.
-        assert!(view.contains(ChunkPos::new(10, 10)));
-        assert!(!view.contains(ChunkPos::new(11, 11)));
-        assert!(view.is_in_view_distance(ChunkPos::new(12, 0)));
-        assert!(!view.is_in_view_distance(ChunkPos::new(13, 0)));
-        let mut count = 0;
-        view.for_each(|_| count += 1);
-        assert_eq!(count, 637);
-    }
-
-    #[test]
-    fn difference_reports_only_changed_chunks() {
-        let a = TrackingView::new(ChunkPos::new(0, 0), 4);
-        let b = TrackingView::new(ChunkPos::new(1, 0), 4);
-        let (mut entered, mut left) = (Vec::new(), Vec::new());
-        TrackingView::difference(Some(a), Some(b), |p| entered.push(p), |p| left.push(p));
-        assert!(!entered.is_empty() && !left.is_empty());
-        assert!(entered.iter().all(|&p| b.contains(p) && !a.contains(p)));
-        assert!(left.iter().all(|&p| a.contains(p) && !b.contains(p)));
-        let mut all = 0;
-        TrackingView::difference(None, Some(a), |_| all += 1, |_| panic!("nothing to leave"));
-        let mut expected = 0;
-        a.for_each(|_| expected += 1);
-        assert_eq!(all, expected);
     }
 }

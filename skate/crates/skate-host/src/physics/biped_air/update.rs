@@ -1,4 +1,3 @@
-//! Ordered82D2EF38, including actual skeleton/selector/landing consumers.
 use super::{GamePhysics, SkaterRuntime, input};
 use skate_core::player::offboard::biped_air::recovered::{DT, State, height::projected_height};
 pub(crate) fn update(
@@ -15,15 +14,12 @@ pub(crate) fn update(
     let mut feet = std::mem::take(&mut skater.offboard_feet);
     super::super::offboard::air_feet::update_air(skater, &mut feet);
     skater.offboard_feet = feet;
-    //82C040F0(0): shared board steering helper, not Ground locomotion.
     skater.ground.steering.update(
         0.,
         skater.air_settings.steering_blend,
         p.flags_2468,
         p.flags_2472,
     );
-    //82D2EFF0/82D2F014 load processed+0xB40 (AnimEndCOM), not
-    //AnimTrans at0xB30. These are distinct stock animation attributes.
     if let Some(adjustment) = skater
         .biped_air
         .state
@@ -120,8 +116,6 @@ fn skeleton(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(),
         correction: &mut skater.skeleton_output.correction,
         pose_errors: &mut skater.pose_errors,
     };
-    //82BDDFFC..82BDE010 calls the SAME82D8E3E0 as Ground.
-    //Only this common helper is borrowed; Air owns all movement/root updates.
     let reckoning = &skater.biped_ground;
     let air_reckoning = &mut skater.air_reckoning;
     let riding = &mut physics.riding;

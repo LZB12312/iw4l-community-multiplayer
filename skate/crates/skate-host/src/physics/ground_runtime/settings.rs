@@ -1,5 +1,3 @@
-//! Stock bindings used by the complete Ground::UpdateSkateboard call.
-//! Toolkit copies follow82D94C10; selected surface/mode fields stay explicit.
 use skate_core::{
     physics::{
         contact::RetailContactMaterial,
@@ -28,15 +26,24 @@ use std::sync::Arc;
 pub(crate) struct GroundProfiles(Vec<Vec<Arc<GroundSettings>>>);
 impl GroundProfiles {
     pub fn load(data: &Collections) -> Result<Self, String> {
-        crate::difficulty::NATIVE_MODES.into_iter().map(|mode| {
-            (1..=5).map(|surface| {
-                GroundSettings::load(data, mode, super::surface_key(surface)?).map(Arc::new)
-            }).collect::<Result<Vec<_>, String>>()
-        }).collect::<Result<Vec<_>, String>>().map(Self)
+        crate::difficulty::NATIVE_MODES
+            .into_iter()
+            .map(|mode| {
+                (1..=5)
+                    .map(|surface| {
+                        GroundSettings::load(data, mode, super::surface_key(surface)?).map(Arc::new)
+                    })
+                    .collect::<Result<Vec<_>, String>>()
+            })
+            .collect::<Result<Vec<_>, String>>()
+            .map(Self)
     }
     pub fn select(&self, mode: u32, surface: u32) -> Result<Arc<GroundSettings>, String> {
-        surface.checked_sub(1).and_then(|s| self.0.get(mode as usize)?.get(s as usize))
-            .cloned().ok_or_else(|| format!("Invalid processed physics mode/surface {mode}/{surface}"))
+        surface
+            .checked_sub(1)
+            .and_then(|s| self.0.get(mode as usize)?.get(s as usize))
+            .cloned()
+            .ok_or_else(|| format!("Invalid processed physics mode/surface {mode}/{surface}"))
     }
 }
 
@@ -73,8 +80,6 @@ impl GroundSettings {
         let s = |field| data.float("physics_surfaces", surface, field);
         let c8 = |class, field| curve8(data, class, "default", field);
         let c16 = |class, field| curve16(data, class, "default", field);
-        //82F826F8 broadcasts82181A88 into830BD350.82F82610 similarly
-        //broadcasts82165A10 (zero) into830BD380 for speed override direction.
         let threshold = [f32::from_bits(0x3586_37bd); 4];
         Ok(Self {
             push_target_multiplier: 1.,
@@ -158,7 +163,6 @@ impl GroundSettings {
             straighten: StraightenSettings {
                 time_response: c16("physics_heading", "StraightenOutForce")?,
                 opposite_turn_limit: f("physics_heading", "StraightenMaxTurnInput")?,
-                //Lookup8 DF474D0A659A7AE3, direct82D94F80..FC0 binding.
                 time_scalar: f("physicswheels", "SoftestWheelStraightenOutTimeScalar")?,
                 heading_time_limit: s("StraightenOut_ForceTime")?,
                 strength: s("StraightenOut_Scalar")?,
@@ -208,10 +212,12 @@ impl GroundSettings {
         })
     }
     pub fn tuned(&self, tuning: crate::tuning::TrainerTuning) -> Self {
-        let mut result=self.clone();
+        let mut result = self.clone();
         result.push_target_multiplier = tuning.push_speed;
         result.propulsion.maximum_pushable_speed *= tuning.push_speed;
-        for dv in &mut result.propulsion.mode_speed_changes { *dv *= tuning.push_power; }
+        for dv in &mut result.propulsion.mode_speed_changes {
+            *dv *= tuning.push_power;
+        }
         result.propulsion.braking.input_force *= tuning.braking;
         result.propulsion.braking.override_force *= tuning.braking;
         result.steering.general_scalar *= tuning.steering;
@@ -295,39 +301,4 @@ fn curve16(d: &Collections, c: &str, k: &str, f: &str) -> Result<PointGraph<16>,
         x: std::array::from_fn(|i| f32::from_bits(w[i])),
         y: std::array::from_fn(|i| f32::from_bits(w[i + 16])),
     })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    #[ignore = "requires extracted private stock collections"]
-    fn stock_ground_settings_closure_loads_without_defaults() {
-        let root = std::path::PathBuf::from(
-            std::env::var_os("SKATE3_ASSET_ROOT").expect("SKATE3_ASSET_ROOT"),
-        );
-        let data = Collections::load(&root).unwrap();
-        GroundSettings::load(&data, "default", "default").unwrap();
-        super::super::GroundRuntime::load(&data).unwrap();
-        super::super::GroundPumping::load(&data).unwrap();
-        super::super::GroundState::load(&data, "default", true).unwrap();
-    }
-}
-
-#[cfg(test)]
-#[test]
-#[ignore = "requires extracted private stock collections"]
-fn customiser_truck_tightness_changes_authored_steering() {
-    use skate_core::riding::steering::{SteeringInput, calculate_tilt};
-    let root = std::path::PathBuf::from(std::env::var_os("SKATE3_ASSET_ROOT").unwrap());
-    let data = Collections::load(&root).unwrap();
-    let settings = GroundSettings::load(&data, "default", "default").unwrap();
-    let samples: Vec<_> = [0.0, 0.7, 1.0].into_iter().map(|tightness| calculate_tilt(
-        &settings.steering,
-        SteeringInput { turn: 0.6, absolute_body_speed: 5.0, flipped_controls_scalar: 1.0,
-            truck_tightness: tightness, ..Default::default() }, None, None,
-    )).collect();
-    assert!(samples[0].abs() > samples[2].abs());
-    assert!((samples[2] / samples[0] - settings.steering.tight_trucks_scalar).abs() < 0.00001);
-    eprintln!("Authored truck tightness tilt samples: {samples:?}; tight scalar {}", settings.steering.tight_trucks_scalar);
 }

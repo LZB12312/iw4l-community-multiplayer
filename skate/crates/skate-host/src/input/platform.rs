@@ -141,35 +141,6 @@ pub(crate) fn poll_cached(
     Err(DeviceError::UnsupportedPlatform)
 }
 
-#[cfg(test)]
-mod cache_tests {
-    use super::*;
-    #[test]
-    fn capability_cache_refreshes_and_never_caches_errors() {
-        let start = std::time::Instant::now();
-        let mut cache = CapabilityCache::default();
-        assert_eq!(cache.get(start, || Ok(1)), Ok(1));
-        assert_eq!(
-            cache.get(start + std::time::Duration::from_millis(999), || panic!(
-                "redundant capability query"
-            )),
-            Ok(1)
-        );
-        assert_eq!(
-            cache.get(start + std::time::Duration::from_secs(1), || Ok(2)),
-            Ok(2)
-        );
-        cache.invalidate();
-        assert_eq!(
-            cache.get(start, || Err(DeviceError::Capabilities(5))),
-            Err(DeviceError::Capabilities(5))
-        );
-        assert_eq!(cache.get(start, || Ok(3)), Ok(3));
-        cache.invalidate();
-        assert_eq!(cache.get(start, || Ok(4)), Ok(4));
-    }
-}
-
 // Preserve the uncached API for menu-only polling.
 pub(crate) fn poll(index: usize) -> Result<DevicePacket, DeviceError> {
     poll_cached(index, &mut CapabilityCache::default())

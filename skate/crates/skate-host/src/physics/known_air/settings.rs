@@ -1,4 +1,3 @@
-//! Original KnownAir82D35508/82D35F40/82D360B0/82D36650 stock reads.
 use skate_core::{
     air::known::{KnownAirModeSettings, KnownAirSettings},
     point_graph::PointGraph,

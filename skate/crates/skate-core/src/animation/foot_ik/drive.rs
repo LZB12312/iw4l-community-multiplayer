@@ -1,4 +1,3 @@
-//! SkeletonIK::UpdateDriveFrames82BF0198 and its solve/mapping chain.
 use super::{
     math::{Vector, cross, length, normalize},
     status::{LimbStatus, Mode},
@@ -21,8 +20,6 @@ pub struct Geometry {
     pub inverse_part_frames: [Transform; 24],
 }
 impl Geometry {
-    /// SkeletonData Init82BD6C40 builds these inverses once from the real
-    /// PhysicsParamBoneData frames. It does not assume an orthogonal basis.
     pub fn new(
         parents: [Option<usize>; 24],
         part_frames: &[Transform; 24],
@@ -87,8 +84,6 @@ pub fn update(
         let driven_target = parent_target.as_ref().unwrap_or(&target);
         let endpoint = transform_point(driven_target, geometry.inverse_part_frames[driven][3]);
         let offset = subtract(endpoint, original_animation[driven][3]);
-        //82BF01DC..1F4: these are maximum root-to-target distances passed
-        //through f1 into82BD41B0, not animation blend weights.
         let maximum_distance = if limb < 2 {
             f32::from_bits(0x3F4C_CCCD)
         } else {
@@ -105,8 +100,6 @@ pub fn update(
         ) {
             drives[binding.part] = target;
             add_translation(&mut drives[binding.part], residual);
-            // The source also adds the same returned delta to retained world
-            //targets. Do not insert an extra rotation absent from82BF0458.
             add_translation(&mut frames[limb].world, residual);
             if let Some(parent) = binding.parent_part {
                 drives[parent] = parent_target.unwrap();
@@ -119,7 +112,6 @@ pub fn update(
     updated
 }
 
-///82BF0FA8, using original animation joint centers and mutable volume frames.
 fn solve_drives(
     end_part: usize,
     offset: Vector,
@@ -168,8 +160,6 @@ fn solve_drives(
     Some(residual)
 }
 
-///82BD41B0 clamps a point relative to the original chain root using scalar
-///division after the two-refinement length; it is not limit_length's reciprocal.
 fn clamp_point(point: Vector, origin: Vector, maximum: f32) -> Vector {
     let delta = subtract(point, origin);
     let distance = length(delta);
@@ -181,7 +171,6 @@ fn clamp_point(point: Vector, origin: Vector, maximum: f32) -> Vector {
     }
 }
 
-///82BF1F20, two82BF1D28 frames and target * rigidInverse(original).
 pub(super) fn line_mapping(
     start: Vector,
     end: Vector,
@@ -203,7 +192,6 @@ fn line_frame(start: Vector, end: Vector, normal: Vector) -> Option<Transform> {
     let z = normalize_safe(third);
     let y = normalize_safe(line);
     let product = (dot3(z, z) * dot3(x, x)) * dot3(y, y);
-    //830BD300 <-821647E0, initializer82F82690.
     if product > f32::from_bits(0x3780_0000) {
         Some([x, y, z, start])
     } else {
@@ -214,7 +202,6 @@ fn line_frame(start: Vector, end: Vector, normal: Vector) -> Option<Transform> {
 pub(super) fn normalize_safe(value: Vector) -> Vector {
     let magnitude = length(value);
     let normalized = normalize(value);
-    //830BD350 <-82181A88; no arbitrary fallback axis for a degenerate line.
     if magnitude > f32::from_bits(0x3586_37BD) {
         normalized
     } else {

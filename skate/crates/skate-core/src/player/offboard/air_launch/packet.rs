@@ -18,8 +18,6 @@ pub struct Packet {
     pub flag_117: bool,
 }
 impl Packet {
-    ///82D2DB98 does not write104; the caller supplies its retained value.
-    /// The launch producer subsequently overwrites104 in every mode.
     pub fn initialized(retained_104: f32) -> Self {
         Self {
             velocity_0: [0.0; 4],

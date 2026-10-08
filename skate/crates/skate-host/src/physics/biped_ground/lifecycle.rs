@@ -1,5 +1,3 @@
-//! Ground Post82D32AA0 and complete typed Fill82D32D38/82D785F8.
-//! Parent publishes every returned field through the shared output records.
 use super::SkaterRuntime;
 use skate_core::player::offboard::{
     board_possession::manager::State as FeetState,

@@ -1,6 +1,3 @@
-//! Source-bound packet composition for concrete Actor::SetUpPhysics82593640.
-//! The caller supplies the runtime services and completed materialized poses.
-//! This is not the complete Actor update or Skeleton attribute interpreter.
 use super::{
     actor_packet::{self, ActorPacketFields, ActorPublicationEnvironment, ActorPublicationState},
     attributes::{AnimationAttribute, MotionGraphAttribute, PacketAttributes},
@@ -32,7 +29,6 @@ pub struct AnimationPublication<'a> {
 
 pub enum IntentPublication<'a> {
     MotionGraph(&'a IntentMap),
-    /// Exact same-container branch825936FC; no clear/reinsert occurs.
     RetainPacket,
 }
 
@@ -48,9 +44,6 @@ pub enum PublicationError<E> {
     RuntimeService(E),
 }
 
-///82DB3C48 only stores a borrowed packet pointer at physical+1808. This safe
-/// binding keeps the entire owned packet alive and prevents its next mutation
-/// while a consumer reads it. It does not execute the downstream physics step.
 pub struct PhysicsPacketBinding<'a> {
     packet: &'a PhysicsInputPacket,
 }

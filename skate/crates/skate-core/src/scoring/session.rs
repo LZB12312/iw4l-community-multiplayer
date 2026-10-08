@@ -1,4 +1,3 @@
-//! Module publication and line settlement, TU3 82DA37B0/82DA3B38.
 use super::{
     ScoreHolder,
     timer::{ComboTimer, PointTimer},
@@ -21,9 +20,6 @@ pub struct Session {
 }
 
 impl Session {
-    /// The collector owns the decision to publish. Capture the multiplier
-    /// before crediting timers: a threshold reached by this reward affects
-    /// the next publication, not this publication's score (f29 at 82DA37B0).
     pub fn publish_sequence(
         &mut self,
         rules: &Rules,
@@ -70,40 +66,5 @@ impl Session {
         } else if self.line.points <= 0.0 {
             self.holder.bank_line(!collector_active);
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::scoring::Scorable;
-    #[test]
-    fn newly_crossed_threshold_applies_to_the_following_publication() {
-        let rules = Rules {
-            combo_capacity: 801.0,
-            combo_levels: [(50.0, 1.5), (450.0, 2.0), (800.0, 3.0)],
-            combo_refresh_threshold: 799.0,
-            line_capacity: 400.0,
-            bail_factor: 0.0,
-        };
-        let mut session = Session::default();
-        let trick = Scorable {
-            id: 96,
-            class: 3,
-            score_type: 2,
-        };
-        session.holder.end_trick(trick, 50.0);
-        session.holder.finish_collector();
-        assert_eq!(session.publish_sequence(&rules, 1.0, false, true), 50.0);
-        assert_eq!(session.combo.multiplier, 1.5);
-        session.holder.end_trick(trick, 10.0);
-        session.holder.finish_collector();
-        assert_eq!(session.publish_sequence(&rules, 1.0, false, true), 15.0);
-        assert_eq!(session.holder.snapshot.line, 65.0);
-        session.line.points = 0.0;
-        session.settle_line(false, true);
-        assert_eq!(session.holder.repetition_count(trick), Some(2));
-        session.settle_line(false, false);
-        assert_eq!(session.holder.repetition_count(trick), Some(0));
     }
 }

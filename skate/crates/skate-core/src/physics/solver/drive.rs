@@ -1,7 +1,3 @@
-//! TU3 drive pass 82AE2E78..82AE30D8, reconstructed from direct disassembly.
-//! Finite compiled coefficients are required; exceptional SIMD arithmetic is
-//! not claimed to match hardware. Linear/angular softness lanes are retained.
-
 use super::joint::data::{
     ConstraintGeometry, ReactionState, project_correction, publish_reactions, read_column,
     write_column, xyz,
@@ -46,8 +42,6 @@ pub(super) fn solve(record: &mut [u32], a: &mut [u32], b: &mut [u32]) {
     let angular_change = xyz(core::array::from_fn(|axis| {
         angular_impulse[axis] - old_angular[axis]
     }));
-    // 82AE2FB8/2FC4 select XYZ from the new impulses while retaining each
-    // accumulator's fourth (softness) lane from its old value.
     write_column(record, 32, linear_impulse);
     write_column(record, 48, angular_impulse);
     geometry.apply_impulse_changes(&mut body_a, &mut body_b, linear_change, angular_change);

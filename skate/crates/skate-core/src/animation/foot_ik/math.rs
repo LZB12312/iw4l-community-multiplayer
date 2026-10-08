@@ -1,6 +1,3 @@
-//! Matrix interpolation used by SkeletonIK, TU3 82BD3150/82BD2E60.
-//! The shared Xenon estimate primitives remain host approximations pending
-//! hardware comparison; the recovered branch and refinement order is retained.
 use crate::{
     input::angle::atan,
     physics::{
@@ -42,7 +39,6 @@ pub(super) fn cross(left: Vector, right: Vector) -> Vector {
     ]
 }
 
-///82BD3D90. The very short-vector branch preserves the original fourth lane.
 pub(super) fn limit_length(value: Vector, limit: f32) -> Vector {
     let magnitude = length(value);
     if !(magnitude >= f32::from_bits(0x3780_0000)) {
@@ -57,7 +53,6 @@ pub(super) fn limit_length(value: Vector, limit: f32) -> Vector {
     value.map(|v| (v * capped) * inverse)
 }
 
-///82BD2E60's axis/angle outputs. The unused screw-pivot output is omitted.
 pub(super) fn rotation_axis_angle(rotation: &Transform) -> (Vector, f32) {
     let skew = [
         rotation[1][2] - rotation[2][1],
@@ -81,17 +76,12 @@ pub(super) fn rotation_axis_angle(rotation: &Transform) -> (Vector, f32) {
     if cosine_twice == 0.0 {
         angle = f32::from_bits(0x3FC9_0FDB).copysign(sine_twice);
     }
-    // Literal word 820CFC28, loaded with lvlx. Do not replace this with a
-    // conventional numerical tolerance.
     if sine_twice <= f32::from_bits(0x0020_0000) && cosine_twice <= 0.0 {
         axis = half_turn_axis(rotation);
     }
     (axis, angle)
 }
 
-///827B7400 selects the greatest diagonal. Its selected component is squared
-/// before normalization (e.g. vmulfp at827B7488), unlike a common textbook
-/// matrix-to-axis conversion. Preserve the native formula and tie ordering.
 fn half_turn_axis(rotation: &Transform) -> Vector {
     let selected = if rotation[0][0] > rotation[1][1] {
         if rotation[0][0] > rotation[2][2] {
@@ -117,8 +107,6 @@ fn half_turn_axis(rotation: &Transform) -> Vector {
     normalize(axis)
 }
 
-///Rodrigues construction in82BD34E0..3548. The native permutation duplicates
-/// each column's X component into W; W is not a fabricated affine zero.
 pub(super) fn axis_rotation(axis: Vector, angle: f32) -> Transform {
     let (sine, cosine) = sin_cos(angle);
     let complement = 1.0 - cosine;
@@ -146,7 +134,6 @@ pub(super) fn axis_rotation(axis: Vector, angle: f32) -> Transform {
     ]
 }
 
-///82BD3150 returns the remaining rotation angle as well as the blended frame.
 pub fn interpolate(a: &Transform, b: &Transform, weight: f32) -> (Transform, f32) {
     if weight >= 1.0 {
         return (*b, 0.0);
@@ -184,8 +171,6 @@ pub fn interpolate(a: &Transform, b: &Transform, weight: f32) -> (Transform, f32
     (output, angle - angle * weight)
 }
 
-///82E0A570 overrides the interpolation helper's translation, including at
-/// endpoint weights. Preserve its weighted-sum rounding instead of delta lerp.
 pub fn interpolate_affine(a: &Transform, b: &Transform, weight: f32) -> Transform {
     let translation =
         core::array::from_fn(|lane| a[3][lane].mul_add(1.0 - weight, b[3][lane] * weight));
@@ -193,8 +178,6 @@ pub fn interpolate_affine(a: &Transform, b: &Transform, weight: f32) -> Transfor
     output[3] = translation;
     output
 }
-/// General inverse expanded at8296FB50..FD14 and SkeletonData Init82BD6E9C.
-/// The transpose permutation retains the second cofactor in the fourth lane.
 pub fn inverse_affine(frame: &Transform) -> Transform {
     let cofactors = [
         cross(frame[1], frame[2]),

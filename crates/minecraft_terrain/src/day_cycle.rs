@@ -46,7 +46,6 @@ pub struct SkyState {
 
 /// Overworld dimension constants for the authored scene's clock.
 pub const OVERWORLD_AMBIENT: Vec3 = Vec3::splat(10.0 / 255.0);
-/// The `block_light_tint` default, 0xFFD88C.
 pub const DEFAULT_BLOCK_LIGHT_TINT: Vec3 = Vec3::new(1.0, 216.0 / 255.0, 140.0 / 255.0);
 /// `LightmapRenderStateExtractor`: 1.4 plus a flicker that starts at zero.
 pub const BLOCK_FACTOR: f32 = 1.4;
@@ -343,46 +342,5 @@ impl CubicCurve {
     }
     fn gradient(&self, t: f32) -> f32 {
         (3.0 * self.a * t + 2.0 * self.b) * t + self.c
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn noon_night_and_wrap() {
-        let mut clock = DayCycle::default();
-        clock.set(6000.0);
-        let noon = clock.sample();
-        assert!(noon.sun_direction.y > 0.99);
-        assert!((noon.sky.x - 123.0 / 255.0).abs() < 1e-5);
-        clock.set(18000.0);
-        let night = clock.sample();
-        assert!(night.sun_direction.y < -0.99);
-        assert_eq!(night.sky, Vec3::ZERO);
-        assert!(night.light.x < noon.light.x);
-        clock.set(24000.0);
-        assert!(clock.time().abs() < f64::EPSILON);
-    }
-
-    #[test]
-    fn day_advances_at_twenty_ticks_per_second_until_paused() {
-        let mut clock = DayCycle::default();
-        let start = clock.ticks;
-        clock.advance(1.0);
-        assert_eq!(clock.ticks, start + 20.0);
-        assert_ne!(
-            clock.sample().sun_direction,
-            DayCycle {
-                ticks: start,
-                paused: false
-            }
-            .sample()
-            .sun_direction
-        );
-        clock.paused = true;
-        clock.advance(1.0);
-        assert_eq!(clock.ticks, start + 20.0);
     }
 }

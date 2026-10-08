@@ -1,5 +1,3 @@
-//! Physical-output COM conditioning: original TU3 82DE56B0/82DE5978.
-//! Advances once after physical Skeleton publishes position64 and velocity16.
 use super::native_arithmetic::{dot3, reciprocal_estimate};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -23,7 +21,6 @@ pub struct CentreOfMassFilter {
 
 impl Default for CentreOfMassFilter {
     fn default() -> Self {
-        // Original Reset82DE5588 clears vectors16/96/112/128 and byte191.
         Self {
             velocity: [0.0; 4],
             position: [0.0; 4],

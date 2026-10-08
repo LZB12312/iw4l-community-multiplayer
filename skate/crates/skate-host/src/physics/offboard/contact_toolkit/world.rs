@@ -1,5 +1,3 @@
-//!82770B40/82771D08 mesh traversal and82770E00/82772028 nearby collection.
-//!This adapter only accepts BoardWorld's authored static-world contract.
 use skate_core::{
     air::trajectory::{QueryRequest, QueryResult, SurfaceHit, query_trajectory},
     math::Vector3,
@@ -20,8 +18,6 @@ pub struct StaticScene<'a> {
     metadata: &'a QueryMetadata,
 }
 impl<'a> StaticScene<'a> {
-    ///82C20728/82764AB0: caller-sized lines, poolmask7, facing3, no mesh or
-    ///material exclusion. In particular Air submits SIX lines, Ground seven.
     pub(crate) fn lines(
         &self,
         requests: &[skate_core::player::offboard::ground_query::Line],
@@ -54,9 +50,6 @@ impl<'a> StaticScene<'a> {
         }
         Ok(output)
     }
-    /// 82764CF8 pool mask 7; 82770910 walks the actual accelerated trajectory.
-    /// 8276EE88 retains the first pool on equal contact times. Callers supply
-    /// the actor matching group and the original per-request mesh rejection mask.
     pub(crate) fn trajectory(
         &self,
         request: QueryRequest,
@@ -228,7 +221,6 @@ impl<'a> StaticScene<'a> {
         group: i32,
     ) -> Result<Vec<[Vector; 3]>, &'static str> {
         let mut output = Vec::with_capacity(64);
-        //82770E00 does not apply the trajectory mesh rejection mask here.
         let bounds = self
             .world
             .line_candidate_bounds(vec3(center), vec3(center), radius);
@@ -263,8 +255,6 @@ impl Scene for StaticScene<'_> {
         let mut trajectories = [QueryResult::miss(); 3];
         let mut lines = vec![None; batch.lines.len()];
         for pool in self.pools() {
-            //8276EE88 chooses strict smallest nonnegative time, retaining the
-            //first pool on ties. Normal refinement belongs to that same pool.
             for (request, output) in batch.trajectories.iter().zip(&mut trajectories) {
                 let start = request.trajectory.position;
                 let end = std::array::from_fn(|i| start[i] + request.trajectory.velocity[i]);
@@ -303,7 +293,6 @@ impl Scene for StaticScene<'_> {
     }
 }
 impl StaticScene<'_> {
-    /// 82D81610 bounds and 82C1EAD8 ordinary static-edge traversal/capacity.
     fn edges(&self, batch: &Batch) -> Vec<[Vector; 2]> {
         let input = batch.input;
         let center: Vector = std::array::from_fn(|i| {
@@ -362,8 +351,6 @@ fn cross(a: Vector, b: Vector) -> Vector {
 fn face([a, b, c]: [Vector; 3]) -> Vector {
     skate_core::player::offboard::contact_toolkit::triangle_normal([a, b, c])
 }
-///82761698: full edge-cross-axis, coordinate-axis, and face-plane separation.
-///AABB overlap alone must not select a face for normal refinement.
 fn triangle_box(vertices: [Vector; 3], center: Vector, radius: f32) -> bool {
     let v = vertices.map(|p| sub(p, center));
     let edges = [sub(v[1], v[0]), sub(v[2], v[1]), sub(v[0], v[2])];

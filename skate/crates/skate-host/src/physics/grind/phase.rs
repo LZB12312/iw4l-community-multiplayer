@@ -4,7 +4,6 @@ use super::{Family, lifecycle};
 
 pub(crate) fn enter(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     if skater.player_state.current() as u32 == 701 {
-        // Original82D42D80: no feet/drag changes; reset the shared spin only here.
         skater.grind.nonspecific_active = true;
         skater.grind.nonspecific_jumped = false;
         skater.grind.nonspecific_jump_velocity = [0.; 4];
@@ -42,7 +41,6 @@ pub(crate) fn enter(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Re
 
 pub(crate) fn exit(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     if skater.grind.nonspecific_active {
-        // Vtable8232861C+20 is82B61BB8 (empty), not common grind Exit.
         skater.grind.nonspecific_active = false;
         return Ok(());
     }
@@ -58,7 +56,6 @@ pub(crate) fn exit(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Res
         collisions,
         skater.grind.settings.standard_angular_drag,
     );
-    // Common Exit82D3F448 clears the retained leaving byte96.
     skater.grind.states[family as usize].output.leaving = false;
     skater.grind.active = None;
     // Camera/chromosome history is updated by the ordinary output phase,
@@ -68,7 +65,6 @@ pub(crate) fn exit(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Res
 
 pub(crate) fn fill(_physics: &GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     if skater.grind.nonspecific_active {
-        // Original82D430A0 only writes Air442/128 on this retained latch.
         if skater.grind.nonspecific_jumped {
             skater.player_input.physical.air.launch_velocity_128 =
                 skater.grind.nonspecific_jump_velocity.map(f32::to_bits);

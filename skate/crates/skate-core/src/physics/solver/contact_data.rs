@@ -101,8 +101,6 @@ impl Reaction {
     }
 }
 
-// 82AE297C..2A18: linear + angular cross arm. Fuse the first product into
-// linear before subtracting the second; a separate cross product rounds early.
 fn point_correction(arm: Components, linear: Components, angular: Components) -> Components {
     core::array::from_fn(|lane| {
         let next = if lane == 3 { 3 } else { (lane + 1) % 3 };

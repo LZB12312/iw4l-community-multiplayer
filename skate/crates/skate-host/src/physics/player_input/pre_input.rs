@@ -1,5 +1,3 @@
-//! Original82D81610 inactive-query branch and82D2DDD0 result reset. Pending
-//! geometry is explicit; this owner never treats an unimplemented query as a miss.
 use skate_core::physics::skeleton_animation_record::{AnimationPartTransform, IDENTITY};
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
@@ -46,7 +44,6 @@ pub(crate) struct PreInputManager {
 }
 impl PreInputManager {
     pub fn new() -> Self {
-        //82D81100 clears pending316; result reset called by ctor82D8108C.
         Self {
             pending_geometry: false,
             result: PreInputResult::reset(),

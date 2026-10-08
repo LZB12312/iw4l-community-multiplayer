@@ -1,4 +1,3 @@
-//! Original82BE7860/82BE7280 and exact locations in stock physics_skeleton XML.
 use skate_core::physics::{
     contact::RetailContactMaterial,
     skeleton_body::{SkeletonCollisionSettings, SkeletonFeedbackSettings},
@@ -21,7 +20,7 @@ pub(super) fn load(
     }
     let mut compliant = [false; 24];
     let mut priority = [0.0; 24];
-    compliant[0] = true; //82BE7484; part0 priority is cleared by collisionReset.
+    compliant[0] = true;
     for part in 1..24 {
         let words = data.words::<9>(
             "physics_skeleton_drives",
@@ -47,9 +46,6 @@ pub(super) fn load(
     })
 }
 
-/// GlobalAttributeCollection+268 binds original low hashes7AA75DF9/2D7D2152
-/// at8289F634: physics_collision/default. Stock XML baseC6AE0 independently
-/// resolves every layout offset consumed by82BD4A30 and82BD6038.
 pub(super) fn feedback(
     data: &Collections,
     body: SkeletonCollisionSettings,

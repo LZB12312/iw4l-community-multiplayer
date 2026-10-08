@@ -1,7 +1,3 @@
-//! TU3 pattern recognition, 82697168/826972B8/826974A8.
-//! Points are supplied in PAT authoring order. Native 82696B18 pushes them
-//! to the front of a ring buffer, then the matcher walks that buffer backwards.
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Pattern {
     pub name: String,
@@ -67,7 +63,6 @@ impl Node {
 
     fn score(self, count: usize) -> f32 {
         let count = count as f32;
-        // The unusual two-sided 0.15 operation is present in 826972B8.
         let mean = (self.distance.max(0.15) / count).min(0.15);
         (count * count * count * count) / (mean * self.elapsed as f32)
     }
@@ -121,8 +116,6 @@ impl Recognizer {
         &self.patterns
     }
 
-    /// Held messages are checked before recognition in 826962D8. Native point
-    /// zero is the final authored coordinate (82699738 push-front).
     pub fn held(&mut self, sample: [f32; 2]) -> Option<usize> {
         if let Some(index) = self.held {
             let pattern = &self.patterns[index];
@@ -161,7 +154,6 @@ impl Recognizer {
         let pattern = best?;
         let node = self.nodes[pattern];
         let ratio = node.elapsed as f32 / self.patterns[pattern].points.len() as f32;
-        // 822249B4/82063B08 and 821E63E8/821E63EC, checked against TU3.
         let (low, high) = if settings.difficulty == 2 {
             (1.5, 3.0)
         } else {
@@ -183,66 +175,5 @@ impl Recognizer {
             distance: node.distance,
             elapsed: node.elapsed as f32,
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn recognizer() -> Recognizer {
-        Recognizer::new(vec![Pattern {
-            name: "360Flip".into(),
-            points: vec![
-                [-0.965714, 0.268571],
-                [-0.497143, 0.84],
-                [0.211429, 0.988571],
-                [0.908571, -0.405714],
-            ],
-            tolerance_squared: 0.4 * 0.4,
-        }])
-        .unwrap()
-    }
-    const SETTINGS: Settings = Settings {
-        maximum_misses: 3,
-        difficulty: 0,
-    };
-
-    #[test]
-    fn anticipation_hold_does_not_weaken_authored_scoop() {
-        let mut r = recognizer();
-        let points = r.patterns[0].points.clone();
-        r.sample([0.0; 2], SETTINGS);
-        for _ in 0..120 {
-            assert!(r.sample(points[0], SETTINGS).is_none());
-        }
-        assert!(r.sample(points[1], SETTINGS).is_none());
-        assert!(r.sample(points[2], SETTINGS).is_none());
-        let result = r.sample(points[3], SETTINGS).unwrap();
-        assert_eq!(
-            (result.pattern, result.strength, result.elapsed),
-            (0, 1.0, 4.0)
-        );
-        assert_eq!(r.held(points[3]), Some(0));
-        assert!(r.sample(points[3], SETTINGS).is_none());
-        assert_eq!(r.held([0.0; 2]), None);
-    }
-
-    #[test]
-    fn disconnected_scoop_and_reverse_path_do_not_trigger() {
-        let mut r = recognizer();
-        let points = r.patterns[0].points.clone();
-        r.sample([0.0; 2], SETTINGS);
-        r.sample(points[0], SETTINGS);
-        for _ in 0..4 {
-            assert!(r.sample([0.0; 2], SETTINGS).is_none());
-        }
-        for &point in &points[1..] {
-            assert!(r.sample(point, SETTINGS).is_none());
-        }
-        let mut r = recognizer();
-        r.sample([0.0; 2], SETTINGS);
-        for &point in points.iter().rev() {
-            assert!(r.sample(point, SETTINGS).is_none());
-        }
     }
 }

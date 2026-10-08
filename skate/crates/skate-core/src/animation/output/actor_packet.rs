@@ -1,6 +1,3 @@
-//! Actor field publication825937EC..825939C8 and external payload copy82592810.
-//! Runtime services remain explicit source interfaces; their implementation is
-//! not supplied here and these fields do not manufacture a gameplay impulse.
 use super::{packet_reset::AdditionalResetFields, physics_packet::PhysicsPosePacket};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -10,8 +7,6 @@ pub struct ExternalPhysicsInput {
     pub flags: u32,
 }
 impl ExternalPhysicsInput {
-    ///82592810 copies160 bytes and only the high seven flag bits. Remaining
-    /// destination flag bits and native padding are not overwritten.
     pub fn copy_from(&mut self, source: &Self) {
         self.vectors = source.vectors;
         self.flags = (self.flags & 0x01ff_ffff) | (source.flags & 0xfe00_0000);
@@ -29,7 +24,6 @@ pub struct ActorPacketFields {
     pub external_impulse: [u32; 4],
     pub external_physics: ExternalPhysicsInput,
     pub external_reset: ExternalReset,
-    /// Actor1904 bit29 -> packet10784; not reset by82590028.
     pub actor_flag_1904_bit29: bool,
 }
 
@@ -63,11 +57,7 @@ pub trait ActorPublicationEnvironment {
     /// There is deliberately no default or placeholder implementation.
     type Error;
     type Settings: PlayerPhysicsSettingsSource<Error = Self::Error>;
-    ///8259FC28: global830CFD94 ->220 ->328 virtual12. None means no current
-    /// object. Otherwise property824639E8(object20), including its native
-    /// default, supplies the enum. Property identifier is-616069660.
     fn current_scene_mode(&mut self) -> Result<Option<i32>, Self::Error>;
-    /// Read global byte830B7C30 verbatim, without bool normalization.
     fn ignore_respawn_reset_button(&mut self) -> Result<u8, Self::Error>;
     /// Actor subobject+56 virtual16, low return byte. Flags25/28 have already
     /// been consumed when called. Concrete vtable binding remains unresolved.
@@ -75,15 +65,9 @@ pub trait ActorPublicationEnvironment {
         &mut self,
         actor: &mut ActorPublicationState,
     ) -> Result<u8, Self::Error>;
-    /// Capture global83067068 at82593954 before slot16 at8259395C. The binding
-    /// must stay valid across that callback and the subsequent field reads.
-    /// Do not snapshot record values here: native reads them after the callback.
     fn capture_physics_settings(&mut self) -> Result<Self::Settings, Self::Error>;
 }
 
-/// Full actor-owned suffix on distinct actor/packet payload storage. Scene
-/// lookup is skipped for an external controller or force-braking bit26.
-/// This stops before the physical object's borrowed-packet setter82DB3C48.
 pub fn publish<E: ActorPublicationEnvironment>(
     actor: &mut ActorPublicationState,
     pose: &mut PhysicsPosePacket,

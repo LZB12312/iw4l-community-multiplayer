@@ -37,8 +37,6 @@ pub(super) fn advance(
     };
     match family {
         Family::Boardslide | Family::Darkslide => {
-            //82D41250: rail branches request10 and publish direction*136 to
-            //Wipeout16; only the ledge branch applies the lateral exit force.
             if kind == 2 {
                 input.strength = 90.;
                 input.speed_limit = 0.75;
@@ -62,7 +60,6 @@ pub(super) fn advance(
             input.strength = if kind < 2 { 120. } else { 10. };
             input.lift = if kind < 2 { 125. } else { 0. };
             input.speed_limit = 0.9;
-            // Raw82D42948/4C passes computed force-across in r8 and lift in r7.
             input.force_across = kind == 1 && dot3(frame[2], input.across).abs() > 0.23;
             forces::release(&mut physics.board, input);
         }
@@ -98,7 +95,6 @@ pub(super) fn advance(
                     .drive
                     .enable_angular_only(&mut skater.ground_lifecycle.board_animated_290);
                 input.speed_limit = 1.5;
-                //82D420EC/F0: r8=1 (across), r7=0 (no normal lift).
                 input.force_across = true;
                 input.enable_lift = false;
                 forces::release(&mut physics.board, input);

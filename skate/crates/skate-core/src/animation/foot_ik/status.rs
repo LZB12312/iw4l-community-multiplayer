@@ -1,7 +1,3 @@
-//! Limb mode transitions82BEDCF8 and blend weights82BEEC00.
-//! Named S2 UpdateStatus/UpdateBlendValues corroborate field identities;
-//! TU3 flags and cached settings determine the implementation.
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     Disabled,
@@ -26,8 +22,6 @@ pub struct LimbStatus {
 }
 impl Default for LimbStatus {
     fn default() -> Self {
-        //82BED780 resets mode, both weights, target blend, target flags and
-        //the complete local delta/part-position vectors to zero.
         Self {
             mode: Mode::Disabled,
             board_blend: 0.0,
@@ -41,8 +35,6 @@ impl Default for LimbStatus {
     }
 }
 
-/// All four limbs in native order: left foot, right foot, left hand, right hand.
-/// Foot enable is SkeletonIK464; reset82BED780 initializes it to true.
 pub fn update_modes(limbs: &mut [LimbStatus; 4], feet_enabled: bool, flags_2472: u32) {
     let enabled = [
         feet_enabled,

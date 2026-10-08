@@ -1,5 +1,3 @@
-//! Original82D40AF8: collision -> pop -> engagement -> derived substate.
-//! All writes target current board, manager jumper and skeleton owners.
 mod nonspecific;
 mod settings;
 mod skeleton;
@@ -27,7 +25,6 @@ pub(super) fn execute(
     let state = skater.grind.states[index];
     let mut jumped_now = false;
     let prediction_velocity = if let Some(velocity) = collision_force(physics, skater)? {
-        //82D40BC8 queues force15; optional velocity is prediction-only here.
         Some(velocity)
     } else if skater.player_input.processed.flags_2468 & 0x0040_0000 != 0 {
         let p = &skater.player_input.processed;
@@ -73,7 +70,6 @@ pub(super) fn execute(
                 .grind
                 .entry_velocity_1184
                 .map(f32::from_bits);
-            //82D40C84 SetVelocity updates all seven real board parts.
             skater
                 .ground_runtime
                 .set_animated_velocity(&mut physics.board, velocity);
@@ -100,22 +96,17 @@ pub(super) fn execute(
             .deck[3];
         let dt = skater.player_input.processed.timestep_2604;
         let prediction = core::array::from_fn(|i| velocity[i].mul_add(dt, position[i]));
-        //82D40CFC stores16112 and82D40D0C sets16416. No guessed trajectory.
         skater.animated_skeleton.roots.predicted_board_position = prediction;
         skater.animated_skeleton.roots.supplied_prediction = Some(prediction);
     }
     if jumped_now {
         skeleton::animated(physics, skater)?;
     } else {
-        //82BDF530 then82C04368: CURRENT wrapper also retains physics error.
         super::super::input_phase::update_ground(physics, skater)?;
     }
     Ok(())
 }
 
-///Shared82D944E8 caller for common grind and Nonspecific. The late-false
-///output is intentionally ignored, and angular displacement is not applied.
-///Returns prediction velocity ONLY on the branch that queued force15.
 pub(super) fn collision_force(
     physics: &mut GamePhysics,
     skater: &SkaterRuntime,

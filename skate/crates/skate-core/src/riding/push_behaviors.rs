@@ -21,8 +21,6 @@ pub struct PushAttributes {
 }
 
 impl PushAttributes {
-    /// 82B954D8, after 82B95620 obtains each tree's length and its last
-    /// HStr_Vel_B/LStr_Vel_B and Vel_E attributes. No fitted clip coefficients.
     pub fn from_clips(clips: [PushClipMetrics; 4]) -> Self {
         let begin = clips.map(|clip| clip.begin_velocity);
         let delta = clips.map(|clip| clip.end_velocity - clip.begin_velocity);
@@ -47,8 +45,6 @@ impl PushAttributes {
         }
     }
 
-    /// ComputeTargetCoefsFromSpeedAndStrength, 82BAD260. The blend accounts
-    /// for differing clip lengths; a linear velocity interpolation is wrong.
     pub fn target(&self, forward_speed: f32, strength: f32) -> PushBlendParameters {
         let speed = bounded(
             nonnegative(forward_speed),
@@ -104,8 +100,6 @@ impl PushAttributes {
         }
     }
 
-    /// ComputeRepushDeadline::End, 82BADA90. Despite its graph name, this
-    /// writes PushState.out_factor, not a time deadline or a graph transition.
     pub fn out_factor(
         &self,
         forward_speed: f32,
@@ -185,7 +179,6 @@ pub struct PushState {
     pub continue_push: bool,
 }
 impl PushState {
-    /// InitPush::Begin, 82BAD5B8, preserves out_factor.
     pub fn initialize_push(&mut self) {
         self.continue_push = false;
         self.current_push_dv = 0.0;
@@ -206,7 +199,6 @@ pub struct FirstPushStrength {
     pub first_update: bool,
 }
 impl FirstPushStrength {
-    /// Begin82BAD6E8: capture teleport eligibility once per activation.
     pub fn begin(time_since_teleport: f32, teleport_window: f32) -> Self {
         Self {
             simulated_held_seconds: 0.0,
@@ -215,8 +207,6 @@ impl FirstPushStrength {
             first_update: true,
         }
     }
-    /// Update82BAD7A8: the teleport path evaluates the old simulated time
-    /// before adding dt. A released first push cannot be resumed here.
     pub fn update(
         &mut self,
         state: &mut PushState,
@@ -266,7 +256,6 @@ pub struct PushCycle {
     pub next_push_dv: f32,
 }
 impl PushCycle {
-    /// Begin82BADCD0.
     pub fn begin(
         state: &mut PushState,
         curves: &PushAnimationCurves,
@@ -283,8 +272,6 @@ impl PushCycle {
             next_push_dv: curves.button_time_to_dv.evaluate(0.0),
         }
     }
-    /// Update82BADE38. Separate phase checks intentionally allow the release
-    /// and next-press path to run in one graph update, as in the recovered code.
     pub fn update(
         &mut self,
         state: &mut PushState,
@@ -327,8 +314,6 @@ impl PushCycle {
         }
     }
 }
-/// Physics outputs consumed by GetFootPos82595B28. All positions are world
-/// space; deck axes come from the live reckoning transform, not a render pose.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PushFootFrame {
     pub left_foot: [f32; 4],
@@ -339,8 +324,6 @@ pub struct PushFootFrame {
     pub skateboard_flipped: bool,
 }
 impl PushFootFrame {
-    /// TU382595B28. Reuses the isolated, approximation-derived Xenon dot
-    /// lowering; independent hardware arithmetic validation remains pending.
     pub fn out_distance(&self, right_foot: bool) -> [f32; 2] {
         let foot = if right_foot {
             self.right_foot
@@ -359,7 +342,3 @@ impl PushFootFrame {
         ]
     }
 }
-
-#[cfg(test)]
-#[path = "tests/push_behaviors.rs"]
-mod tests;

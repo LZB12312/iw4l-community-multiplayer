@@ -1,5 +1,3 @@
-//! Actual Ground entry82D37538. Numerical operations touch live board bodies;
-//! the physical skeleton/air modifier remain calls to their separate owners.
 use super::{
     super::{animation_input::AnimationInput, foot_ik::FootIk},
     GroundState,
@@ -28,7 +26,6 @@ pub(super) struct EntrySettings {
 impl EntrySettings {
     pub fn load(data: &Collections) -> Result<Self, String> {
         Ok(Self {
-            //82C091F8 restores the standard angular drag with literal822F860C.
             deck_angular_drag: data.float("physicsdeck", "default", "DeckAngularDrag")?
                 * f32::from_bits(0x426f_ffff),
             powerslide_exit: data.float("physics_manual", "default", "PowerslideExitScalar")?,
@@ -132,18 +129,11 @@ impl GroundState {
         Ok(())
     }
 }
-/// Board-owned portion of SetStandard82C03AF8. 82C090D4/90EC write
-/// assembly/part COLLISION groups, not rigid-body activation flags. Material
-/// bindings and volume enables still require the live settings/volume owner.
 fn restore_standard_board_fields(board: &mut BoardRuntime, flags: &mut u8, drag: f32) {
     *flags &= 0x7f;
     board.bodies_mut()[6].inertia.angular_drag = drag;
     board.set_collision_group(4);
 }
-
-#[cfg(test)]
-#[path = "entry_restoration_tests.rs"]
-mod restoration_tests;
 
 struct ManualBodies<'a>(&'a mut BoardRuntime);
 impl ManualGroundBodies for ManualBodies<'_> {

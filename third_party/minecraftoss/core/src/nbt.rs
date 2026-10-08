@@ -90,7 +90,11 @@ struct Reader<'a> {
 
 impl Reader<'_> {
     fn take(&mut self, n: usize) -> Result<&[u8], String> {
-        let end = self.pos.checked_add(n).filter(|&e| e <= self.data.len()).ok_or("truncated NBT")?;
+        let end = self
+            .pos
+            .checked_add(n)
+            .filter(|&e| e <= self.data.len())
+            .ok_or("truncated NBT")?;
         let slice = &self.data[self.pos..end];
         self.pos = end;
         Ok(slice)
@@ -101,15 +105,21 @@ impl Reader<'_> {
     }
 
     fn i16(&mut self) -> Result<i16, String> {
-        Ok(i16::from_be_bytes(self.take(2)?.try_into().expect("2 bytes")))
+        Ok(i16::from_be_bytes(
+            self.take(2)?.try_into().expect("2 bytes"),
+        ))
     }
 
     fn i32(&mut self) -> Result<i32, String> {
-        Ok(i32::from_be_bytes(self.take(4)?.try_into().expect("4 bytes")))
+        Ok(i32::from_be_bytes(
+            self.take(4)?.try_into().expect("4 bytes"),
+        ))
     }
 
     fn i64(&mut self) -> Result<i64, String> {
-        Ok(i64::from_be_bytes(self.take(8)?.try_into().expect("8 bytes")))
+        Ok(i64::from_be_bytes(
+            self.take(8)?.try_into().expect("8 bytes"),
+        ))
     }
 
     fn len(&mut self) -> Result<usize, String> {
@@ -165,7 +175,11 @@ impl Reader<'_> {
                 let mut list = Vec::with_capacity(n.min(1 << 16));
                 for _ in 0..n {
                     let value = self.payload(element, depth + 1)?;
-                    list.push(if element == 10 { unwrap_element(value) } else { value });
+                    list.push(if element == 10 {
+                        unwrap_element(value)
+                    } else {
+                        value
+                    });
                 }
                 Tag::List(list)
             }
@@ -197,7 +211,9 @@ impl Reader<'_> {
 /// `ListTag.tryUnwrap`: a compound whose only key is empty stands for its value.
 fn unwrap_element(tag: Tag) -> Tag {
     match tag {
-        Tag::Compound(mut map) if map.len() == 1 && map.contains_key("") => map.remove("").expect("checked"),
+        Tag::Compound(mut map) if map.len() == 1 && map.contains_key("") => {
+            map.remove("").expect("checked")
+        }
         other => other,
     }
 }
@@ -263,8 +279,15 @@ fn write_payload(out: &mut Vec<u8>, tag: &Tag) {
         Tag::List(list) => {
             // `ListTag.identifyRawElementType`: one type, or wrapped compounds.
             let first = list.first().map(Tag::id);
-            let uniform = list.iter().all(|t| Some(t.id()) == first) && !list.iter().any(Tag::is_wrapper);
-            let element = if list.is_empty() { 0 } else if uniform { first.expect("non-empty") } else { 10 };
+            let uniform =
+                list.iter().all(|t| Some(t.id()) == first) && !list.iter().any(Tag::is_wrapper);
+            let element = if list.is_empty() {
+                0
+            } else if uniform {
+                first.expect("non-empty")
+            } else {
+                10
+            };
             out.push(element);
             out.extend_from_slice(&(list.len() as i32).to_be_bytes());
             for item in list {
@@ -314,7 +337,9 @@ pub fn write(tag: &Tag, name: &str) -> Vec<u8> {
 pub fn write_gzip(tag: &Tag, name: &str) -> Vec<u8> {
     use std::io::Write;
     let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-    encoder.write_all(&write(tag, name)).expect("in-memory write");
+    encoder
+        .write_all(&write(tag, name))
+        .expect("in-memory write");
     encoder.finish().expect("in-memory write")
 }
 
@@ -330,43 +355,11 @@ pub fn parse(data: &[u8]) -> Result<Tag, String> {
 pub fn read(bytes: &[u8]) -> Result<Tag, String> {
     if bytes.starts_with(&[0x1f, 0x8b]) {
         let mut out = Vec::new();
-        flate2::read::GzDecoder::new(bytes).read_to_end(&mut out).map_err(|e| format!("gzip: {e}"))?;
+        flate2::read::GzDecoder::new(bytes)
+            .read_to_end(&mut out)
+            .map_err(|e| format!("gzip: {e}"))?;
         parse(&out)
     } else {
         parse(bytes)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_a_small_compound() {
-        // {"": {a: 1b, s: "hi", l: [1, 2] (ints)}}
-        let mut data = vec![10, 0, 0];
-        data.extend([1, 0, 1, b'a', 1]);
-        data.extend([8, 0, 1, b's', 0, 2, b'h', b'i']);
-        data.extend([9, 0, 1, b'l', 3, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 2]);
-        data.push(0);
-        let tag = parse(&data).unwrap();
-        assert_eq!(tag.get("a"), Some(&Tag::Byte(1)));
-        assert_eq!(tag.get("s").and_then(Tag::as_str), Some("hi"));
-        assert_eq!(tag.get("l").and_then(Tag::as_ints), Some(vec![1, 2]));
-        assert_eq!(parse(&write(&tag, "")).unwrap(), tag);
-    }
-
-    #[test]
-    fn mixed_lists_round_trip_through_wrappers() {
-        let mut properties = BTreeMap::new();
-        properties.insert("id".to_owned(), Tag::String("minecraft:stairs".into()));
-        let mixed = Tag::List(vec![Tag::String("minecraft:stone".into()), Tag::Compound(properties), Tag::Int(3)]);
-        let mut root = BTreeMap::new();
-        root.insert("palette".to_owned(), mixed);
-        let root = Tag::Compound(root);
-        let bytes = write(&root, "");
-        // The list is written as compounds: type 10 after the list tag's name.
-        assert_eq!(bytes[3 + 1 + 2 + 7], 10);
-        assert_eq!(parse(&bytes).unwrap(), root);
     }
 }

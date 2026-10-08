@@ -1,4 +1,3 @@
-//! Actual Ground82D37D34..7EAC pumping preparation and stock bindings.
 use super::super::{animated_skeleton::AnimatedSkeleton, riding_outputs::RidingOutputs};
 use skate_core::{
     math::Vector3,
@@ -23,11 +22,9 @@ pub(crate) struct GroundPumping {
 #[derive(Clone, Copy)]
 pub(crate) struct GroundPumpingMode {
     controller: PumpingMode,
-    /// Selected physics_mode layout+8, consumed by CalcPumpForce82D933F0.
     pub unintentional_scalar: f32,
 }
 impl GroundPumping {
-    ///Revert82D435FC..36A0 uses the processed timestep and flag2472 bit16.
     pub fn update_revert(
         &self,
         state: &mut PumpingState,
@@ -105,7 +102,6 @@ impl GroundPumping {
             ],
         })
     }
-    /// Ground82D37E74 reads the current Processed2548 mode, not the startup mode.
     pub fn mode(&self, index: u32) -> Result<GroundPumpingMode, String> {
         self.modes
             .get(index as usize)

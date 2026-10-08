@@ -3140,7 +3140,7 @@ impl SimState {
                 entities,
                 script_movers,
                 entity_kernel: self.entity_kernel.to_snapshot(),
-                corpses: self.corpses,
+                corpses: self.corpses.clone(),
                 item_ammo,
                 item_pickups: self.item_pickups.clone(),
             },
@@ -3326,7 +3326,7 @@ impl SimState {
         self.hud_string_cs
             .adopt_occupied(&snapshot.meta.hud_strings);
 
-        self.corpses = snapshot.meta.corpses;
+        self.corpses = snapshot.meta.corpses.clone();
 
         self.old_buttons.clear();
         self.old_cmd_angles.clear();

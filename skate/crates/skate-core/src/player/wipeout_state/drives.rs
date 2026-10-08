@@ -1,4 +1,3 @@
-//! Original SkeletonDrives::UpdateRagdoll82BEB0C8 and root softness82BEB790.
 use crate::{
     animation::foot_ik::inverse_affine,
     physics::{
@@ -39,51 +38,71 @@ pub fn update(
     weights: Weights,
 ) -> f32 {
     let mut inverses = [IDENTITY; 24];
-    for part in 1..24 { inverses[part] = inverse_affine(&pose[part]); }
+    for part in 1..24 {
+        inverses[part] = inverse_affine(&pose[part]);
+    }
     let residual = ((1.0 - weights.start) - weights.end) - weights.controlled;
     for part in 1..23 {
-        let bone = drives.bones[part].as_mut().expect("Original22 bone drives exist");
+        let bone = drives.bones[part]
+            .as_mut()
+            .expect("Original22 bone drives exist");
         let coefficients = settings.bone[part];
         let upper = (3..=10).contains(&part);
         let lower = (15..=22).contains(&part);
-        let strengths = if upper && weights.upper_extra > 0.0
-            || lower && weights.lower_extra > 0.0
+        let strengths = if upper && weights.upper_extra > 0.0 || lower && weights.lower_extra > 0.0
         {
             bone.dynamics.mode = 5;
-            let extra = if upper { weights.upper_extra } else { weights.lower_extra };
+            let extra = if upper {
+                weights.upper_extra
+            } else {
+                weights.lower_extra
+            };
             let value = extra * coefficients[4];
             [value * settings.strength[0], value * settings.strength[1]]
         } else {
             bone.dynamics.mode = 4;
             let [start, normal, controlled, end, _] = coefficients;
-            //82BEB424..444 preserves two distinct FMA accumulation orders.
-            let local = controlled.mul_add(weights.controlled,
-                start.mul_add(weights.start, normal.mul_add(residual, end * weights.end)));
+            let local = controlled.mul_add(
+                weights.controlled,
+                start.mul_add(weights.start, normal.mul_add(residual, end * weights.end)),
+            );
             let root_start = settings.root[0] * start;
             let root_normal = settings.root[1] * normal;
             let root_controlled = settings.root[2] * controlled;
             let root_end = settings.root[3] * end;
-            let root = root_controlled.mul_add(weights.controlled,
-                root_start.mul_add(weights.start, root_end.mul_add(weights.end,
-                    root_normal * residual)));
+            let root = root_controlled.mul_add(
+                weights.controlled,
+                root_start.mul_add(
+                    weights.start,
+                    root_end.mul_add(weights.end, root_normal * residual),
+                ),
+            );
             [local * settings.strength[0], root * settings.strength[1]]
         };
         bone.dynamics.strengths = strengths;
         for channel in 0..2 {
-            if !bone.active[channel] { continue; }
+            if !bone.active[channel] {
+                continue;
+            }
             bone.frames[channel] = bone_drive_frames(
-                &pose[part], &inverses[part], &inverses[bone.parent[channel]]);
-            bone.dynamics.enable(channel, strengths[channel], drives.settings.bone);
+                &pose[part],
+                &inverses[part],
+                &inverses[bone.parent[channel]],
+            );
+            bone.dynamics
+                .enable(channel, strengths[channel], drives.settings.bone);
         }
     }
     residual
 }
-///82BEB790 changes only target0's linear drive; damping uses the unscaled spring.
 pub fn set_linear_root(drives: &mut SkeletonDrives, s: &Settings, weight: f32) {
     let weight = clamp(weight);
     let spring = s.hook_spring;
-    let root = if spring == 0.0 { 0.0 }
-        else { spring * inverse_length_squared(spring, 2) };
+    let root = if spring == 0.0 {
+        0.0
+    } else {
+        spring * inverse_length_squared(spring, 2)
+    };
     drives.targets.dynamics[0].linear = RetailDriveParams {
         spring_or_max_velocity: spring * weight,
         damping: root * 2.0 - spring * f32::from_bits(0x3C83_126F),
@@ -91,8 +110,6 @@ pub fn set_linear_root(drives: &mut SkeletonDrives, s: &Settings, weight: f32) {
         drive_type: RetailDriveType::SoftDrive,
     };
 }
-///82D3BE98..BF24 uses the same target0 angular fields set during Enter.
-///Enter uses spring*0.5 and strength*1799.9998; Update uses the supplied weight.
 pub fn set_angular_root(drives: &mut SkeletonDrives, s: &Settings, weight: f32) {
     let weight = clamp(weight);
     drives.targets.dynamics[0].angular = RetailDriveParams {

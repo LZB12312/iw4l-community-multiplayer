@@ -1,0 +1,1465 @@
+[
+  {
+    "name": "character_creator",
+    "fullscreen": 1,
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 640,
+      "h": 480,
+      "horz_align": 4,
+      "vert_align": 4
+    },
+    "handlers": {
+      "open": [
+        {
+          "Script": "focusFirst;"
+        }
+      ],
+      "esc": [
+        {
+          "Script": "close character_creator;"
+        }
+      ]
+    },
+    "items": [
+      {
+        "name": "background",
+        "background": "white",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 640,
+          "h": 480,
+          "horz_align": 4,
+          "vert_align": 4
+        },
+        "fore_color": [
+          0.025,
+          0.035,
+          0.04,
+          0.98
+        ],
+        "static_flags": 1048576
+      },
+      {
+        "name": "title",
+        "text_key": "CHARACTER / SKATE 3 WARDROBE",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 36,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "kind",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 84,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6368617261637465725f6b696e64 op 1",
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; exec \"ui_character_cycle kind\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "skin_label",
+        "text_key": "SKIN",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 128,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "skin",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 170,
+          "y": 128,
+          "w": 410,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6368617261637465725f736b696e op 1",
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; exec \"ui_character_cycle skin\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "shirt_label",
+        "text_key": "TOP",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 166,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "shirt",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 170,
+          "y": 166,
+          "w": 410,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6368617261637465725f7368697274 op 1",
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; exec \"ui_character_cycle shirt\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "pants_label",
+        "text_key": "PANTS",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 204,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "pants",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 170,
+          "y": 204,
+          "w": 410,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6368617261637465725f70616e7473 op 1",
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; exec \"ui_character_cycle pants\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "hair_label",
+        "text_key": "HAIR",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 242,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "hair",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 170,
+          "y": 242,
+          "w": 410,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6368617261637465725f68616972 op 1",
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; exec \"ui_character_cycle hair\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "board_label",
+        "text_key": "DECK",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 280,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "board",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 170,
+          "y": 280,
+          "w": 410,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6368617261637465725f626f617264 op 1",
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; exec \"ui_character_cycle board\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "status",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 352,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6368617261637465725f737461747573 op 1"
+      },
+      {
+        "name": "help",
+        "text_key": "Select a row to cycle through the available choices.",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 392,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "back",
+        "text_key": "BACK",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 432,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; close character_creator;"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "meat_settings",
+        "text_key": "HALL OF MEAT SETTINGS",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 315,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "exec \"ui_meat_open\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "quick_play",
+    "fullscreen": 1,
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 640,
+      "h": 480,
+      "horz_align": 4,
+      "vert_align": 4
+    },
+    "handlers": {
+      "open": [
+        {
+          "Script": "focusFirst;"
+        }
+      ],
+      "esc": [
+        {
+          "Script": "exec \"ui_quick_play_cancel\";"
+        }
+      ]
+    },
+    "items": [
+      {
+        "name": "background",
+        "background": "white",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 640,
+          "h": 480,
+          "horz_align": 4,
+          "vert_align": 4
+        },
+        "fore_color": [
+          0.025,
+          0.035,
+          0.04,
+          0.98
+        ],
+        "static_flags": 1048576
+      },
+      {
+        "name": "title",
+        "text_key": "QUICK PLAY",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 36,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "status",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 150,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f717569636b5f706c61795f737461747573 op 1"
+      },
+      {
+        "name": "help",
+        "text_key": "Joins an open room, or creates one for you to host.",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 212,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "cancel",
+        "text_key": "BACK",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 392,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; exec \"ui_quick_play_cancel\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "hall_of_meat_settings",
+    "fullscreen": 1,
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 640,
+      "h": 480,
+      "horz_align": 4,
+      "vert_align": 4
+    },
+    "handlers": {
+      "open": [
+        {
+          "Script": "focusFirst;"
+        }
+      ],
+      "esc": [
+        {
+          "Script": "close hall_of_meat_settings;"
+        }
+      ]
+    },
+    "items": [
+      {
+        "name": "background",
+        "background": "white",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 640,
+          "h": 480,
+          "horz_align": 4,
+          "vert_align": 4
+        },
+        "fore_color": [
+          0.025,
+          0.035,
+          0.04,
+          0.98
+        ],
+        "static_flags": 1048576
+      },
+      {
+        "name": "title",
+        "text_key": "HALL OF MEAT - DAMAGE SETTINGS",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 36,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "back",
+        "text_key": "BACK",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 432,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "close hall_of_meat_settings;"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tolerance0",
+        "text_key": "ANY DAMAGE - 1 HP",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 105,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "exec \"meat tolerance 1\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tolerance1",
+        "text_key": "STANDARD - 35 HP",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 143,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "exec \"meat tolerance 35\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tolerance2",
+        "text_key": "TOUGH - 75 HP",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 181,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "exec \"meat tolerance 75\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tolerance3",
+        "text_key": "VERY TOUGH - 150 HP",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 219,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "exec \"meat tolerance 150\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "tolerance4",
+        "text_key": "DISABLE DAMAGE BAILS",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 257,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "exec \"meat tolerance 0\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "help",
+        "text_key": "Match host setting. MW2 health, death and respawns remain active.",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 320,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "current",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 365,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6d6561745f746f6c6572616e6365 op 1",
+        "item_type": 0,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    ]
+  },
+  {
+    "name": "skate_character_creator",
+    "fullscreen": 1,
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 640,
+      "h": 480,
+      "horz_align": 4,
+      "vert_align": 4
+    },
+    "items": []
+  },
+  {
+    "name": "character_options",
+    "fullscreen": 1,
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "w": 640,
+      "h": 480,
+      "horz_align": 4,
+      "vert_align": 4
+    },
+    "handlers": {
+      "open": [
+        {
+          "Script": "focusFirst;"
+        }
+      ],
+      "esc": [
+        {
+          "Script": "close character_options;"
+        }
+      ]
+    },
+    "items": [
+      {
+        "name": "background",
+        "background": "white",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "w": 640,
+          "h": 480,
+          "horz_align": 4,
+          "vert_align": 4
+        },
+        "fore_color": [
+          0.025,
+          0.035,
+          0.04,
+          0.98
+        ],
+        "static_flags": 1048576
+      },
+      {
+        "name": "title",
+        "text_key": "CHARACTER",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 36,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "edit_skater",
+        "text_key": "EDIT SKATER",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 84,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; exec \"ui_skate_creator_open\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "kind",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 128,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6368617261637465725f6b696e64 op 1",
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; exec \"ui_character_cycle kind\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "meat_settings",
+        "text_key": "HALL OF MEAT SETTINGS",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 166,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "exec \"ui_meat_open\";"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      },
+      {
+        "name": "status",
+        "text_key": "",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 352,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "text_exp": "op 38 s:75695f6368617261637465725f737461747573 op 1"
+      },
+      {
+        "name": "help",
+        "text_key": "Choose your character, edit your skater, or adjust damage tolerance.",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 392,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "back",
+        "text_key": "BACK",
+        "text_literal": true,
+        "rect": {
+          "x": 60,
+          "y": 432,
+          "w": 520,
+          "h": 24
+        },
+        "font_enum": 3,
+        "text_scale": 0.32,
+        "text_align_x": 0,
+        "text_align_y": 0,
+        "fore_color": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "item_type": 1,
+        "style": 1,
+        "background": "menu_button_selection_bar",
+        "back_color": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "handlers": {
+          "action": [
+            {
+              "Script": "play mouse_click; close character_options;"
+            }
+          ],
+          "focus": [
+            {
+              "Script": "play mouse_over; setItemColor self backcolor 0 0 0 1;"
+            }
+          ],
+          "leave_focus": [
+            {
+              "Script": "setItemColor self backcolor 0 0 0 0;"
+            }
+          ]
+        }
+      }
+    ]
+  }
+]

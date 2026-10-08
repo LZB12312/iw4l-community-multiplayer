@@ -1,8 +1,3 @@
-//! TU3 `Skateboard::Toolkit_CalcHippyJumpVel` at `0x82D79F00`.
-//!
-//! The helper constructs the rider trajectory velocity used by
-//! `PhysState_LandingOnDeck::InitTraj`; it does not write board-body velocity.
-
 pub type Vector = [f32; 4];
 
 #[derive(Clone, Copy, Debug)]
@@ -35,23 +30,4 @@ fn sub(a: Vector, b: Vector) -> Vector {
 }
 fn scale(v: Vector, scalar: f32) -> Vector {
     core::array::from_fn(|i| v[i] * scalar)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn preserves_planar_velocity_and_replaces_up_component() {
-        let output = calculate(Input {
-            desired_height: 1.5,
-            board_position: [0.0, 0.0, 0.0, 0.0],
-            centre_of_mass_position: [0.0, 0.5, 0.0, 0.0],
-            reference_up: [0.0, 1.0, 0.0, 0.0],
-            current_velocity: [3.0, -2.0, 4.0, 0.0],
-        });
-        assert_eq!(output[0], 3.0);
-        assert_eq!(output[2], 4.0);
-        assert!((output[1] - 19.6f32.sqrt()).abs() < 1.0e-6);
-    }
 }

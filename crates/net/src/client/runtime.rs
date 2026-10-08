@@ -81,6 +81,8 @@ pub struct ClientClock {
     pub accumulator_ms: f32,
 
     pub dropped_slots: u32,
+
+    last_command_ms: Option<i32>,
 }
 
 impl ClientClock {
@@ -114,6 +116,15 @@ impl ClientClock {
 
     pub fn debt_ms(&self) -> f32 {
         self.accumulator_ms
+    }
+
+    fn command_due(&self, now_ms: i32) -> bool {
+        self.last_command_ms
+            .is_none_or(|last| now_ms.saturating_sub(last) >= GAMEPLAY_SEND_INTERVAL_MS)
+    }
+
+    fn command_generated(&mut self, now_ms: i32) {
+        self.last_command_ms = Some(now_ms);
     }
 }
 
@@ -705,7 +716,10 @@ fn apply_weapon_switch_requests(
 }
 
 pub fn sample_client_input(
-    (skate, mut minecraft): (Option<Res<frame::SkateMode>>, Option<ResMut<frame::MinecraftUi>>),
+    (skate, mut minecraft): (
+        Option<Res<frame::SkateMode>>,
+        Option<ResMut<frame::MinecraftUi>>,
+    ),
     time: Res<Time<Real>>,
     mut actions: ResMut<ClientActionInput>,
     mut look: ResMut<LookState>,
@@ -1075,7 +1089,10 @@ pub fn sample_client_input(
     {
         cmd.buttons |= playerstate_iw4::buttons::RELOAD;
     }
-    if minecraft.as_ref().is_some_and(|ui| ui.active && ui.holding_item) {
+    if minecraft
+        .as_ref()
+        .is_some_and(|ui| ui.active && ui.holding_item)
+    {
         cmd.buttons &= !(playerstate_iw4::buttons::ATTACK | playerstate_iw4::buttons::ADS);
     }
     look.angles = cmd.angles;
@@ -1134,7 +1151,9 @@ pub fn sample_client_input(
         cmd.melee_charge_dist = dist;
     }
     if skate.as_ref().is_some_and(|s| s.active) {
-        cmd.forwardmove = 0; cmd.rightmove = 0; cmd.buttons = 0;
+        cmd.forwardmove = 0;
+        cmd.rightmove = 0;
+        cmd.buttons = 0;
     }
     template.cmd = cmd;
     template.ready = true;
@@ -1346,10 +1365,13 @@ pub fn enforce_client_work_limits(
         stalls.clear();
         None
     };
-    let reason = if actions.timed_out() {
-        Some("ActionOutcomeUnknown: authority outcome deadline exceeded")
+    let reason = if let Some((client, request)) = actions.timed_out_action() {
+        Some(format!(
+            "ActionOutcomeUnknown: authority outcome deadline exceeded for client {} request {request}",
+            client.0
+        ))
     } else if stall.is_some_and(|counted| counted >= BACKLOG_STALLS_BEFORE_FAIL) {
-        Some("InputBacklogExceeded")
+        Some("InputBacklogExceeded".to_owned())
     } else {
         None
     };
@@ -1368,7 +1390,7 @@ pub fn enforce_client_work_limits(
     prediction.0.disarm();
     let match_key = crate::signon::live_match_key(bridge.as_deref());
     if let Some(bridge) = bridge {
-        bridge.fail(reason);
+        bridge.fail(&reason);
     }
     signon.set_phase(crate::SignonPhase::Failed(
         crate::SignonFailReason::Transport {
@@ -1401,6 +1423,7 @@ pub fn predict_local_move(
     gate: Res<AuthorityInputGate>,
     mut pending: ResMut<PendingClientSends>,
     proxy: Res<RemoteProxyState>,
+    adopted: Res<LastAdoptedSnapshot>,
     cls: Res<ClientRealtime>,
     cg_clock: Res<FrameClock>,
     trace: Option<ResMut<ClientPhaseTrace>>,
@@ -1409,12 +1432,29 @@ pub fn predict_local_move(
 
     if *role != RuntimeRole::Replay {
         let _tick = clock.tick(time.delta_secs() * 1000.0);
+        if !clock.command_due(cls.realtime()) {
+            return;
+        }
     }
+    // A host hitch can leave the monotonic presentation clock ahead of the
+    // simulation. Ordered commands must remain runnable when that host resumes.
+    let command_time = if *role == RuntimeRole::Client {
+        let Some(snapshot) = adopted.next() else {
+            return;
+        };
+        cg_clock.time().min(
+            ServerTime::from_tick(snapshot.tick)
+                .ms()
+                .saturating_add(crate::authority::inbox::COMMAND_TIME_STEP_MS),
+        )
+    } else {
+        cg_clock.time()
+    };
     if !gate.local_cmds_enabled
         || !prediction.0.is_armed()
         || !template.ready
         || !cg_clock.started()
-        || !pending.has_command_capacity(cg_clock.time())
+        || !pending.has_command_capacity(command_time)
     {
         return;
     }
@@ -1427,10 +1467,13 @@ pub fn predict_local_move(
     let sample = proxy.0.shot_sample(cg_clock.time());
     if let Some((seq, cmd)) = prediction
         .0
-        .predict(template.cmd, ServerTime::from_ms(cg_clock.time()))
+        .predict(template.cmd, ServerTime::from_ms(command_time))
     {
         actions.consume_edges();
         pending.push(seq, cmd, sample);
+        if *role != RuntimeRole::Replay {
+            clock.command_generated(cls.realtime());
+        }
     }
 }
 

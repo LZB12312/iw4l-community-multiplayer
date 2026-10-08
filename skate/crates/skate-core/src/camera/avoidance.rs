@@ -1,6 +1,3 @@
-//! Complete TU3 normal-camera avoidance82E04C20. Three native PathEvaluators
-//! retain separate asynchronous requests. World/subject adapters are external.
-
 use super::vector_tracker::{dot, length, refined_reciprocal};
 use super::{
     MovingObstacleProvider, PathEvaluator, Positioner, PredictionPath, TrajectoryCollisionRequest,
@@ -60,8 +57,6 @@ pub struct RigAvoidance {
 }
 
 impl RigAvoidance {
-    /// Complete82E04C20. The last breadcrumb is supplied from the native ring
-    /// selector (capacity+index-1)%capacity; no sampled/fitted trail is generated.
     pub fn update(
         &mut self,
         dt: f32,
@@ -240,7 +235,6 @@ impl RigAvoidance {
         self.elevation_weight = clamp(self.elevation_weight);
     }
 
-    /// Complete82E03060; subject transform+32 is its forward vector.
     fn subject_speed(&self, subject: &mut impl AvoidanceSubject) -> f32 {
         dot(self.velocity, subject.transform_376()[2])
     }

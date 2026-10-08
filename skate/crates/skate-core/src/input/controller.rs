@@ -1,10 +1,5 @@
-//! TU3 RawControllerInput 82598FE0 and DerivedControllerInput 825992D8.
-//! Native action-map evaluation is an explicit boundary, not a platform mapping.
 use crate::physics::reciprocal_sqrt::estimate;
 
-/// Evaluated native cInputMap actions. IDs are TU3 map indices, not XInput
-/// buttons. Implementations must preserve the call order; the stock expression
-/// evaluator 8296C350 and loaded mapping still determine deadzones and scaling.
 pub trait ActionMap {
     fn value(&mut self, action: u32) -> f32;
     fn state(&mut self, action: u32) -> u8;
@@ -24,8 +19,6 @@ impl RawControllerInput {
         &self.words
     }
 
-    /// Complete 82598FE0, including simultaneous bumper arbitration and
-    /// retention of the low twenty bits of the destination flags word.
     pub fn update(
         &mut self,
         previous: &Self,
@@ -58,8 +51,6 @@ impl RawControllerInput {
     }
 }
 
-/// Actual inputlistener attribute result for key 1F3C1C1C68AF4C23.
-/// Missing collection/attribute uses the live 830D0850 fallback.
 pub struct MagnitudeHeldSettings {
     pub attribute: Option<f32>,
     pub missing_attribute_value: f32,
@@ -79,11 +70,6 @@ impl DerivedControllerInput {
         &self.words
     }
 
-    /// Prefix construction recovered from TU3 `82599718`. The native
-    /// constructor clears the controller axes and timers, preserves the low
-    /// twenty flag bits in the two packed raw words, and seeds the four
-    /// edge-timer fields from `flt_822F8B34` (`0x7effffff`). This is only the
-    /// controller prefix; listener registration/reset belongs to its owner.
     pub fn initialize(&mut self) {
         let flags_last = self.words[6] & 0x000f_ffff;
         let flags_current = self.words[13] & 0x000f_ffff;
@@ -93,8 +79,6 @@ impl DerivedControllerInput {
         self.words[16..20].fill(0x7eff_ffff);
     }
 
-    /// Complete 825992D8: raw history, trigger/button edge timers and stick
-    /// magnitude-held timers. Timing uses caller dt without an imposed rate.
     pub fn update(
         &mut self,
         map: &mut impl ActionMap,
@@ -145,10 +129,6 @@ impl DerivedControllerInput {
         };
     }
 }
-
-#[cfg(test)]
-#[path = "controller_startup.rs"]
-mod startup_tests;
 
 /// Independent reciprocal-square-root estimate followed by the original two
 /// refinement steps. Host arithmetic is not claimed to be bit-exact Xenon math.

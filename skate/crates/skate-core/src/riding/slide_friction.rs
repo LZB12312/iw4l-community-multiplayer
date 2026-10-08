@@ -1,4 +1,3 @@
-//! Complete TU3 Toolkit_CalcSlideFriction 82D92970; Ground force tag 1.
 use super::vector::{clamp, dot3};
 use crate::{point_graph::PointGraph, trigonometry::acos};
 

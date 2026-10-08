@@ -11,7 +11,7 @@ game is bundled.
 Writes <folder>/assets on success; progress lines go to stdout.
 """
 from pathlib import Path
-import argparse, runpy, shutil, sys, tempfile, traceback
+import argparse, os, runpy, sys, tempfile, traceback, uuid
 
 ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent))
 sys.path.insert(0, str(ROOT))
@@ -21,6 +21,10 @@ REQUIRED = [
     'data/big/miscboot.big',
     'data/big/db.big',
     'data/content/createacharacter.big',
+    'data/content/marquee.big',
+    'data/big/fedata.big',
+    'data/big/fetexture.big',
+    'data/big/fedynamic.big',
 ]
 
 
@@ -38,8 +42,15 @@ def run_task(script, args):
     return 0
 
 
+def absolute_path(path):
+    path = str(path.resolve())
+    if os.name == 'nt' and not path.startswith('\\\\?\\'):
+        path = '\\\\?\\UNC\\' + path[2:] if path.startswith('\\\\') else '\\\\?\\' + path
+    return Path(path)
+
+
 def convert(xex, out):
-    xex = xex.resolve()
+    xex = absolute_path(xex)
     if xex.suffix.lower() == '.iso':
         raise RuntimeError('ISO files are not supported. Extract the disc and select its default.xex.')
     if xex.name.lower() != 'default.xex' or not xex.is_file():
@@ -52,9 +63,8 @@ def convert(xex, out):
 
     from tools.asset_pipeline import asset_exports as exports
 
-    out = out.resolve()
-    stage = out.with_name(out.name + '.partial')
-    shutil.rmtree(stage, ignore_errors=True)
+    out = absolute_path(out)
+    stage = out.with_name(out.name + '.partial-' + uuid.uuid4().hex)
     stage.mkdir(parents=True)
 
     def report(text):
@@ -71,9 +81,41 @@ def convert(xex, out):
                    'private/stock/skater-collections.json'):
         if not (assets / needed).is_file():
             raise RuntimeError(f'Conversion finished without {needed}.')
-    shutil.rmtree(out, ignore_errors=True)
+    prepare_wardrobe(game, assets)
+    prepare_creator(game, assets)
+    prepare_hall_of_meat(game, assets)
+    prepare_audio(game, assets)
+    if out.exists():
+        out.rename(out.with_name(out.name + '.previous-' + uuid.uuid4().hex))
     stage.rename(out)
     report('Skate 3 data ready')
+
+
+def prepare_wardrobe(game, assets):
+    print('Preparing selectable Skate 3 clothing and boards', flush=True)
+    sys.argv = ['prepare-characters', '--engine', str(ROOT), '--game', str(game),
+                '--assets', str(assets), '--limit', '8']
+    runpy.run_path(str(ROOT / 'prepare-characters.py'), run_name='__main__')
+
+
+def prepare_hall_of_meat(game, assets):
+    print('Preparing original Hall of Meat HUD and skeleton', flush=True)
+    sys.argv = ['prepare-hall-of-meat', '--engine', str(ROOT), '--game', str(game), '--assets', str(assets)]
+    runpy.run_path(str(ROOT / 'prepare-hall-of-meat.py'), run_name='__main__')
+
+
+def prepare_creator(game, assets):
+    print('Preparing full Skate 3 characters and original creator UI', flush=True)
+    sys.argv = ['prepare-creator-assets', '--engine', str(ROOT), '--game', str(game), '--assets', str(assets)]
+    runpy.run_path(str(ROOT / 'prepare-creator-assets.py'), run_name='__main__')
+
+
+def prepare_audio(game, assets):
+    print('Preparing original Skate board sound effects', flush=True)
+    decoder = Path(os.environ.get('IW4L_SKATE_AUDIO_DECODER', ROOT / 'audio-decoder/vgmstream-cli.exe'))
+    sys.argv = ['prepare-skate-audio', '--engine', str(ROOT), '--game', str(game),
+                '--assets', str(assets), '--decoder', str(decoder)]
+    runpy.run_path(str(ROOT / 'prepare-skate-audio.py'), run_name='__main__')
 
 
 def main():
@@ -82,9 +124,30 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--xex', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--wardrobe-only', action='store_true')
+    parser.add_argument('--hall-of-meat-only', action='store_true')
+    parser.add_argument('--audio-only', action='store_true')
+    parser.add_argument('--creator-only', action='store_true')
     args = parser.parse_args()
     try:
-        convert(args.xex, args.out)
+        if args.creator_only:
+            if not args.xex.is_file() or args.xex.name.lower() != 'default.xex':
+                raise RuntimeError('Select an extracted Skate 3 default.xex.')
+            prepare_creator(absolute_path(args.xex).parent, absolute_path(args.out) / 'assets')
+        elif args.audio_only:
+            if not args.xex.is_file() or args.xex.name.lower() != 'default.xex':
+                raise RuntimeError('Select an extracted Skate 3 default.xex.')
+            prepare_audio(absolute_path(args.xex).parent, absolute_path(args.out) / 'assets')
+        elif args.hall_of_meat_only:
+            if not args.xex.is_file() or args.xex.name.lower() != 'default.xex':
+                raise RuntimeError('Select an extracted Skate 3 default.xex.')
+            prepare_hall_of_meat(absolute_path(args.xex).parent, absolute_path(args.out) / 'assets')
+        elif args.wardrobe_only:
+            if not args.xex.is_file() or args.xex.name.lower() != 'default.xex':
+                raise RuntimeError('Select an extracted Skate 3 default.xex.')
+            prepare_wardrobe(absolute_path(args.xex).parent, absolute_path(args.out) / 'assets')
+        else:
+            convert(args.xex, args.out)
     except Exception as error:
         traceback.print_exc()
         print(f'ERROR: {error}', flush=True)

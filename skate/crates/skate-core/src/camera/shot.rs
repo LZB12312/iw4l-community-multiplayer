@@ -1,5 +1,3 @@
-//! Authored normal-camera shots and TU3 interpolation82E06980/82E074A8.
-//! The state graph selects stock shot names; these values do not select a view.
 use super::shot_orientation::interpolate_orientation;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -34,8 +32,6 @@ pub struct Shot {
 }
 
 impl Shot {
-    /// Complete Shot constructor82E06230; these initialize transition history
-    /// before the first authored shot is loaded, and are not camera tuning.
     pub fn new() -> Self {
         Self {
             distance: 2.0,
@@ -65,9 +61,6 @@ impl Shot {
         }
     }
 
-    /// Normal-shot evaluation82E06CB8/82E00D70. `north` is the subject's
-    /// selected compass entry (the manager applies the special 6->5 case).
-    /// UsePreviousShot preserves the already copied arm orientation.
     pub fn update_normal(&mut self, north: f32, heading_mirror: f32) {
         if self.use_previous_shot != 0 {
             return;
@@ -81,9 +74,6 @@ impl Shot {
             super::orientation_math::quaternion_from_angles(self.position_elevation, heading, 0.0);
     }
 
-    /// Complete weighted reference-point calculation82E01070. The board
-    /// offset follows subject getter456 and is applied to every weighted
-    /// reference point before summation, including points with zero weight.
     pub fn reference_point(
         &self,
         positions: &[[f32; 4]; 10],
@@ -105,9 +95,6 @@ impl Shot {
         }
     }
 
-    /// Complete field publication82E06980, also used by82E06E38 after it
-    /// applies its first sine-shaped blend. Discrete options come from `to`
-    /// even at fraction zero. Heading and shot metadata are not written.
     pub fn interpolate_from(&mut self, from: Self, to: Self, fraction: f32) {
         let blend = |a, b| interpolate_float(a, b, 0, fraction);
         self.distance = blend(from.distance, to.distance);
@@ -139,8 +126,6 @@ impl Shot {
     }
 }
 
-/// TU3 82E074A8. Style0 eases with native sine; style1 takes the target;
-/// other styles preserve the source. The caller owns fraction clamping.
 pub fn interpolate_float(from: f32, to: f32, style: u32, fraction: f32) -> f32 {
     match style {
         0 => (to - from).mul_add(sine_blend(fraction), from),
@@ -154,8 +139,6 @@ pub(super) fn sine_blend(fraction: f32) -> f32 {
     crate::trigonometry::sin(angle).mul_add(0.5, 0.5)
 }
 
-/// Complete blend-value filtering82E07378 after82E07708 produces the raw
-/// subject-dependent value. This filter intentionally does not multiply by dt.
 pub fn filter_blend_value(
     previous: f32,
     raw: f32,
@@ -173,8 +156,6 @@ pub fn filter_blend_value(
     }
 }
 
-/// Exact82E07240 interval choice. Entries stop at the first absent child;
-/// the returned indices may match at the ends. Zero entries publishes nothing.
 pub fn blend_interval(
     points: [f32; 3],
     present: [bool; 3],

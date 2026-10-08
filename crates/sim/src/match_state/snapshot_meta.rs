@@ -11,6 +11,9 @@ use super::loadout::LoadoutSpec;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ClientSnapshotMeta {
+    pub appearance: crate::CharacterAppearance,
+    pub skate: Option<crate::SkatePose>,
+    pub skate_damage: crate::presentation::SkateDamage,
     pub shield: Option<crate::ShieldAttachment>,
     pub shield_collision: Option<crate::ShieldCarrierCollision>,
     pub controls: super::ScriptControls,

@@ -25,9 +25,6 @@ pub(crate) struct Owner {
 }
 
 impl Owner {
-    ///Only the shared82D8E3E0 callee, not Ground movement/lifecycle.
-    ///Ground82BDE2CC and Air82BDDFFC both supply enable-body-spin r7=1.
-    ///Each caller supplies its own native up/forward/blend and phase ordering.
     pub(crate) fn finish_reckoning(
         &self,
         update: super::offboard::skeleton_ground::ReckoningUpdate,
@@ -86,8 +83,6 @@ impl Owner {
     }
 
     pub(crate) fn reset(&mut self, toolkit: &mut contact_toolkit::Owner) {
-        //82D30BD0 is a Ground-state reset, not Biped82D7B1C0.
-        //Keep controller cadence, correction vectors and shared candidate alive.
         self.result = None;
         self.ground.flags_144_to_150 = [false; 7];
         self.ground.counter_152 = 0;
@@ -132,7 +127,6 @@ impl Owner {
 
 pub(crate) fn enter(_physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     let p = &skater.player_input.processed;
-    //82D30848 calls GetEffectiveRoot82BE3650 BEFORE Ground placement.
     let frame = entry::effective_root(
         skater.animated_skeleton.roots.animation_to_world,
         p.flags_2476,
@@ -150,31 +144,23 @@ pub(crate) fn enter(_physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> R
             requested_duration_2896: skater.animation_input.fields.animation_time,
             previous_state_2504: p.state_2504,
             previous_frame_up_208: previous_frame[1],
-            //82BDE398..3E0: COM frame15824 + translation48 = Skeleton15872.
             body_position_15872: skater.animated_skeleton.board_frames.com_frame[3],
         },
         p.state_2508,
         previous_frame,
         &mut skater.offboard_contact,
     );
-    //82D30B44: actual state56 ConsiderReset, after placement and before mode4.
     services::enter_feet(skater);
-    //82D30B54 requests the shared skeleton collision controller's mode4.
     skater
         .ground_lifecycle
         .skeleton_controller
         .request(4, &mut skater.skeleton_collision)?;
-    //82D30B5C..B64: state52 grab manager, NOT SkateboardController60.
     skater.offboard_grab.enter_reset();
     Ok(())
 }
 
 pub(crate) fn exit(skater: &mut SkaterRuntime) {
-    //82D30CD8 refreshes, then30CE4..CF8 clears readiness/history before
-    //releasing Ground geometry. Candidate and Biped cadence remain alive.
     skater.offboard_contact.reset_history();
-    //82D30CC0 releases the ground query. It does NOT reset shared Biped
-    //motion/cadence/correction; BipedAir and subsequent placement consume them.
     skater.biped_ground.geometry.reset();
 }
 
@@ -196,9 +182,6 @@ pub(crate) fn update(
         && animation_motion_sq < f32::from_bits(0x3a83_126f)
         && !(fields.animation_time > 0.0)
     {
-        // Temporary first-producer trace. Native Ground movement82D7F4BC enters
-        // the directed branch and82D7F624 divides target distance by AnimTime;
-        // stock graph publication must make this packet valid before that call.
         bevy::log::error!(
             "OFFBOARD_DIRECTED_INPUT_INVALID state={}/{} previous={} filtered={} motion_state={:?} flags={:08x}/{:08x}/{:08x}/{:08x}/{:08x} grind_words={:08x?} grind_flags={:02x}/{:02x} offboard_edge_distance={} offboard_obstacle_distance={} anim_time={} anim_translation={:?} anim_velocity={:?} target_scale={} frame={:?} attributes={:?}",
             p.state_2508,
@@ -289,33 +272,22 @@ pub(crate) fn update(
             owner.controller.state,
         );
     }
-    //82D31CE8..D04 is Ground FeetIK, not Air's timer-reset wrapper.
     services::update_feet(skater);
-    //82D31D14 calls the shared board steering owner with zero input before
-    //possession. Offboard Ground must still advance its tilt and timers.
     skater.ground.steering.update(
         0.0,
         skater.air_settings.steering_blend,
         p.flags_2468,
         p.flags_2472,
     );
-    //82D31D1C..DB0 operates the EXISTING carried-board controller.
     ground_board::update_possession(physics, skater);
-    //82D32338 precedes contact correction and angular unwind. Submit through
-    //the parent's persistent selector; Ground never selects Air speculatively.
-    //Current authored scene has no grind edges. Typed absence is accepted by
-    //every native non-mode1 launch; no fabricated departure vectors.
     let launch_input = services::launch_input(skater, None)?;
     if let Some(packet) = skater.biped_ground.prepare_air(&launch_input)? {
         services::submit_air(physics, skater, packet)?;
     }
     let owner = &mut skater.biped_ground;
     owner.ground.flags_144_to_150[0] = false;
-    // Sync82D31E64..82D32070: physical contact correction and the Enter
-    // angular unwind must precede BOTH Skeleton and the next query submission.
     let animation_frame = ground_job::sync_frames(&mut owner.ground, owner.contact, result);
     let collision = super::input_phase::collision(skater);
-    //82D32084 passes state1056 (GroundResult208), not processed752.
     let centre_of_mass = result.position;
     let body_spin = skater.animation_input.extra.physical_body_spin;
     let simulation = physics.settings.step.simulation;
@@ -356,9 +328,7 @@ pub(crate) fn update(
             body_spin,
         );
     }
-    //82D32088..32108: real grab-spline host executes grab::sync here.
     services::sync_grab(skater);
-    //82D32130..164: surface-frame axes, NOT physical-frame axes.
     Ok(contact_toolkit::Input {
         position: skater.biped_ground.ground.frame_80[3],
         forward: result.surface_frame[2],

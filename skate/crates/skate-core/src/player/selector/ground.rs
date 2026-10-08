@@ -12,8 +12,6 @@ impl StateSelector {
         match current {
             PhysicalStateId::PhysicsGround => {
                 if p.has_2480(0x1000) && (!p.has_2480(0x400) || !p.has_2480(0x200)) {
-                    // TU3 calls `sk83_na_f_01a4` at 0x82D8B23C here. The
-                    // target is 0x82B61BB8 and consists solely of `blr`.
                     return PhysicalStateId::LandingOnDeck;
                 }
                 let handplant_contact =

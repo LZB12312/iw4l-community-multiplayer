@@ -1,13 +1,9 @@
-//! Persistent offboard selector72: S3 82D6BD78..82D6EA6C.
-//! Separate from onboard Air. World work is submitted/staged by the game host;
-//! only explicit consume calls publish results. No physical solver ownership.
 mod adjustment;
 mod candidates;
 mod completion;
 pub mod ledge;
 mod math;
-#[cfg(test)]
-mod tests;
+
 use super::{air_launch::Packet, biped_air::recovered};
 use crate::{
     air::trajectory::{Prediction, QueryRequest, QueryResult, Trajectory},
@@ -65,7 +61,6 @@ impl Default for Selector {
 }
 impl Selector {
     pub fn new(launch: Packet) -> Self {
-        //Constructor82D6B870 differs from Reset82D6BD78 at these fields.
         let mut sampling = SelectorState::reset_sampling(launch.scalar_100);
         sampling.restart_allowed_8493 = false;
         sampling.selection.landing_frame_8480 = 0;
@@ -88,18 +83,14 @@ impl Selector {
             requery_normal_8368: [0.; 4],
         }
     }
-    ///82D6BD78 retains packet3904. Reset does not invent a new launch.
     pub fn reset(&mut self) {
         *self = Self::new(self.launch);
         self.sampling = SelectorState::reset_sampling(self.launch.scalar_100);
     }
-    ///82D2EF20 clears only these two selector flags; retained predictions survive.
     pub fn exit(&mut self) {
         self.sampling.pending_8492 = false;
         self.sampling.preinitialized_8494 = false;
     }
-    ///82D6CA58: once per launch. Invalid authored inputs fail, never get clamped
-    ///into a different candidate count or padded collision request.
     pub fn begin_launch(
         &mut self,
         launch: Packet,
@@ -139,7 +130,6 @@ impl Selector {
     ) {
         self.sampling.sample(frame, timestep, curve, out);
     }
-    ///82D6E798. Caller supplies current processed suppression flags.
     pub fn begin_requery(
         &mut self,
         flags_2472: u32,

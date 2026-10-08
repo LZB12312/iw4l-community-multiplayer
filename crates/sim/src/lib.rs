@@ -18,10 +18,10 @@ pub mod identities;
 pub mod input;
 mod item;
 mod mantle_xanim;
-pub mod voxel;
 pub mod match_state;
 mod missile;
 mod missile_guidance;
+pub mod voxel;
 pub use missile_guidance::{MissileGuide, MissileTarget};
 mod presence;
 mod remote_missile;
@@ -155,3 +155,6 @@ pub use world::{SimContent, SimContentBuilder, WeaponSetup};
 
 mod script_audio;
 pub use script_audio::{ScriptAmbient, ScriptAudioCommand};
+pub mod presentation;
+pub use presentation::{CharacterAppearance, SkatePose};
+pub mod character;

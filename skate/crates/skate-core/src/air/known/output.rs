@@ -6,10 +6,9 @@ use super::{
     trajectory::{add, sub, trajectory_position, trajectory_velocity},
 };
 
-const FIXED_STEP: f32 = f32::from_bits(0x3C88_8889); // 0x820849C8, 1/60.
-const MAX_FINITE: f32 = f32::from_bits(0x7F7F_FFFF); // 0x8206D108.
+const FIXED_STEP: f32 = f32::from_bits(0x3C88_8889);
+const MAX_FINITE: f32 = f32::from_bits(0x7F7F_FFFF);
 
-/// `PhysState_KnownAir::FillPhysOut`, TU3 `0x82D36880`.
 pub fn fill_physics_output(
     state: &KnownAirState,
     frame: &KnownAirFrame,

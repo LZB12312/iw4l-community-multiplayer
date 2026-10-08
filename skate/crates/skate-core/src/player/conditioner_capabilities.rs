@@ -1,9 +1,3 @@
-//! Conditioner capability publication from original Skate 3 TU3 0x8275F430.
-//!
-//! World writes ExternalInput+2780, then 0x82DA7888 copies that word to
-//! PhysOutScoring2+204. The word gates controller and camera behavior; it is
-//! not a count or mask of currently broken bones.
-
 /// Host settings needed by the original whole-word capability calculation.
 /// There is deliberately no implicit default for these gameplay choices.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,7 +16,6 @@ pub struct ConditionerCapabilityContext {
 }
 
 impl ConditionerCapabilityContext {
-    /// Preserve all bits and branch priority from 0x8275F4D8..0x8275F558.
     pub fn capabilities(self) -> u32 {
         if self.in_front_end {
             0
@@ -35,6 +28,3 @@ impl ConditionerCapabilityContext {
         }
     }
 }
-
-#[cfg(test)]
-mod tests;

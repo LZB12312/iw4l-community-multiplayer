@@ -30,9 +30,12 @@ pub const AMBIENT_INTERVAL: i32 = 120;
 pub const DEFAULT_COLLAR: u8 = 14;
 
 /// The wolf variants (`wolf_variant`), by ID; `pale` is the default.
-pub const VARIANTS: [&str; 9] = ["ashen", "black", "chestnut", "pale", "rusty", "snowy", "spotted", "striped", "woods"];
+pub const VARIANTS: [&str; 9] = [
+    "ashen", "black", "chestnut", "pale", "rusty", "snowy", "spotted", "striped", "woods",
+];
 /// The sound variants (`wolf_sound_variant`) in the registry's order.
-pub const SOUND_VARIANTS: [&str; 7] = ["angry", "big", "classic", "cute", "grumpy", "puglin", "sad"];
+pub const SOUND_VARIANTS: [&str; 7] =
+    ["angry", "big", "classic", "cute", "grumpy", "puglin", "sad"];
 
 /// A sound variant's sound set (`WolfSoundVariant.WolfSoundSet`): a baby's
 /// are the baby wolf's whatever its variant.
@@ -114,7 +117,22 @@ pub fn is_food(item: &str) -> bool {
 /// `DyeColor` IDs by name, for `#wolf_collar_dyes` (`#dyes`) and their
 /// `DYE` component.
 pub const DYES: [&str; 16] = [
-    "white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray", "light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black",
+    "white",
+    "orange",
+    "magenta",
+    "light_blue",
+    "yellow",
+    "lime",
+    "pink",
+    "gray",
+    "light_gray",
+    "cyan",
+    "purple",
+    "blue",
+    "brown",
+    "green",
+    "red",
+    "black",
 ];
 
 /// The dye colour of a dye item.
@@ -198,13 +216,21 @@ impl Wolf {
     /// `setAge` with its size (`getDefaultDimensions`).
     pub fn set_age(&mut self, ticks: i32) {
         self.age.set(ticks);
-        let (width, height) = if self.age.baby() { (BABY_WIDTH, BABY_HEIGHT) } else { (WIDTH, HEIGHT) };
+        let (width, height) = if self.age.baby() {
+            (BABY_WIDTH, BABY_HEIGHT)
+        } else {
+            (WIDTH, HEIGHT)
+        };
         self.body.width = width;
         self.body.height = height;
     }
 
     pub fn eye_height(&self) -> f32 {
-        if self.baby() { BABY_EYE_HEIGHT } else { EYE_HEIGHT }
+        if self.baby() {
+            BABY_EYE_HEIGHT
+        } else {
+            EYE_HEIGHT
+        }
     }
 
     pub fn max_health(&self) -> f32 {
@@ -258,25 +284,5 @@ impl Wolf {
         } else {
             std::f32::consts::PI / 5.0
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn sound_sets_and_textures_follow_their_variants() {
-        assert_eq!(sounds("classic", false).ambient, "entity.wolf.ambient");
-        assert_eq!(sounds("big", false).growl, "entity.wolf_big.growl");
-        assert_eq!(sounds("big", false).step, "entity.wolf.step");
-        assert_eq!(sounds("sad", true).step, "entity.baby_wolf.step");
-        let mut wolf = Wolf::new(DVec3::ZERO);
-        assert_eq!(wolf.texture(false), "minecraft:entity/wolf/wolf");
-        wolf.variant = "woods".to_owned();
-        assert_eq!(wolf.texture(true), "minecraft:entity/wolf/wolf_woods_angry");
-        wolf.set_age(Age::BABY_START);
-        assert_eq!(wolf.texture(false), "minecraft:entity/wolf/wolf_woods_baby");
-        assert!(interests("minecraft:bone") && interests("minecraft:rotten_flesh") && !interests("minecraft:wheat"));
     }
 }

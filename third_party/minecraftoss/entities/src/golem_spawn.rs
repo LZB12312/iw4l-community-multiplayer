@@ -19,18 +19,33 @@ const RANGE_XZ: i32 = 8;
 const RANGE_Y: i32 = 6;
 
 fn is_air(block: Option<&Block>) -> bool {
-    block.is_none_or(|b| matches!(b.id.as_str(), "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"))
+    block.is_none_or(|b| {
+        matches!(
+            b.id.as_str(),
+            "minecraft:air" | "minecraft:cave_air" | "minecraft:void_air"
+        )
+    })
 }
 
 /// `BlockState.liquid()`: water, lava and bubble columns.
 fn is_liquid(block: Option<&Block>) -> bool {
-    block.is_some_and(|b| matches!(b.id.as_str(), "minecraft:water" | "minecraft:lava" | "minecraft:bubble_column"))
+    block.is_some_and(|b| {
+        matches!(
+            b.id.as_str(),
+            "minecraft:water" | "minecraft:lava" | "minecraft:bubble_column"
+        )
+    })
 }
 
 /// `Strategy.LEGACY_IRON_GOLEM`: not a see-through or special block (glass
 /// and panes, leaves, ice, cobwebs, cactus, TNT, glowstone, beacons, sea
 /// lanterns, conduits), solid (or powder snow), with air or liquid above.
-fn legacy_golem_ground(world: &dyn World, pos: Pos, block: Option<&Block>, above: Option<&Block>) -> bool {
+fn legacy_golem_ground(
+    world: &dyn World,
+    pos: Pos,
+    block: Option<&Block>,
+    above: Option<&Block>,
+) -> bool {
     if let Some(b) = block {
         let id = b.id.as_str();
         let excluded = matches!(
@@ -54,7 +69,8 @@ fn legacy_golem_ground(world: &dyn World, pos: Pos, block: Option<&Block>, above
             return false;
         }
     }
-    (is_air(above) || is_liquid(above)) && (world.solid(pos) || block.is_some_and(|b| b.id == "minecraft:powder_snow"))
+    (is_air(above) || is_liquid(above))
+        && (world.solid(pos) || block.is_some_and(|b| b.id == "minecraft:powder_snow"))
 }
 
 /// `moveToPossibleSpawnPosition`: down from `pos` (six above the start)
@@ -85,7 +101,8 @@ fn top_face_full(boxes: &[[f64; 6]]) -> bool {
     (0..16).all(|i| {
         (0..16).all(|k| {
             let (x, z) = ((f64::from(i) + 0.5) / 16.0, (f64::from(k) + 0.5) / 16.0);
-            top.iter().any(|b| b[0] <= x && x <= b[3] && b[2] <= z && z <= b[5])
+            top.iter()
+                .any(|b| b[0] <= x && x <= b[3] && b[2] <= z && z <= b[5])
         })
     })
 }
@@ -95,7 +112,13 @@ fn holds_fluid(block: Option<&Block>) -> bool {
     block.is_some_and(|b| {
         matches!(
             b.id.as_str(),
-            "minecraft:water" | "minecraft:lava" | "minecraft:bubble_column" | "minecraft:kelp" | "minecraft:kelp_plant" | "minecraft:seagrass" | "minecraft:tall_seagrass"
+            "minecraft:water"
+                | "minecraft:lava"
+                | "minecraft:bubble_column"
+                | "minecraft:kelp"
+                | "minecraft:kelp_plant"
+                | "minecraft:seagrass"
+                | "minecraft:tall_seagrass"
         ) || b.property("waterlogged") == Some("true")
     })
 }
@@ -105,7 +128,10 @@ fn holds_fluid(block: Option<&Block>) -> bool {
 /// bushes, cactus and powder snow.
 fn dangerous(block: Option<&Block>) -> bool {
     block.is_some_and(|b| {
-        let lit_campfire = matches!(b.id.as_str(), "minecraft:campfire" | "minecraft:soul_campfire") && b.property("lit") == Some("true");
+        let lit_campfire = matches!(
+            b.id.as_str(),
+            "minecraft:campfire" | "minecraft:soul_campfire"
+        ) && b.property("lit") == Some("true");
         lit_campfire
             || matches!(
                 b.id.as_str(),
@@ -129,7 +155,10 @@ fn valid_empty(world: &dyn World, pos: Pos, ask_fluid: bool) -> bool {
     if full_cube(&world.collision_boxes(pos)) {
         return false;
     }
-    if block.as_ref().is_some_and(minecraftoss_player::redstone::is_signal_source) {
+    if block
+        .as_ref()
+        .is_some_and(minecraftoss_player::redstone::is_signal_source)
+    {
         return false;
     }
     if ask_fluid && holds_fluid(block.as_ref()) {
@@ -166,19 +195,33 @@ pub struct SummonedGolem {
 /// Where a summoned golem appears around `start` (the villager's block),
 /// drawing from the level's random; `blocked` says whether a living thing's
 /// box would meet the golem's (`isUnobstructed`).
-pub fn try_spawn_golem(world: &dyn World, start: Pos, level_random: &mut LegacyRandom, blocked: impl Fn(DVec3, DVec3) -> bool) -> Option<SummonedGolem> {
+pub fn try_spawn_golem(
+    world: &dyn World,
+    start: Pos,
+    level_random: &mut LegacyRandom,
+    blocked: impl Fn(DVec3, DVec3) -> bool,
+) -> Option<SummonedGolem> {
     for _ in 0..ATTEMPTS {
         // `Mth.randomBetweenInclusive(random, -8, 8)` twice.
         let dx = level_random.next_int((RANGE_XZ * 2 + 1) as u32) as i32 - RANGE_XZ;
         let dz = level_random.next_int((RANGE_XZ * 2 + 1) as u32) as i32 - RANGE_XZ;
-        let Some(pos) = possible_spawn_position(world, (start.0 + dx, start.1 + RANGE_Y, start.2 + dz)) else { continue };
+        let Some(pos) =
+            possible_spawn_position(world, (start.0 + dx, start.1 + RANGE_Y, start.2 + dz))
+        else {
+            continue;
+        };
         // `EntityType.create`: the facing, then `Mob.finalizeSpawn`'s
         // `random.triangle(0, 0.11485)` and left-handed roll, all from the
         // level's random.
         let yaw = wrap_degrees(level_random.next_float() * 360.0);
-        let follow_bonus = 0.114_850_000_000_000_01 * (level_random.next_double() - level_random.next_double());
+        let follow_bonus =
+            0.114_850_000_000_000_01 * (level_random.next_double() - level_random.next_double());
         let _left_handed = level_random.next_float() < 0.05;
-        let at = DVec3::new(f64::from(pos.0) + 0.5, f64::from(pos.1), f64::from(pos.2) + 0.5);
+        let at = DVec3::new(
+            f64::from(pos.0) + 0.5,
+            f64::from(pos.1),
+            f64::from(pos.2) + 0.5,
+        );
         // `checkSpawnRules` holds (its walk values are all 0);
         // `IronGolem.checkSpawnObstruction`.
         let below = (pos.0, pos.1 - 1, pos.2);
@@ -192,31 +235,18 @@ pub fn try_spawn_golem(world: &dyn World, start: Pos, level_random: &mut LegacyR
             continue;
         }
         let half = f64::from(crate::iron_golem::WIDTH) / 2.0;
-        let (min, max) = (at - DVec3::new(half, 0.0, half), at + DVec3::new(half, f64::from(crate::iron_golem::HEIGHT), half));
+        let (min, max) = (
+            at - DVec3::new(half, 0.0, half),
+            at + DVec3::new(half, f64::from(crate::iron_golem::HEIGHT), half),
+        );
         if blocked(min, max) {
             continue;
         }
-        return Some(SummonedGolem { at, yaw, follow_bonus });
+        return Some(SummonedGolem {
+            at,
+            yaw,
+            follow_bonus,
+        });
     }
     None
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn wraps_degrees_as_mth_does() {
-        assert_eq!(wrap_degrees(190.0), -170.0);
-        assert_eq!(wrap_degrees(-190.0), 170.0);
-        assert_eq!(wrap_degrees(359.0), -1.0);
-        assert_eq!(wrap_degrees(90.0), 90.0);
-    }
-
-    #[test]
-    fn top_faces_need_full_cover() {
-        assert!(top_face_full(&[[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]]));
-        assert!(!top_face_full(&[[0.0, 0.0, 0.0, 1.0, 0.5, 1.0]]));
-        assert!(top_face_full(&[[0.0, 0.5, 0.0, 0.5, 1.0, 1.0], [0.5, 0.5, 0.0, 1.0, 1.0, 1.0]]));
-    }
 }

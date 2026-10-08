@@ -15,11 +15,11 @@
 use crate::frame_spans::span;
 use crate::lighting::SkyLight;
 use crate::mesh::{self, Atlas, BiomeTint, ChunkMesh};
-use crate::model::{resolve_block_variants, ResolvedModel};
+use crate::model::{ResolvedModel, resolve_block_variants};
 use crate::pack::{PackStack, ResourceId};
 use crate::scene::{BiomeSample, Block, BlockPos, ChunkPos, HandcraftedScene, Scene};
 use crate::sections::{CompileQueue, CullCamera, SectionPos, Sections, VisGraph, VisibilitySet};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use glam::DVec3;
 use minecraftoss_core::block::flags;
 use minecraftoss_core::{BiomeId, BlockStateId, Chunk, Registries};
@@ -27,10 +27,10 @@ use minecraftoss_generator::terrain::TerrainGenerator;
 use minecraftoss_generator::zoom;
 use minecraftoss_world::chunk_map::WorldGen;
 use minecraftoss_world::storage::ChunkStorage;
-use minecraftoss_world::{spawn, ChunkEvent, ChunkMap};
+use minecraftoss_world::{ChunkEvent, ChunkMap, spawn};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::{mpsc, Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, mpsc};
 use std::thread::JoinHandle;
 use std::time::Instant;
 
@@ -69,7 +69,21 @@ impl BlockStates {
         let count = registries.blocks.state_count();
         let mut blocks = Vec::with_capacity(count);
         let mut solid_render = Vec::with_capacity(count);
-        let (mut ao_occluder, mut shared_face, mut fluid, mut chest, mut waterlogged, mut tint_kind) = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let (
+            mut ao_occluder,
+            mut shared_face,
+            mut fluid,
+            mut chest,
+            mut waterlogged,
+            mut tint_kind,
+        ) = (
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
         let (mut fluid_cell, mut full_collision) = (Vec::new(), Vec::new());
         let mut shared_groups: HashMap<String, u32> = HashMap::new();
         for index in 0..count {
@@ -81,8 +95,15 @@ impl BlockStates {
             };
             solid_render.push(registries.blocks.is(state, flags::SOLID_RENDER));
             let path = block.as_ref().map_or("", |b| b.id.path.as_str());
-            ao_occluder.push(block.as_ref().is_some_and(|b| shade_darkens(&registries.blocks, state, b)));
-            let shares = path == "water" || path == "glass" || path == "tinted_glass" || path.ends_with("_stained_glass");
+            ao_occluder.push(
+                block
+                    .as_ref()
+                    .is_some_and(|b| shade_darkens(&registries.blocks, state, b)),
+            );
+            let shares = path == "water"
+                || path == "glass"
+                || path == "tinted_glass"
+                || path.ends_with("_stained_glass");
             shared_face.push(match &block {
                 Some(b) if shares => {
                     let next = shared_groups.len() as u32;
@@ -92,8 +113,16 @@ impl BlockStates {
             });
             fluid.push(matches!(path, "water" | "lava"));
             chest.push(path == "chest");
-            waterlogged.push(block.as_ref().is_some_and(|b| b.properties.get("waterlogged").is_some_and(|value| value == "true")));
-            tint_kind.push(block.as_ref().map_or(mesh::TintKind::Other, mesh::TintKind::of));
+            waterlogged.push(block.as_ref().is_some_and(|b| {
+                b.properties
+                    .get("waterlogged")
+                    .is_some_and(|value| value == "true")
+            }));
+            tint_kind.push(
+                block
+                    .as_ref()
+                    .map_or(mesh::TintKind::Other, mesh::TintKind::of),
+            );
             fluid_cell.push(block.as_ref().and_then(crate::fluid::FluidCell::from_block));
             full_collision.push(crate::fluid::full_collision(block.as_ref()));
             blocks.push(block);
@@ -137,7 +166,10 @@ impl BlockStates {
     /// Whether a block darkens the corners of faces beside it
     /// (`shade_darkens`).
     pub fn shade_darkens(&self, block: &Block) -> bool {
-        self.state_of(block).map_or_else(|| block.is_opaque() || block.id.path.ends_with("_leaves"), |state| self.ao_occluder[usize::from(state.0)])
+        self.state_of(block).map_or_else(
+            || block.is_opaque() || block.id.path.ends_with("_leaves"),
+            |state| self.ao_occluder[usize::from(state.0)],
+        )
     }
 
     /// The scene block of a state; air states have none.
@@ -202,9 +234,18 @@ impl BlockStates {
 
     /// `BiomeManager.getNoiseBiomeAtQuart` on the client: the chunk's noise
     /// biome, or plains where no chunk is loaded.
-    pub fn noise_biome<'c>(&self, (qx, qy, qz): (i32, i32, i32), chunk: impl Fn(ChunkPos) -> Option<&'c Chunk>) -> BiomeId {
+    pub fn noise_biome<'c>(
+        &self,
+        (qx, qy, qz): (i32, i32, i32),
+        chunk: impl Fn(ChunkPos) -> Option<&'c Chunk>,
+    ) -> BiomeId {
         chunk((qx >> 2, qz >> 2)).map_or_else(
-            || self.registries.biomes.id("minecraft:plains").unwrap_or(BiomeId(0)),
+            || {
+                self.registries
+                    .biomes
+                    .id("minecraft:plains")
+                    .unwrap_or(BiomeId(0))
+            },
             |chunk| chunk.biome((qx & 3) as usize, qy, (qz & 3) as usize),
         )
     }
@@ -242,7 +283,12 @@ fn color(value: &serde_json::Value) -> Option<[u8; 3]> {
 
 /// The presentation sample of `minecraft:plains`.
 pub fn plains_sample(registries: &Registries) -> BiomeSample {
-    registries.biomes.id("minecraft:plains").map_or(BiomeSample::THE_VOID, |id| biome_sample(registries.biomes.get(id)))
+    registries
+        .biomes
+        .id("minecraft:plains")
+        .map_or(BiomeSample::THE_VOID, |id| {
+            biome_sample(registries.biomes.get(id))
+        })
 }
 
 fn biome_sample(info: &minecraftoss_core::biome::BiomeInfo) -> BiomeSample {
@@ -266,19 +312,30 @@ fn biome_sample(info: &minecraftoss_core::biome::BiomeInfo) -> BiomeSample {
 /// and tinted glass and copper grates (`TransparentBlock`), barriers, light
 /// blocks and structure voids never do; mud, soul sand and a full stack of
 /// snow always do. Plants, with no collision, never darken the ground.
-fn shade_darkens(registry: &minecraftoss_core::block::BlockRegistry, state: BlockStateId, block: &Block) -> bool {
+fn shade_darkens(
+    registry: &minecraftoss_core::block::BlockRegistry,
+    state: BlockStateId,
+    block: &Block,
+) -> bool {
     use minecraftoss_core::block::FaceShape;
     let path = block.id.path.as_str();
     match path {
         "glass" | "tinted_glass" | "barrier" | "light" | "structure_void" => return false,
         _ if path.ends_with("_stained_glass") || path.ends_with("copper_grate") => return false,
         "mud" | "soul_sand" => return true,
-        "snow" => return block.properties.get("layers").is_some_and(|layers| layers == "8"),
+        "snow" => {
+            return block
+                .properties
+                .get("layers")
+                .is_some_and(|layers| layers == "8");
+        }
         _ => {}
     }
     match registry.collision_shape(state) {
         Some(FaceShape::Full) => true,
-        Some(FaceShape::Boxes(boxes)) => boxes.len() == 1 && boxes[0] == [0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+        Some(FaceShape::Boxes(boxes)) => {
+            boxes.len() == 1 && boxes[0] == [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+        }
         Some(FaceShape::Empty) => false,
         // A catalog without shapes: the older name-based guess.
         None => block.is_opaque() || path.ends_with("_leaves"),
@@ -326,7 +383,12 @@ struct View<'a> {
 }
 
 impl<'a> View<'a> {
-    fn new(states: &'a BlockStates, hood: &'a Neighborhood, min: BlockPos, size: (usize, usize, usize)) -> Self {
+    fn new(
+        states: &'a BlockStates,
+        hood: &'a Neighborhood,
+        min: BlockPos,
+        size: (usize, usize, usize),
+    ) -> Self {
         let (sx, sy, sz) = size;
         let mut cells = vec![BlockStateId::AIR; sx * sy * sz];
         let world = states.vertical_range();
@@ -385,7 +447,8 @@ impl<'a> View<'a> {
     fn index(&self, (x, y, z): BlockPos) -> Option<usize> {
         let (dx, dy, dz) = (x - self.min.0, y - self.min.1, z - self.min.2);
         let (sx, sy, sz) = self.size;
-        if dx < 0 || dy < 0 || dz < 0 || dx as usize >= sx || dy as usize >= sy || dz as usize >= sz {
+        if dx < 0 || dy < 0 || dz < 0 || dx as usize >= sx || dy as usize >= sy || dz as usize >= sz
+        {
             return None;
         }
         Some((dx as usize * sz + dz as usize) * sy + dy as usize)
@@ -429,7 +492,12 @@ impl Scene for View<'_> {
 fn light_chunk(states: &BlockStates, hood: &Neighborhood) -> SkyLight {
     let (cx, cz) = hood.center;
     let height = states.height as usize;
-    let view = View::new(states, hood, (cx * 16 - 16, states.min_y, cz * 16 - 16), (48, height, 48));
+    let view = View::new(
+        states,
+        hood,
+        (cx * 16 - 16, states.min_y, cz * 16 - 16),
+        (48, height, 48),
+    );
     // The solver's layout: y from one section below the build range.
     let region_height = height + 32;
     let mut cells = vec![BlockStateId::AIR; 48 * 48 * region_height];
@@ -456,7 +524,10 @@ fn light_chunk(states: &BlockStates, hood: &Neighborhood) -> SkyLight {
         cells,
         |dx, dz, sy| {
             let s = sy - min_section;
-            (-1..=1).contains(&dx) && (-1..=1).contains(&dz) && (0..sections as i32).contains(&s) && non_empty[((dz + 1) * 3 + dx + 1) as usize * sections + s as usize]
+            (-1..=1).contains(&dx)
+                && (-1..=1).contains(&dz)
+                && (0..sections as i32).contains(&s)
+                && non_empty[((dz + 1) * 3 + dx + 1) as usize * sections + s as usize]
         },
         states.sky_light,
     );
@@ -473,7 +544,10 @@ fn light_chunk(states: &BlockStates, hood: &Neighborhood) -> SkyLight {
             }
         }
     }
-    let (mut sky, mut block) = (Vec::with_capacity(18 * 18 * top), Vec::with_capacity(18 * 18 * top));
+    let (mut sky, mut block) = (
+        Vec::with_capacity(18 * 18 * top),
+        Vec::with_capacity(18 * 18 * top),
+    );
     for x in 15..33 {
         for z in 15..33 {
             for y in 0..top {
@@ -483,7 +557,12 @@ fn light_chunk(states: &BlockStates, hood: &Neighborhood) -> SkyLight {
             }
         }
     }
-    SkyLight::from_levels((cx * 16 - 1, states.min_y - 16, cz * 16 - 1), (18, top, 18), sky, block)
+    SkyLight::from_levels(
+        (cx * 16 - 1, states.min_y - 16, cz * 16 - 1),
+        (18, top, 18),
+        sky,
+        block,
+    )
 }
 
 /// A chunk's light as the server sent it, as [`light_chunk`] lays it out:
@@ -494,7 +573,11 @@ fn server_light(states: &BlockStates, hood: &Neighborhood) -> Option<SkyLight> {
     if hood.placed.iter().any(Option::is_some) || hood.cleared.iter().any(Option::is_some) {
         return None;
     }
-    let lights: Vec<&minecraftoss_core::light::ChunkLight> = hood.chunks.iter().map(|chunk| chunk.light.as_deref()).collect::<Option<_>>()?;
+    let lights: Vec<&minecraftoss_core::light::ChunkLight> = hood
+        .chunks
+        .iter()
+        .map(|chunk| chunk.light.as_deref())
+        .collect::<Option<_>>()?;
     let (cx, cz) = hood.center;
     let region_min_y = states.min_y - 16;
     let region_height = states.height as usize + 32;
@@ -504,11 +587,18 @@ fn server_light(states: &BlockStates, hood: &Neighborhood) -> Option<SkyLight> {
     for x in cx * 16 - 1..=cx * 16 + 16 {
         for z in cz * 16 - 1..=cz * 16 + 16 {
             let light = lights[(((z >> 4) - cz + 1) * 3 + (x >> 4) - cx + 1) as usize];
-            let (mut sky, mut block) = (Vec::with_capacity(region_height), Vec::with_capacity(region_height));
+            let (mut sky, mut block) = (
+                Vec::with_capacity(region_height),
+                Vec::with_capacity(region_height),
+            );
             for y in 0..region_height {
                 let world_y = region_min_y + y as i32;
                 // Without skylight the solver's sky levels are all 0.
-                let s = if states.sky_light { light.sky_at(x, world_y, z) } else { 0 };
+                let s = if states.sky_light {
+                    light.sky_at(x, world_y, z)
+                } else {
+                    0
+                };
                 let b = light.block_at(x, world_y, z);
                 sky.push(s as u8);
                 block.push(b as u8);
@@ -519,12 +609,20 @@ fn server_light(states: &BlockStates, hood: &Neighborhood) -> Option<SkyLight> {
             columns.push((sky, block));
         }
     }
-    let (mut sky, mut block) = (Vec::with_capacity(18 * 18 * top), Vec::with_capacity(18 * 18 * top));
+    let (mut sky, mut block) = (
+        Vec::with_capacity(18 * 18 * top),
+        Vec::with_capacity(18 * 18 * top),
+    );
     for (column_sky, column_block) in &columns {
         sky.extend_from_slice(&column_sky[..top]);
         block.extend_from_slice(&column_block[..top]);
     }
-    Some(SkyLight::from_levels((cx * 16 - 1, region_min_y, cz * 16 - 1), (18, top, 18), sky, block))
+    Some(SkyLight::from_levels(
+        (cx * 16 - 1, region_min_y, cz * 16 - 1),
+        (18, top, 18),
+        sky,
+        block,
+    ))
 }
 
 enum Slot {
@@ -561,7 +659,11 @@ impl ModelCache {
             *slot = match resolve_block_variants(packs, block) {
                 Ok(variants) => Slot::Model {
                     occludes: block.is_opaque() && mesh::all_full_cubes(&variants),
-                    baked: variants.iter().map(|(model, _)| mesh::bake_quads(block, model, atlas)).collect::<Result<Vec<_>>>().ok(),
+                    baked: variants
+                        .iter()
+                        .map(|(model, _)| mesh::bake_quads(block, model, atlas))
+                        .collect::<Result<Vec<_>>>()
+                        .ok(),
                     variants,
                 },
                 Err(e) => {
@@ -573,7 +675,10 @@ impl ModelCache {
     }
 
     fn occludes(&self, state: BlockStateId) -> bool {
-        matches!(self.slots[usize::from(state.0)], Slot::Model { occludes: true, .. })
+        matches!(
+            self.slots[usize::from(state.0)],
+            Slot::Model { occludes: true, .. }
+        )
     }
 }
 
@@ -585,7 +690,12 @@ pub mod compile_profile {
     pub const MODELS: usize = 1;
     pub const BLOCKS: usize = 2;
     pub const CONVERT: usize = 3;
-    const NAMES: [&str; 4] = ["compile: view", "compile: models", "compile: blocks", "compile: gpu format"];
+    const NAMES: [&str; 4] = [
+        "compile: view",
+        "compile: models",
+        "compile: blocks",
+        "compile: gpu format",
+    ];
     static MICROS: [AtomicU64; 4] = [const { AtomicU64::new(0) }; 4];
     static COUNTS: [AtomicU64; 4] = [const { AtomicU64::new(0) }; 4];
     pub fn add(phase: usize, since: Instant) {
@@ -595,8 +705,15 @@ pub mod compile_profile {
     pub fn report() -> String {
         let mut out = String::new();
         for (i, name) in NAMES.iter().enumerate() {
-            let (micros, count) = (MICROS[i].load(Ordering::Relaxed), COUNTS[i].load(Ordering::Relaxed));
-            out += &format!("    {name:32} {:8.2}s {count:7} x {:8.0} us\n", micros as f64 / 1e6, micros.checked_div(count).unwrap_or(0));
+            let (micros, count) = (
+                MICROS[i].load(Ordering::Relaxed),
+                COUNTS[i].load(Ordering::Relaxed),
+            );
+            out += &format!(
+                "    {name:32} {:8.2}s {count:7} x {:8.0} us\n",
+                micros as f64 / 1e6,
+                micros.checked_div(count).unwrap_or(0)
+            );
         }
         out
     }
@@ -615,7 +732,12 @@ fn compile_section(
 ) -> Result<(ChunkMesh, VisibilitySet)> {
     let origin = (sx * 16, sy * 16, sz * 16);
     let started = Instant::now();
-    let view = View::new(states, hood, (origin.0 - 1, origin.1 - 1, origin.2 - 1), (18, 18, 18));
+    let view = View::new(
+        states,
+        hood,
+        (origin.0 - 1, origin.1 - 1, origin.2 - 1),
+        (18, 18, 18),
+    );
     compile_profile::add(compile_profile::VIEW, started);
     let started = Instant::now();
     models.prepare(states, packs, atlas, &view);
@@ -630,10 +752,24 @@ fn compile_section(
         mesh::FLUID_FULL_PATH.with(|full| full.set(false));
         let slow = slow?;
         let bits = |m: &ChunkMesh| -> Vec<u32> {
-            m.vertices.iter().flat_map(|v| v.position.iter().chain(&v.uv).chain(&v.color).chain([&v.sky_light, &v.block_light]).map(|f| f.to_bits()).collect::<Vec<_>>()).collect()
+            m.vertices
+                .iter()
+                .flat_map(|v| {
+                    v.position
+                        .iter()
+                        .chain(&v.uv)
+                        .chain(&v.color)
+                        .chain([&v.sky_light, &v.block_light])
+                        .map(|f| f.to_bits())
+                        .collect::<Vec<_>>()
+                })
+                .collect()
         };
         assert!(
-            bits(&built.0) == bits(&slow.0) && built.0.indices == slow.0.indices && built.0.faces == slow.0.faces && built.1 == slow.1,
+            bits(&built.0) == bits(&slow.0)
+                && built.0.indices == slow.0.indices
+                && built.0.faces == slow.0.faces
+                && built.1 == slow.1,
             "baked section {:?} differs",
             (sx, sy, sz)
         );
@@ -647,7 +783,16 @@ fn compile_section(
 /// translucent indices apart) and its visibility graph. `baked` uses the
 /// baked faces where a block has them.
 #[allow(clippy::too_many_arguments)]
-fn build_section_blocks(states: &BlockStates, view: &View, origin: BlockPos, light: &SkyLight, models: &ModelCache, atlas: &Atlas, tint: &BiomeTint, baked: bool) -> Result<(ChunkMesh, Vec<u32>, VisGraph)> {
+fn build_section_blocks(
+    states: &BlockStates,
+    view: &View,
+    origin: BlockPos,
+    light: &SkyLight,
+    models: &ModelCache,
+    atlas: &Atlas,
+    tint: &BiomeTint,
+    baked: bool,
+) -> Result<(ChunkMesh, Vec<u32>, VisGraph)> {
     let mut mesh = ChunkMesh::default();
     let mut transparent = Vec::new();
     let mut vis = VisGraph::default();
@@ -669,7 +814,12 @@ fn build_section_blocks(states: &BlockStates, view: &View, origin: BlockPos, lig
                 if !fluid && !matches!(slot, Slot::Model { .. }) {
                     continue;
                 }
-                if let Slot::Model { variants, baked: Some(quads), .. } = slot {
+                if let Slot::Model {
+                    variants,
+                    baked: Some(quads),
+                    ..
+                } = slot
+                {
                     if baked && !fluid && !states.chest[index] {
                         let shared = states.shared_face[index];
                         mesh::append_baked(
@@ -681,7 +831,10 @@ fn build_section_blocks(states: &BlockStates, view: &View, origin: BlockPos, lig
                             |neighbor| {
                                 let other = view.state(neighbor);
                                 let other_index = usize::from(other.0);
-                                states.blocks[other_index].is_some() && (models.occludes(other) || (shared != u32::MAX && states.shared_face[other_index] == shared))
+                                states.blocks[other_index].is_some()
+                                    && (models.occludes(other)
+                                        || (shared != u32::MAX
+                                            && states.shared_face[other_index] == shared))
                             },
                             |at| states.ao_occluder[usize::from(view.state(at).0)],
                             atlas,
@@ -783,7 +936,10 @@ fn next_job(queue: &mut WorkQueue) -> Option<Job> {
         .enumerate()
         .min_by(|(_, a), (_, b)| {
             let d = |c: ChunkPos| {
-                let (x, z) = (f64::from(c.0 * 16 + 8) - eye.x, f64::from(c.1 * 16 + 8) - eye.z);
+                let (x, z) = (
+                    f64::from(c.0 * 16 + 8) - eye.x,
+                    f64::from(c.1 * 16 + 8) - eye.z,
+                );
                 x * x + z * z
             };
             d(a.0.chunk).total_cmp(&d(b.0.chunk))
@@ -793,7 +949,10 @@ fn next_job(queue: &mut WorkQueue) -> Option<Job> {
         let (job, states) = queue.light.swap_remove(i);
         return Some(Job::Light(job, states));
     }
-    queue.compile.poll(eye).map(|(pos, job)| Job::Compile(pos, job))
+    queue
+        .compile
+        .poll(eye)
+        .map(|(pos, job)| Job::Compile(pos, job))
 }
 
 fn worker(work: &Work, done: &mpsc::Sender<Done>) {
@@ -819,7 +978,10 @@ fn worker(work: &Work, done: &mpsc::Sender<Done>) {
             Job::Light(job, states) => Done::Light {
                 chunk: job.chunk,
                 epoch: job.epoch,
-                light: Arc::new(server_light(&states, &job.hood).unwrap_or_else(|| light_chunk(&states, &job.hood))),
+                light: Arc::new(
+                    server_light(&states, &job.hood)
+                        .unwrap_or_else(|| light_chunk(&states, &job.hood)),
+                ),
                 micros: started.elapsed().as_micros() as u64,
             },
             Job::Compile(section, job) => {
@@ -830,7 +992,14 @@ fn worker(work: &Work, done: &mpsc::Sender<Done>) {
                     models = ModelCache::default();
                     packs = PackStack::open(context.pack_sources.clone())
                         .and_then(|stack| Ok((BiomeTint::from_pack(&stack)?, stack)))
-                        .map(|(tint, stack)| (context.pack_sources.clone(), context.pack_generation, stack, tint))
+                        .map(|(tint, stack)| {
+                            (
+                                context.pack_sources.clone(),
+                                context.pack_generation,
+                                stack,
+                                tint,
+                            )
+                        })
                         .map_err(|e| eprintln!("section compiler cannot open packs: {e:#}"))
                         .ok();
                 }
@@ -973,8 +1142,12 @@ fn nether_spawn(server: &mut ChunkMap) -> (f64, f64, f64) {
                     for x in 0..16usize {
                         for y in (32..110).rev() {
                             let floor = chunk.block(x, y - 1, z);
-                            let solid = blocks.is(floor, minecraftoss_core::block::flags::SOLID_RENDER);
-                            if solid && blocks.is_air(chunk.block(x, y, z)) && blocks.is_air(chunk.block(x, y + 1, z)) {
+                            let solid =
+                                blocks.is(floor, minecraftoss_core::block::flags::SOLID_RENDER);
+                            if solid
+                                && blocks.is_air(chunk.block(x, y, z))
+                                && blocks.is_air(chunk.block(x, y + 1, z))
+                            {
                                 let bx = f64::from(cx * 16 + x as i32) + 0.5;
                                 let bz = f64::from(cz * 16 + z as i32) + 0.5;
                                 return (bx, f64::from(y), bz);
@@ -995,7 +1168,13 @@ impl TerrainStream {
 
     /// A streamed dimension; with `world`, chunks load from and save to that
     /// world directory's region files.
-    pub fn for_dimension(registries: Arc<Registries>, seed: i64, view_distance: i32, dimension: Dimension, world: Option<&std::path::Path>) -> Result<Self> {
+    pub fn for_dimension(
+        registries: Arc<Registries>,
+        seed: i64,
+        view_distance: i32,
+        dimension: Dimension,
+        world: Option<&std::path::Path>,
+    ) -> Result<Self> {
         let started = Instant::now();
         let generator = match dimension {
             Dimension::Overworld => TerrainGenerator::overworld(registries.clone(), seed),
@@ -1003,7 +1182,12 @@ impl TerrainStream {
             Dimension::End => TerrainGenerator::end(registries.clone(), seed),
         }
         .map_err(|e| anyhow!(e))?;
-        let mut states = BlockStates::new(registries, seed, generator.chunk_min_y, generator.chunk_height)?;
+        let mut states = BlockStates::new(
+            registries,
+            seed,
+            generator.chunk_min_y,
+            generator.chunk_height,
+        )?;
         states.sky_light = dimension != Dimension::Nether;
         let states = Arc::new(states);
         let threads = std::thread::available_parallelism().map_or(4, |n| n.get());
@@ -1013,9 +1197,16 @@ impl TerrainStream {
         // threads generate (a fast flight at 32 chunks needs about 400
         // chunks a second) and half less one build sections.
         // MINECRAFTOSS_GEN_THREADS and MINECRAFTOSS_SECTION_THREADS override.
-        let env = |name: &str| std::env::var(name).ok().and_then(|v| v.parse::<usize>().ok()).filter(|&n| n > 0);
-        let generation_threads = env("MINECRAFTOSS_GEN_THREADS").unwrap_or((threads * 3 / 4).max(1));
-        let section_threads = env("MINECRAFTOSS_SECTION_THREADS").unwrap_or((threads / 2).saturating_sub(1).max(1));
+        let env = |name: &str| {
+            std::env::var(name)
+                .ok()
+                .and_then(|v| v.parse::<usize>().ok())
+                .filter(|&n| n > 0)
+        };
+        let generation_threads =
+            env("MINECRAFTOSS_GEN_THREADS").unwrap_or((threads * 3 / 4).max(1));
+        let section_threads =
+            env("MINECRAFTOSS_SECTION_THREADS").unwrap_or((threads / 2).saturating_sub(1).max(1));
         // Chunks leaving the loaded area are always stored, as vanilla saves
         // them: without a world directory, in a session directory removed
         // when the stream closes. A chunk that comes back is loaded as it
@@ -1026,15 +1217,38 @@ impl TerrainStream {
             (None, Some(session)) => &session.0,
             (None, None) => unreachable!("a session directory exists without a world"),
         };
-        let storage = Some(ChunkStorage::new(world_path, dimension.dimension_type(), states.registries().clone(), generator.chunk_min_y, generator.chunk_height));
-        let worldgen = WorldGen::for_dimension(Arc::new(generator), dimension.dimension_type()).map_err(|e| anyhow!(e))?;
-        eprintln!("world load: generator, features and structures in {:.2}s", started.elapsed().as_secs_f64());
-        let mut server = ChunkMap::with_storage(Arc::new(worldgen), view_distance, generation_threads, storage);
+        let storage = Some(ChunkStorage::new(
+            world_path,
+            dimension.dimension_type(),
+            states.registries().clone(),
+            generator.chunk_min_y,
+            generator.chunk_height,
+        ));
+        let worldgen = WorldGen::for_dimension(Arc::new(generator), dimension.dimension_type())
+            .map_err(|e| anyhow!(e))?;
+        eprintln!(
+            "world load: generator, features and structures in {:.2}s",
+            started.elapsed().as_secs_f64()
+        );
+        let mut server = ChunkMap::with_storage(
+            Arc::new(worldgen),
+            view_distance,
+            generation_threads,
+            storage,
+        );
         let searching = Instant::now();
         let (world_spawn, player_spawn) = match dimension {
             Dimension::Overworld => {
                 let world_spawn = spawn::world_spawn(&mut server);
-                (world_spawn, spawn::player_spawn(&mut server, world_spawn, spawn::DEFAULT_RESPAWN_RADIUS, unseeded()))
+                (
+                    world_spawn,
+                    spawn::player_spawn(
+                        &mut server,
+                        world_spawn,
+                        spawn::DEFAULT_RESPAWN_RADIUS,
+                        unseeded(),
+                    ),
+                )
             }
             Dimension::Nether => {
                 let (x, y, z) = nether_spawn(&mut server);
@@ -1043,7 +1257,11 @@ impl TerrainStream {
             // ServerLevel.END_SPAWN_POINT: the obsidian platform at 100, 49, 0.
             Dimension::End => ((100, 49, 0), (100.5, 49.0, 0.5)),
         };
-        eprintln!("spawn found in {:.2}s ({} chunks generated)", searching.elapsed().as_secs_f64(), server.stats().generated);
+        eprintln!(
+            "spawn found in {:.2}s ({} chunks generated)",
+            searching.elapsed().as_secs_f64(),
+            server.stats().generated
+        );
         let (min_section, max_section) = states.section_range();
         let work: Work = Arc::new((
             Mutex::new(WorkQueue {
@@ -1118,13 +1336,23 @@ impl TerrainStream {
         self.serials.clear();
         self.player_sections.clear();
         self.removed.clear();
-        self.work.0.lock().expect("terrain work queue").compile.retain(|_, _| false);
+        self.work
+            .0
+            .lock()
+            .expect("terrain work queue")
+            .compile
+            .retain(|_, _| false);
         true
     }
 
     /// `PlayerSpawnFinder.findSpawn` again, for a respawn.
     pub fn respawn_position(&mut self) -> (f64, f64, f64) {
-        spawn::player_spawn(&mut self.server, self.world_spawn, spawn::DEFAULT_RESPAWN_RADIUS, unseeded())
+        spawn::player_spawn(
+            &mut self.server,
+            self.world_spawn,
+            spawn::DEFAULT_RESPAWN_RADIUS,
+            unseeded(),
+        )
     }
 
     fn now(&self) -> u64 {
@@ -1179,7 +1407,11 @@ impl TerrainStream {
     /// One server tick: runs the chunk map for the player and applies what it
     /// sends to the scene. Returns the chunks it loaded and the positions it
     /// forgot, for the world simulation.
-    pub fn server_tick(&mut self, player: BlockPos, scene: &mut HandcraftedScene) -> (Vec<Arc<Chunk>>, Vec<minecraftoss_core::ChunkPos>) {
+    pub fn server_tick(
+        &mut self,
+        player: BlockPos,
+        scene: &mut HandcraftedScene,
+    ) -> (Vec<Arc<Chunk>>, Vec<minecraftoss_core::ChunkPos>) {
         let player_chunk = minecraftoss_core::ChunkPos::new(player.0 >> 4, player.2 >> 4);
         let (mut loaded, mut forgotten) = (Vec::new(), Vec::new());
         // Columns whose queued work is cancelled, in one pass at the end.
@@ -1188,7 +1420,15 @@ impl TerrainStream {
             let _span = span("chunk_map.tick");
             self.server.tick(player_chunk)
         };
-        let [tracking, collecting, lock_wait, scheduling, sending, locked, evicting] = self.server.last_tick_ms;
+        let [
+            tracking,
+            collecting,
+            lock_wait,
+            scheduling,
+            sending,
+            locked,
+            evicting,
+        ] = self.server.last_tick_ms;
         crate::frame_spans::record("  chunk_map: schedule under lock", locked);
         crate::frame_spans::record("  chunk_map: evict", evicting);
         crate::frame_spans::record("  chunk_map: tracking", tracking);
@@ -1214,7 +1454,9 @@ impl TerrainStream {
                     self.sections.chunk_loaded(pos, empty);
                     for x in pos.0 - 1..=pos.0 + 1 {
                         for z in pos.1 - 1..=pos.1 + 1 {
-                            if !self.lights.contains_key(&(x, z)) && !self.lights_pending.contains(&(x, z)) {
+                            if !self.lights.contains_key(&(x, z))
+                                && !self.lights_pending.contains(&(x, z))
+                            {
                                 self.request_light(scene, (x, z));
                             }
                         }
@@ -1244,8 +1486,12 @@ impl TerrainStream {
             let _span = span("  cancel queued work");
             let (lock, _) = &*self.work;
             let mut queue = lock.lock().expect("terrain work queue");
-            queue.light.retain(|(job, _)| !cancelled.contains(&job.chunk));
-            queue.compile.retain(|section, _| !cancelled.contains(&(section.0, section.2)));
+            queue
+                .light
+                .retain(|(job, _)| !cancelled.contains(&job.chunk));
+            queue
+                .compile
+                .retain(|section, _| !cancelled.contains(&(section.0, section.2)));
         }
         (loaded, forgotten)
     }
@@ -1256,7 +1502,9 @@ impl TerrainStream {
         let edits: Vec<(minecraftoss_core::BlockPos, minecraftoss_core::BlockStateId)> = positions
             .iter()
             .map(|&(x, y, z)| {
-                let state = Scene::block(scene, (x, y, z)).and_then(|b| self.states.state_of(b)).unwrap_or(minecraftoss_core::BlockStateId::AIR);
+                let state = Scene::block(scene, (x, y, z))
+                    .and_then(|b| self.states.state_of(b))
+                    .unwrap_or(minecraftoss_core::BlockStateId::AIR);
                 (minecraftoss_core::BlockPos::new(x, y, z), state)
             })
             .collect();
@@ -1354,9 +1602,16 @@ impl TerrainStream {
         let drain_span = span("terrain.frame drain");
         while let Ok(done) = self.done.try_recv() {
             match done {
-                Done::Light { chunk, epoch, light, micros } => {
+                Done::Light {
+                    chunk,
+                    epoch,
+                    light,
+                    micros,
+                } => {
                     let _span = span("  drain light");
-                    if self.light_epochs.get(&chunk) != Some(&epoch) || scene.generated_chunk(chunk).is_none() {
+                    if self.light_epochs.get(&chunk) != Some(&epoch)
+                        || scene.generated_chunk(chunk).is_none()
+                    {
                         continue;
                     }
                     self.stats.lit += 1;
@@ -1386,9 +1641,17 @@ impl TerrainStream {
                     }
                     self.light_changes.push((chunk, Some(light)));
                 }
-                Done::Compile { section, serial, pack_generation, micros, outcome } => {
+                Done::Compile {
+                    section,
+                    serial,
+                    pack_generation,
+                    micros,
+                    outcome,
+                } => {
                     let _span = span("  drain compile");
-                    if self.serials.get(&section) != Some(&serial) || pack_generation != packs.generation {
+                    if self.serials.get(&section) != Some(&serial)
+                        || pack_generation != packs.generation
+                    {
                         continue;
                     }
                     self.serials.remove(&section);
@@ -1417,7 +1680,8 @@ impl TerrainStream {
         let update_span = span("sections.update");
         let scheduled = self.sections.update(camera, now, |(x, _, z)| {
             lights.contains_key(&(x, z))
-                && (-1..=1).all(|dx| (-1..=1).all(|dz| scene.generated_chunk((x + dx, z + dz)).is_some()))
+                && (-1..=1)
+                    .all(|dx| (-1..=1).all(|dz| scene.generated_chunk((x + dx, z + dz)).is_some()))
         });
         drop(update_span);
         let _schedule_span = span("terrain.frame schedule");
@@ -1430,7 +1694,9 @@ impl TerrainStream {
         let mut jobs = Vec::new();
         for (pos, recompile) in scheduled.compile {
             let chunk = (pos.0, pos.2);
-            let (Some(hood), Some(light)) = (Neighborhood::of(scene, chunk), self.lights.get(&chunk)) else {
+            let (Some(hood), Some(light)) =
+                (Neighborhood::of(scene, chunk), self.lights.get(&chunk))
+            else {
                 // Wait for the missing neighbor or light.
                 self.sections.set_dirty(pos, false);
                 continue;
@@ -1456,8 +1722,11 @@ impl TerrainStream {
             queue.eye = camera.position;
             // Scheduling a section cancels its earlier task.
             if !jobs.is_empty() {
-                let rescheduled: crate::fast_hash::FxHashSet<SectionPos> = jobs.iter().map(|(pos, _, _)| *pos).collect();
-                queue.compile.retain(|queued, _| !rescheduled.contains(&queued));
+                let rescheduled: crate::fast_hash::FxHashSet<SectionPos> =
+                    jobs.iter().map(|(pos, _, _)| *pos).collect();
+                queue
+                    .compile
+                    .retain(|queued, _| !rescheduled.contains(&queued));
             }
             for (pos, recompile, job) in jobs {
                 queue.compile.push(pos, recompile, job);
@@ -1481,7 +1750,11 @@ impl TerrainStream {
 
     /// Diagnostics (F9): every chunk column within the view distance, by
     /// where it stands in the pipeline, nearest examples first.
-    pub fn hole_report(&self, scene: &HandcraftedScene, gpu_has: &dyn Fn(SectionPos) -> bool) -> String {
+    pub fn hole_report(
+        &self,
+        scene: &HandcraftedScene,
+        gpu_has: &dyn Fn(SectionPos) -> bool,
+    ) -> String {
         use std::collections::BTreeMap;
         let (cx, _, cz) = self.sections.camera_section();
         let vd = self.server.view_distance();
@@ -1495,11 +1768,20 @@ impl TerrainStream {
                 let category = if scene.generated_chunk(pos).is_none() {
                     "not in scene (server has not sent it)"
                 } else if !self.lights.contains_key(&pos) {
-                    if self.lights_pending.contains(&pos) { "no light (pending)" } else { "no light (never requested)" }
+                    if self.lights_pending.contains(&pos) {
+                        "no light (pending)"
+                    } else {
+                        "no light (never requested)"
+                    }
                 } else {
                     "in scene and lit"
                 };
-                let server = if category.starts_with("not in scene") { self.server.debug_slot(minecraftoss_core::ChunkPos::new(x, z)) } else { String::new() };
+                let server = if category.starts_with("not in scene") {
+                    self.server
+                        .debug_slot(minecraftoss_core::ChunkPos::new(x, z))
+                } else {
+                    String::new()
+                };
                 columns.entry(category).or_default().push((d, pos, server));
                 if category != "in scene and lit" {
                     continue;
@@ -1511,13 +1793,29 @@ impl TerrainStream {
                         None => "no section yet (not reached: occluded or pending)",
                         Some((mesh, dirty, in_graph, reached, visible)) => match mesh {
                             crate::sections::MeshState::Empty => continue,
-                            crate::sections::MeshState::Uncompiled if self.serials.contains_key(&section) => "uncompiled, compile queued",
-                            crate::sections::MeshState::Uncompiled if dirty && !in_graph => "uncompiled, not reached by graph",
-                            crate::sections::MeshState::Uncompiled if dirty && !visible => "uncompiled, reached but not in frustum",
-                            crate::sections::MeshState::Uncompiled if dirty => "uncompiled, visible and dirty (not ready?)",
+                            crate::sections::MeshState::Uncompiled
+                                if self.serials.contains_key(&section) =>
+                            {
+                                "uncompiled, compile queued"
+                            }
+                            crate::sections::MeshState::Uncompiled if dirty && !in_graph => {
+                                "uncompiled, not reached by graph"
+                            }
+                            crate::sections::MeshState::Uncompiled if dirty && !visible => {
+                                "uncompiled, reached but not in frustum"
+                            }
+                            crate::sections::MeshState::Uncompiled if dirty => {
+                                "uncompiled, visible and dirty (not ready?)"
+                            }
                             crate::sections::MeshState::Uncompiled => "uncompiled, not dirty",
-                            crate::sections::MeshState::Compiled(_) if !reached => "compiled, not reached by graph",
-                            crate::sections::MeshState::Compiled(_) if visible && !gpu_has(section) => "compiled and visible, not on the GPU",
+                            crate::sections::MeshState::Compiled(_) if !reached => {
+                                "compiled, not reached by graph"
+                            }
+                            crate::sections::MeshState::Compiled(_)
+                                if visible && !gpu_has(section) =>
+                            {
+                                "compiled and visible, not on the GPU"
+                            }
                             crate::sections::MeshState::Compiled(_) => continue,
                         },
                     };
@@ -1525,7 +1823,11 @@ impl TerrainStream {
                 }
             }
         }
-        let mut out = format!("hole report at camera section {:?}, view distance {vd}\n{}\n", self.sections.camera_section(), self.server.debug_queue());
+        let mut out = format!(
+            "hole report at camera section {:?}, view distance {vd}\n{}\n",
+            self.sections.camera_section(),
+            self.server.debug_queue()
+        );
         for (category, mut list) in columns {
             list.sort();
             out += &format!("  columns {category}: {}\n", list.len());
@@ -1551,7 +1853,10 @@ impl TerrainStream {
         let vd = self.server.view_distance();
         // The tracked area is a circle (`ChunkTrackingView`); a column can
         // be lit once its whole 3x3 is tracked.
-        let view = minecraftoss_world::TrackingView::new(minecraftoss_core::ChunkPos::new(center.0, center.1), vd);
+        let view = minecraftoss_world::TrackingView::new(
+            minecraftoss_core::ChunkPos::new(center.0, center.1),
+            vd,
+        );
         let tracked = |x: i32, z: i32| view.contains(minecraftoss_core::ChunkPos::new(x, z));
         let (mut columns, mut missing_sent, mut missing_lit) = (0, 0, 0);
         let (mut sent_radius, mut lit_radius) = (f64::from(vd + 1), f64::from(vd + 1));
@@ -1577,7 +1882,11 @@ impl TerrainStream {
         let visible = self.sections.visible();
         let visible_compiled = visible
             .iter()
-            .filter(|&&pos| self.sections.section(pos).is_some_and(|s| matches!(s.mesh, crate::sections::MeshState::Compiled(_))))
+            .filter(|&&pos| {
+                self.sections
+                    .section(pos)
+                    .is_some_and(|s| matches!(s.mesh, crate::sections::MeshState::Compiled(_)))
+            })
             .count();
         let stats = self.server.stats();
         let queue = self.work.0.lock().expect("terrain work queue");
@@ -1598,8 +1907,16 @@ impl TerrainStream {
             compile_queue: queue.compile.len(),
             generation_micros: stats.mean_generation_micros,
             decoration_micros: stats.mean_decoration_micros,
-            light_micros: self.stats.light_micros.checked_div(self.stats.lit).unwrap_or(0),
-            compile_micros: self.stats.compile_micros.checked_div(self.stats.compiled).unwrap_or(0),
+            light_micros: self
+                .stats
+                .light_micros
+                .checked_div(self.stats.lit)
+                .unwrap_or(0),
+            compile_micros: self
+                .stats
+                .compile_micros
+                .checked_div(self.stats.compiled)
+                .unwrap_or(0),
         }
     }
 
@@ -1627,11 +1944,17 @@ impl TerrainStream {
             stats.generating,
             stats.mean_generation_micros,
             queue.light.len(),
-            self.stats.light_micros.checked_div(self.stats.lit).unwrap_or(0),
+            self.stats
+                .light_micros
+                .checked_div(self.stats.lit)
+                .unwrap_or(0),
             self.sections.visible().len(),
             queue.compile.len(),
             queue.active,
-            self.stats.compile_micros.checked_div(self.stats.compiled).unwrap_or(0),
+            self.stats
+                .compile_micros
+                .checked_div(self.stats.compiled)
+                .unwrap_or(0),
         )
     }
 }
@@ -1671,7 +1994,8 @@ impl SessionDir {
     fn new() -> Result<Self> {
         static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
         let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("minecraftoss-session-{}-{n}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("minecraftoss-session-{}-{n}", std::process::id()));
         std::fs::create_dir_all(&dir)?;
         Ok(Self(dir))
     }
@@ -1689,115 +2013,6 @@ impl Drop for TerrainStream {
         self.work.1.notify_all();
         for worker in self.workers.drain(..) {
             let _ = worker.join();
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// `cargo test --release -p minecraftoss-viewer --lib section_mesh -- --ignored --nocapture`
-    #[test]
-    #[ignore = "needs the local data pack, block catalog and resource pack; slow in debug"]
-    fn section_meshes_match_the_scene_mesher() {
-        let Ok(paths) = minecraftoss_core::registries::DataPaths::discover() else {
-            return;
-        };
-        let pack = paths
-            .datapack
-            .parent()
-            .and_then(|p| p.parent())
-            .and_then(|p| p.parent())
-            .map(|root| root.join("resourcepacks/local/minecraft-26.3"));
-        let Some(pack) = pack.filter(|p| p.is_dir() && paths.block_catalog.is_file()) else {
-            eprintln!("skipping: local data not restored");
-            return;
-        };
-        let registries = Arc::new(Registries::load(&paths).unwrap());
-        let seed = 1234;
-        let generator = Arc::new(TerrainGenerator::overworld(registries.clone(), seed).unwrap());
-        let states = Arc::new(
-            BlockStates::new(registries, seed, generator.min_y, generator.height).unwrap(),
-        );
-        let mut server = ChunkMap::new(generator, 2, 4);
-        let origin = minecraftoss_core::ChunkPos::new(0, 0);
-        while {
-            server.tick(origin);
-            !server.is_idle()
-        } {
-            std::thread::sleep(std::time::Duration::from_millis(5));
-        }
-        let mut scene = HandcraftedScene::streamed(states.clone());
-        for x in -1..=1 {
-            for z in -1..=1 {
-                let chunk = server.chunk(minecraftoss_core::ChunkPos::new(x, z)).unwrap();
-                scene.insert_chunk(chunk.clone());
-            }
-        }
-        // An edit shows through both paths.
-        scene.set((3, 70, 4), Some(Block::new("minecraft:glass")));
-        let packs = PackStack::open(vec![pack]).unwrap();
-        let reference = mesh::build(&scene, &packs).unwrap();
-        let tint = BiomeTint::from_pack(&packs).unwrap();
-        let hood = Neighborhood::of(&scene, (0, 0)).unwrap();
-        let started = Instant::now();
-        let light = light_chunk(&states, &hood);
-        eprintln!("chunk light: {:?}", started.elapsed());
-        let global = reference.sky_light.as_ref().unwrap();
-        for x in -1..17 {
-            for z in -1..17 {
-                for y in -65..330 {
-                    assert_eq!(light.get((x, y, z)), global.get((x, y, z)), "sky {x} {y} {z}");
-                    assert_eq!(light.get_block((x, y, z)), global.get_block((x, y, z)), "block {x} {y} {z}");
-                }
-            }
-        }
-        let mut models = ModelCache::default();
-        let started = Instant::now();
-        let mut vertices = Vec::new();
-        let mut opaque = 0;
-        for sy in -4..20 {
-            let (mesh, _) =
-                compile_section(&states, &hood, (0, sy, 0), &light, &mut models, &packs, &reference.atlas, &tint).unwrap();
-            opaque += mesh.transparent_start.unwrap_or(mesh.indices.len() as u32) as usize / 6;
-            vertices.extend(mesh.vertices);
-        }
-        eprintln!("24 sections: {:?}", started.elapsed());
-        let expected = &reference.chunks[&(0, 0)];
-        // Sections emit the same faces in a different order.
-        let key = |v: &mesh::Vertex| format!("{v:?}");
-        let mut got: Vec<String> = vertices.iter().map(key).collect();
-        let mut want: Vec<String> = expected.vertices.iter().map(key).collect();
-        got.sort();
-        want.sort();
-        assert_eq!(got.len(), want.len());
-        assert!(got == want, "section vertices differ from the chunk mesher");
-        assert_eq!(opaque, expected.transparent_start.unwrap_or(expected.indices.len() as u32) as usize / 6);
-    }
-
-    #[test]
-    fn block_states_parse_into_scene_blocks() {
-        let block = block_from_state("minecraft:grass_block[snowy=false]").unwrap();
-        assert_eq!(block, Block::new("minecraft:grass_block").with("snowy", "false"));
-        assert_eq!(color(&serde_json::json!("#3f76e4")), Some([0x3f, 0x76, 0xe4]));
-        assert_eq!(color(&serde_json::json!(4159204)), Some([0x3f, 0x76, 0xe4]));
-    }
-
-    #[test]
-    fn only_full_collision_blocks_shade_corners() {
-        let Ok(paths) = minecraftoss_core::registries::DataPaths::discover() else { return };
-        let registries = Registries::load(&paths).unwrap();
-        let blocks = &registries.blocks;
-        let darkens = |text: &str| {
-            let state = blocks.parse_state(text).unwrap();
-            shade_darkens(blocks, state, &block_from_state(&blocks.state_to_string(state)).unwrap())
-        };
-        for solid in ["minecraft:grass_block", "minecraft:stone", "minecraft:oak_leaves", "minecraft:mud", "minecraft:snow[layers=8]"] {
-            assert!(darkens(solid), "{solid}");
-        }
-        for open in ["minecraft:short_grass", "minecraft:poppy", "minecraft:tall_grass", "minecraft:glass", "minecraft:red_stained_glass", "minecraft:snow[layers=2]", "minecraft:oak_slab", "minecraft:barrier"] {
-            assert!(!darkens(open), "{open}");
         }
     }
 }

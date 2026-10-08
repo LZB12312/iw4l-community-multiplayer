@@ -1,12 +1,11 @@
-//!82D6DE08/E018/E178: animation displacement adjusts the sampling arc only.
 use super::{DT, Frame, Selector, Vector, math::*};
 impl Selector {
     pub fn adjust_animation(&mut self, frame: i32, animation: Vector, axes: Frame, radius: f32) {
         self.sampling.adjustment_8336 = scale(axes[2], animation[2]);
         self.correction_8304 = scale(
-            //82D6DF40 is one vmaddfp after the separate forward multiply.
             madd(
-                axes[1], animation[1] - radius,
+                axes[1],
+                animation[1] - radius,
                 self.sampling.adjustment_8336,
             ),
             -1.,
@@ -33,8 +32,6 @@ impl Selector {
             && s.normal_6144[1] > 0.9
             && end[1] - t.position[1] > -0.2
         {
-            //Runtime constants830BD400/330 are initialized by82F82588/826B0:
-            //splat(-9.8), [0,-9.8,0,0]; not the launch gravity attribute.
             let g = f32::from_bits(0x411ccccd);
             let distance = length(sub(t.position, end));
             let square = 2. * distance * reciprocal(g);

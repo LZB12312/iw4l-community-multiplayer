@@ -1,5 +1,3 @@
-//! Complete single/transition framing82E01260/82E01740. Camera positioning,
-//! reference producers and stock shot selection remain the caller's inputs.
 use super::{
     Shot,
     orientation_math::{basis_from_angles, look_basis},
@@ -128,8 +126,6 @@ impl FrameComposer {
     }
 }
 
-/// The signed diagonal candidates and strict component selection are the
-/// inline matrix conversion82E01608..82E01730; signs are XOR negations.
 fn quaternion_from_basis(basis: Basis3) -> [f32; 4] {
     let [right, up, at] = basis.columns;
     let [x, y, z] = [right[0], up[1], at[2]];

@@ -1,4 +1,3 @@
-//! Original selector Launch82D67848 and Update82D68800 with typed batch ownership.
 use super::{
     LaunchInfo, Prediction, QueryRequest, QueryResult, SelectorInput, SelectorSettings, SurfaceHit,
     Trajectory, launch,
@@ -94,7 +93,6 @@ impl TrajectorySelector {
     pub fn query_origin(&self) -> Option<Vector> {
         self.batch.as_ref().map(|b| b.origin)
     }
-    ///Update82D68800 always clears9660 even if no batch is ready.
     pub fn update_without_completion(&mut self) -> bool {
         self.just_changed = false;
         self.valid
@@ -104,8 +102,6 @@ impl TrajectorySelector {
         self.pending = false;
     }
 
-    ///Reset82D67228 invalidates landing observations, while retaining the
-    ///in-flight request9657, winning result1680 and selected index9636.
     pub fn reset(&mut self) {
         self.valid = false;
         self.suggested_normal = None;
@@ -247,7 +243,6 @@ impl TrajectorySelector {
             landing_normal: c.normal,
             collision_velocity: c.collision_velocity,
             collision_position: c.collision_position,
-            //Ctor82D66DC0 initializes2704/2720/2736=zero,2752=-1.
             com_trajectory: previous_com.unwrap_or(Trajectory {
                 position: ZERO,
                 velocity: ZERO,
@@ -267,7 +262,6 @@ impl TrajectorySelector {
         }
         selection.surface_category = (c.prediction.result.surface >> 7) & 31;
         selection.com_trajectory = self.com_trajectory(selection, input, s);
-        //82D68C80: only a winning centre acquisition locks the grind.
         self.grind_locked_to_middle = index == 0 && c.grind.is_some();
         let second_pass = self.pass == 1
             && count >= 2

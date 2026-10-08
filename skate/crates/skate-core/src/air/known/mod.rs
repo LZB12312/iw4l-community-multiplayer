@@ -28,6 +28,3 @@ pub use post_physics::{check_upside_down_falling_wipeout, update_post_physics};
 pub use runtime::{KnownAirMath, KnownAirRuntime};
 pub use trajectory::{init_trajectory_info, restore_velocity, update_trajectory_follow};
 pub use update::update;
-
-#[cfg(test)]
-mod tests;

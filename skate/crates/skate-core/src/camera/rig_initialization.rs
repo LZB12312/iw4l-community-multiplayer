@@ -1,4 +1,3 @@
-//! State construction82E02738, reset82E02E58 and teleport82E031D8.
 use super::*;
 
 impl Rig {
@@ -108,7 +107,6 @@ impl Rig {
         self.anchor.acceleration = [0.0; 4];
         self.fields.reference_height = self.fields.anchor[1];
         self.fields.height_offset = 0.0;
-        //82E03288 clears the preceding frame's world-space shake offset.
         self.fields.offset = [0.0; 4];
         self.positioner.distance_tracker.target = self.fields.distance;
         self.positioner.distance_tracker.position = self.fields.distance;
@@ -125,7 +123,6 @@ impl Rig {
         self.fields.latch_time = 0.0;
     }
 
-    /// SetElevation82E03150: obstruction is latched until the native reset.
     pub fn set_elevation(&mut self, elevation: f32, use_avoidance: bool) {
         self.fields.elevation_target = elevation;
         self.fields.elevation_reference = elevation;

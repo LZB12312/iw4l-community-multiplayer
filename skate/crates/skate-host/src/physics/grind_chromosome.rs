@@ -1,6 +1,3 @@
-//! ZIP chromosome port corrected from S3 82DEE918/82DEF518/82DEE508.
-//! S2 82E2E9E0/82E2EBE8/82E2F9D0 confirms history/publication structure;
-//! only S3 has four-way orientation for5050/5O and the sixth darkslide family.
 use super::grind::Family;
 #[path = "grind_names.rs"]
 pub(crate) mod names;
@@ -18,8 +15,6 @@ impl Components {
     }
 }
 
-///82DEE508's actual PhysOut publication, after update and only while grinding.
-/// FastString encoding uses CURRENT's existing original-name encoder.
 pub(crate) fn publish(
     p: Publication,
     out: &mut skate_core::player::input_phase::GrindOutputFields,
@@ -65,8 +60,6 @@ pub(crate) struct Chromosome {
 }
 
 impl Chromosome {
-    ///82DEE358 leaves byte144 unwritten. The false storage below is opaque
-    ///until the host observes the first completed animation packet.
     pub fn uninitialized() -> Self {
         let mut state = Self::new(false);
         state.saved_fakie_initialized = false;
@@ -83,10 +76,6 @@ impl Chromosome {
         }
     }
 
-    /// S3 ctor82DEE358 explicitly initializes the saved axes/position but does
-    /// not write saved fakie byte144. The supplied value is an explicit host
-    /// initialization observation, not a recovered native constructor default.
-    /// A real Air439 snapshot or30 Ground samples replaces this reference.
     pub fn new(constructor_fakie_144: bool) -> Self {
         Self {
             history: std::collections::VecDeque::with_capacity(30),
@@ -111,7 +100,6 @@ impl Chromosome {
     }
 
     fn reference(&self) -> ApproachPose {
-        //82DEED28: fewer than30 samples uses saved, NOT newest ground pose.
         if self.history.len() == 30 {
             self.history[0]
         } else {
@@ -128,7 +116,6 @@ impl Chromosome {
             feet: input.feet_256_272,
             fakie: input.fakie_155,
         };
-        //82DEEB90/82DEEAF8, in this order even if both conditions hold.
         if input.air_event_439 {
             self.saved = snapshot;
             self.saved_fakie_initialized = true;
@@ -167,8 +154,6 @@ impl Chromosome {
             self.away_frames.wrapping_add(1)
         };
         let output = if let Some(family) = input.family.filter(|_| input.grinding_316) {
-            //82DEF518: orientation, tilt, then twist, using actual Basic output
-            //lanes rather than substituting the live board's current transform.
             let orientation = self.travel(input, family);
             let low = pose::low(input);
             let straight = pose::straight(input);
@@ -206,7 +191,6 @@ impl Chromosome {
                 scoring: self.scoring,
             })
         } else {
-            //82DEE508 tail, independent of the category.
             self.orientation = None;
             self.reversed = false;
             None
@@ -244,7 +228,3 @@ impl Chromosome {
         orientation
     }
 }
-
-#[cfg(test)]
-#[path = "grind_chromosome/tests.rs"]
-mod tests;

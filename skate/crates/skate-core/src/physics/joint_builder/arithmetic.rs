@@ -47,8 +47,6 @@ pub(super) fn angular_rows(
             high[2] = low[2];
         }
         1 => {
-            // 82AE4178..4188 skips the cone calculation when all splatted
-            // cosine lanes compare >= the original 0.99999 guard.
             if !(relative[0][0] >= tu3::NEAR_PARALLEL) {
                 let first_a = basis_column(basis_a, 0);
                 let first_b = basis_column(basis_b, 0);
@@ -79,8 +77,6 @@ pub(super) fn angular_rows(
             }
             if parameters.swing_mode == 2 {
                 let denominator = relative[0][2];
-                // 82AE42F4..4304: equality skips the reciprocal and retains
-                // both unbounded values. NaN is not equal to zero.
                 if denominator != 0.0 {
                     let correction = constraint_frames::reciprocal(denominator)
                         * (parameters.swing_threshold - relative[0][0]);
@@ -108,7 +104,6 @@ pub(super) fn angular_rows(
             axes[0] = basis_column(basis_a, 0);
             // Derived matrix-index form matching the emitted TU3 subtraction.
             let denominator = relative[2][1] - relative[1][2];
-            // 82AE4434..4444 also retains the unbounded interval at zero.
             if denominator != 0.0 {
                 let numerator = (1.0 + relative[0][0]) * parameters.twist_threshold
                     - (relative[1][1] + relative[2][2]);

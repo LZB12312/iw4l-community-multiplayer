@@ -54,7 +54,6 @@ pub(super) fn load(data: &Collections) -> Result<SelectorSettings, String> {
         wall_ride_angle_allow_landing: t("WallRideAngleToAllowLanding")?,
         wall_ride_height_score: t("ScoreWallrideHeight")?,
         wall_ride_boost: negative_graph4(data, "physics_trajectory", "WallRideBoost")?,
-        //Globals8289D5C8:ED14 class lookup;ED48 stores188, layout248.
         wall_ride_normal_dot_limit: data.float(
             "physics_feet",
             "default",
@@ -107,7 +106,6 @@ fn graph8(
             std::array::from_fn(|i| f32::from_bits(words[8 + i])),
         )
     };
-    //82481E10 receives the x/y spans after any PointNeg header.
     Ok(PointGraph { x, y })
 }
 fn negative_graph4(data: &Collections, class: &str, name: &str) -> Result<PointGraph<4>, String> {

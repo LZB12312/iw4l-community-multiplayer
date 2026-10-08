@@ -73,9 +73,6 @@ impl Runtime {
         Ok(())
     }
 
-    ///82DE5588/82DE5608 initializes196 to0;82DE5BA0/82DE5E10 copies it.
-    ///82DE5858 measures velocity/acceleration, not grind distance. No distance
-    ///accumulator is present in the reviewed82DE56B0 update chain.
     pub fn last_grind_distance(&self) -> f32 {
         0.0
     }

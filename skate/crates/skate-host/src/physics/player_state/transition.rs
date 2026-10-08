@@ -1,4 +1,3 @@
-//! Native SetPhysicsState82DB8540 publication, followed by owned Enter/Exit.
 use super::*;
 use bevy::log::info;
 use skate_core::{physics::board_toolkit::BoardToolkit, player::lifecycle::*};
@@ -19,7 +18,10 @@ impl PhysicalStateCalls for Calls {
                     PhysicalStateId::Sleeping
                         | PhysicalStateId::PhysicsGround
                         | PhysicalStateId::PhysicsAir
-                        | PhysicalStateId::FootPlant | PhysicalStateId::Boneless | PhysicalStateId::HandPlant | PhysicalStateId::RevertGround
+                        | PhysicalStateId::FootPlant
+                        | PhysicalStateId::Boneless
+                        | PhysicalStateId::HandPlant
+                        | PhysicalStateId::RevertGround
                         | PhysicalStateId::KnownAir
                         | PhysicalStateId::BipedAir
                         | PhysicalStateId::BipedGround
@@ -40,7 +42,10 @@ impl PhysicalStateCalls for Calls {
                     call.state.state,
                     PhysicalStateId::PhysicsGround
                         | PhysicalStateId::PhysicsAir
-                        | PhysicalStateId::FootPlant | PhysicalStateId::Boneless | PhysicalStateId::HandPlant | PhysicalStateId::RevertGround
+                        | PhysicalStateId::FootPlant
+                        | PhysicalStateId::Boneless
+                        | PhysicalStateId::HandPlant
+                        | PhysicalStateId::RevertGround
                         | PhysicalStateId::KnownAir
                         | PhysicalStateId::BipedAir
                         | PhysicalStateId::BipedGround
@@ -150,16 +155,14 @@ pub(super) fn set(
             [0.0, 1.0, 0.0, 0.0],
         ));
     }
-    //Native82DB8540 publishes Processed state/history BEFORE old Exit. The
-    //same retained objects then receive Exit followed by the new Enter.
     match current {
         PhysicalStateId::RevertGround => {
             // Native Exit is empty; this is diagnostic-only host reporting.
             info!(tick = physics.ticks, requested = ?requested, "REVERT_EXIT");
-        },
+        }
         PhysicalStateId::HandPlant => skater.handplant.reset(),
-        PhysicalStateId::FootPlant => skater.footplant.reset(), //Exit82D4C5A8
-        PhysicalStateId::Boneless => {}, //empty82D4C9B4
+        PhysicalStateId::FootPlant => skater.footplant.reset(),
+        PhysicalStateId::Boneless => {}
         PhysicalStateId::PhysicsGround => super::super::ground_exit::exit(physics, skater),
         PhysicalStateId::PhysicsAir => super::super::air_phase::exit(skater),
         PhysicalStateId::KnownAir => {
@@ -172,7 +175,7 @@ pub(super) fn set(
         PhysicalStateId::LandingOnDeck => super::super::landing_on_deck::exit(physics, skater)?,
         PhysicalStateId::SlideGround => super::super::slide_state::exit(physics, skater)?,
         PhysicalStateId::WipeoutGround => super::super::wipeout_states::exit(physics, skater),
-        PhysicalStateId::Sleeping | PhysicalStateId::Teleporting => {} //82B61BB8.
+        PhysicalStateId::Sleeping | PhysicalStateId::Teleporting => {}
         state if state.is_grind() || state == PhysicalStateId::Nonspecific => {
             super::super::grind::exit(physics, skater)?
         }

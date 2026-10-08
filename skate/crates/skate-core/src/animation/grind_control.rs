@@ -1,9 +1,4 @@
-//! S3 TU3 GrindControlFade82BB0D40 and ControlGrindCrouch82BB10F8.
-//! Adapted from the authorized ZIP after independent original-image comparison.
-//! Animation selection, physical observations and tuning remain external inputs.
 pub mod facing;
-#[cfg(test)]
-mod tests;
 
 #[derive(Clone, Copy, Debug)]
 pub struct FadeSettings {
@@ -25,7 +20,6 @@ pub struct Fade {
     pub maximum: f32,
 }
 impl Fade {
-    /// Begin82BB0A30 supplies the actual queried endpoints and mirrored twist.
     pub fn begin(&mut self, minimum: f32, maximum: f32, twist: f32) -> f32 {
         let value = bound(twist, minimum, maximum);
         *self = Self {
@@ -85,7 +79,6 @@ pub fn crouch(
     bound(desired, previous - step, previous + step)
 }
 
-/// Begin82BB0CBC..CE4: mirror the Skeleton+504 angle exactly once.
 pub fn mirrored_twist(twist: f32, mirrored: bool) -> f32 {
     if !mirrored {
         return twist;

@@ -1,5 +1,3 @@
-//! Candidate completion/scoring82D6D020. Geometry correction is called only
-//! for the first valid candidate, in source order before scoring its result.
 use super::{
     air_launch::{Launch, V},
     air_queries::Candidate,

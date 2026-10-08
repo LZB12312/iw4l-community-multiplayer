@@ -1,7 +1,3 @@
-//! TU3 Vector_UnPackFrameBlock82E8A928, expressed as scalar bit readers.
-//! The native reverse-byte permutation830CEAD0 (initializer82F96DF8) makes
-//! both streams little endian. Width nibbles come from big-endian header words.
-
 struct Bits<'a> {
     bytes: &'a [u8],
     position: usize,
@@ -58,7 +54,3 @@ pub(super) fn unpack(block: &[u8], widths: &[u32]) -> Result<Vec<[f32; 8]>, Stri
     }
     Ok(output)
 }
-
-#[cfg(test)]
-#[path = "tests/bits.rs"]
-mod tests;

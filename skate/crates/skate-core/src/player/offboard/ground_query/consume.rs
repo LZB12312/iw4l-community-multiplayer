@@ -2,7 +2,6 @@ use super::{
     ConsumeInput, Frame, GroundAdjustment, GroundGeometry, GroundQueryPacket, LineHit, math::*,
 };
 use crate::math::Vector3;
-///82C20C08 fields directly consumed by82D31620; calls82C21558/82C1E170.
 pub fn interpret_hits(packet: &GroundQueryPacket, hits: [Option<LineHit>; 7]) -> GroundGeometry {
     let h = |i: usize| hits[i].is_some();
     let mut side = scale(
@@ -61,8 +60,6 @@ pub fn interpret_hits(packet: &GroundQueryPacket, hits: [Option<LineHit>; 7]) ->
         flag28,
     }
 }
-///82D31620 including its PreUpdate resets82D30EAC..82D30F0C. None means the
-///previous query was not pending; contact fallback still executes.
 pub fn consume_geometry(input: ConsumeInput, geometry: Option<GroundGeometry>) -> GroundAdjustment {
     let mut out = GroundAdjustment {
         state_752: false,

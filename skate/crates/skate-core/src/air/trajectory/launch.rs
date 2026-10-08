@@ -1,4 +1,3 @@
-//! Original TU3 trajectory launch calculations82D67D08/82D67320/82D682E8.
 use super::{LaunchInfo, QueryRequest, SelectorInput, SelectorSettings, Trajectory, math::*};
 
 pub(super) fn adjust_velocity(
@@ -136,7 +135,6 @@ pub(super) fn batch(info: LaunchInfo, input: SelectorInput, s: &SelectorSettings
         local_com_position: transform(info.reckoning_inverse, com_displacement),
     }
 }
-///82D68698 deliberately uses the original -19.6 and -1/9.8 coefficients.
 fn max_time(velocity: Vector, s: &SelectorSettings) -> f32 {
     let square = velocity[1].mul_add(
         velocity[1],
@@ -150,7 +148,6 @@ fn max_time(velocity: Vector, s: &SelectorSettings) -> f32 {
     ((-velocity[1] - root) * f32::from_bits(0xbdd0_fac6)).min(s.trajectory_max_time)
 }
 
-///tTrajectory::AdjustTrajectory82D609E0 changes velocity only.
 pub(super) fn adjust_trajectory(
     trajectory: &mut Trajectory,
     frame: i32,

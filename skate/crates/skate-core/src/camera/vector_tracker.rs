@@ -49,8 +49,6 @@ impl VectorTracker {
     }
 }
 
-/// TU3 82E08D18 preserves the fourth lane unless the xyz magnitude is capped;
-/// then every lane receives the same multiplier.
 pub fn clamp_magnitude(value: [f32; 4], limit: f32) -> [f32; 4] {
     let magnitude = length(value);
     if magnitude > limit {

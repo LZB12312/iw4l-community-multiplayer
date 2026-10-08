@@ -1,13 +1,12 @@
-//! `Mth.atan2`: vanilla's table-driven arctangent, with its Java 25
-//! `Math.asin`/`Math.cos` tables; and `Mth.sin`/`Mth.cos`, the 65536-entry
-//! float sine table (`(float)Math.sin(i / 10430.378350470453)`) indexed by
-//! `(long)(x * 10430.378350470453) & 65535`.
-
 const SIN_SCALE: f64 = 10430.378350470453;
 
 fn sin_table() -> &'static [f32] {
     static TABLE: std::sync::OnceLock<Vec<f32>> = std::sync::OnceLock::new();
-    TABLE.get_or_init(|| (0..65536).map(|i| crate::jmath::sin(f64::from(i) / SIN_SCALE) as f32).collect())
+    TABLE.get_or_init(|| {
+        (0..65536)
+            .map(|i| crate::jmath::sin(f64::from(i) / SIN_SCALE) as f32)
+            .collect()
+    })
 }
 
 /// `Mth.sin`.

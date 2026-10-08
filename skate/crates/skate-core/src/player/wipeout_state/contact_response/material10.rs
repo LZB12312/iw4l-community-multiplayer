@@ -2,8 +2,8 @@
 use super::{apply_velocity_delta, reject_positive};
 use crate::{physics::skeleton_body::SkeletonBody, player::wipeout_state::math::*};
 
-const STEP: f32 = f32::from_bits(0x3c88_8889); //820849C8
-const PHASE_DURATION: f32 = f32::from_bits(0x3d07_2b02); //8208F5C0:0.033
+const STEP: f32 = f32::from_bits(0x3c88_8889);
+const PHASE_DURATION: f32 = f32::from_bits(0x3d07_2b02);
 
 pub(super) struct Response {
     previous_velocity: V, //16
@@ -58,7 +58,6 @@ impl Response {
             2 => {
                 //91B28 preserves the Processed608 snapshot used by phase1.
                 apply_velocity_delta(body, scale(sub(self.target_velocity, velocity), 1.0));
-                //Global830BD330 initializer82F826B0 loads -9.8 from822F8B40.
                 self.target_velocity = madd(
                     [0.0, f32::from_bits(0xc11c_cccd), 0.0, 0.0],
                     STEP,

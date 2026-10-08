@@ -1,5 +1,3 @@
-//! Complete steering conditioner 82DEFF38, called by82DEFB30.
-//! The settings decoder supplies global830CFDA4 slot204's verified layout.
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Copy, Debug)]
@@ -24,8 +22,6 @@ pub struct State {
 }
 
 impl State {
-    /// Steering-history portion of native reset82DEFAA0. Cached coefficients
-    /// survive reset; the update refreshes them from the settings layout.
     pub fn reset_history(&mut self) {
         self.history.fill(0.0);
         for filter in &mut self.filters {

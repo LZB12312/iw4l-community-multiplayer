@@ -33,7 +33,6 @@ pub(crate) struct AnimatedSkeleton {
     pub bone_indices: [usize; 24],
     pub physics_frames: [AnimationPartTransform; 24],
     pub animation_board: AnimationPartTransform,
-    ///Skeleton12560, copied BEFORE board offsets and IK by82BD8CB0..8D10.
     pub unadjusted_board: AnimationPartTransform,
     landing_on_board_blend: PointGraph<8>,
     pub animation_hips: AnimationPartTransform,
@@ -43,7 +42,6 @@ pub(crate) struct AnimatedSkeleton {
     landing_settings: LandingSettings,
 }
 impl AnimatedSkeleton {
-    ///Existing stock82BED688 target mappings; left and right reparented hands.
     pub(crate) fn reparented_hand_indices(&self) -> [usize; 2] {
         [self.target_bones[2], self.target_bones[3]]
     }
@@ -88,8 +86,6 @@ impl AnimatedSkeleton {
             )?[3];
         }
         let mut target_bones = [0; 4];
-        // Native82BED688 exact order and names. These are board-parented
-        // targets; do not replace them with the physical foot/hand indices.
         for (i, name) in [
             "LeftToeBase_Reparented",
             "RightToeBase_Reparented",
@@ -178,8 +174,6 @@ impl AnimatedSkeleton {
         self.board_offset.update(&mut parts[0], &mut self.targets);
         self.record
             .update(&parts, &self.roots.animation_to_board, &self.masses);
-        // ProcessData82BD8E04..8E10 writes local board11728 AFTER COM.
-        // World animation target15952 belongs to the later board-update phase.
         self.animation_board = parts[0];
         self.animation_hips = parts[23];
         self.board_at_y_delta = self.motion.publish_adjusted_board(&parts[0], flags_2468);
@@ -223,7 +217,7 @@ impl AnimatedSkeleton {
         dt: f32,
         flags_2468: &mut u32,
     ) -> AnimationPartTransform {
-        self.roots.initialize_heading = true; //82BDF550, on every Ground update.
+        self.roots.initialize_heading = true;
         self.update_roots(board, reckoning, dt);
         self.board_frames.prepare_ground(
             &self.roots,
@@ -233,7 +227,6 @@ impl AnimatedSkeleton {
         )
     }
 
-    ///82BDF778..F7AC runs AFTER the current GeneralUpdate consumes trajectory.
     pub fn finish_ground(&mut self) {
         self.motion.next_trajectory = IDENTITY;
     }

@@ -1,5 +1,3 @@
-//! Globals264 -> original8289D270 class EB844CFDBF928EFD/default.
-//! Fields are independently mapped through the stock physics_wipeout schema.
 use skate_core::{
     player::wipeout::{AirSettings, GroundSettings, Mode, Settings},
     point_graph::PointGraph,
@@ -16,7 +14,6 @@ pub(super) fn load(data: &Collections) -> Result<(Settings, [Mode; 5]), String> 
             check_squash: data.boolean("physics_mode", name, "Hash_CC890A3BDCF6290A")?,
             check_bad_landing: data.boolean("physics_mode", name, "WipeoutCheckForBadLanding")?,
             ground_xz: data.float("physics_mode", name, "Wipeout_GroundXZAcceleration")?,
-            //82D90D40..94 constructs full64 D978550D6DB4E6F7.
             bad_landing_scale: data.float("physics_mode", name, "Hash_D978550D6DB4E6F7")?,
         });
     }

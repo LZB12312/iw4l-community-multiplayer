@@ -4,7 +4,6 @@ use crate::point_graph::PointGraph;
 
 pub type Vector4 = [f32; 4];
 
-/// The 64-byte trajectory copied by `FillPhysOut` at `0x82D36A78`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct KnownAirTrajectory {
     pub position: Vector4,
@@ -156,7 +155,6 @@ pub struct AffineTransform {
     pub vectors: [Vector4; 4],
 }
 
-/// Stable inputs/outputs around the unresolved VMX geometry in `0x82D35998`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RestoreVelocityGeometry {
     pub tangential_velocity: Vector4,
@@ -165,8 +163,6 @@ pub struct RestoreVelocityGeometry {
     pub landing_speed_blend_source: f32,
 }
 
-/// Fields written by `FillPhysOut` (`0x82D36880`). The two conditional fields
-/// retain their previous value when flags+2468 bit 3 is clear.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct KnownAirOutput {
     pub trajectory_apex_0: Vector4,

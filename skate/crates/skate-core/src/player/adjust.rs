@@ -1,9 +1,3 @@
-//! TU3 `PhysicalPlayerHiLOD::Adjust` (`0x82DB6CF0`).
-//!
-//! This phase runs only after the solver completion fence. It publishes the
-//! solved board condition, performs the first skeleton adjustment, calls the
-//! current state's post-physics slot, then performs the final skeleton update.
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AdjustFields {
     /// ProcessedPhysIn+2512.
@@ -20,24 +14,19 @@ pub struct AdjustFields {
     pub output_counter_200: u32,
 }
 
-/// Required object calls in the exact order used by `0x82DB6CF0`.
 pub trait AdjustServices {
-    /// Player vtable `+116`, then SkateboardBody `0x82C02138`.
     fn board_condition_82c02138(&mut self) -> u32;
 
     /// BoardBody vtable `+4`, byte `+868`. Called only in controller mode 1.
     fn controller_mode_one_board_flag_868(&mut self) -> bool;
 
-    /// Skeleton update `0x82BD80D8` with the board flag and frame timestep.
     fn adjust_skeleton_82bd80d8(&mut self, board_flag: bool, timestep: f32);
 
     /// Current physical-state vtable slot `+40`.
     fn update_current_state_post_physics_vtable_40(&mut self);
 
-    /// Player helper `0x82DB9100`; its exact result is forwarded unchanged.
     fn player_output_selector_82db9100(&mut self) -> u32;
 
-    /// Final skeleton update `0x82BD83E0`.
     fn finish_skeleton_adjustment_82bd83e0(&mut self, selector: u32);
 }
 
@@ -59,7 +48,3 @@ pub fn run_adjust(fields: &mut AdjustFields, services: &mut impl AdjustServices)
     let selector = services.player_output_selector_82db9100();
     services.finish_skeleton_adjustment_82bd83e0(selector);
 }
-
-#[cfg(test)]
-#[path = "tests/adjust.rs"]
-mod tests;

@@ -62,7 +62,6 @@ pub enum MotionCondition {
     },
     Gameplay(super::motion_gameplay_conditions::GameplayCondition),
     Riding(super::motion_riding_conditions::MotionRidingCondition),
-    /// TimeToLand82BA7250: valid Air trajectory remaining time.
     TimeToLand(NumericCondition),
     /// Native off-board trajectory time (PhysOutOffBoard+32).
     ObTimeToLand(NumericCondition),
@@ -111,16 +110,15 @@ impl MotionCondition {
             .trim_matches(|c: char| c.is_whitespace() || c == '\0');
         Ok(Some(match name {
             "HasTweak" => Self::HasTweak(numeric()),
-            "CurrentGrabType" => Self::CurrentGrabType(
-                super::motion_stock_gameplay::GrabType::parse(
+            "CurrentGrabType" => {
+                Self::CurrentGrabType(super::motion_stock_gameplay::GrabType::parse(
                     a.text("grab").ok_or("CurrentGrabType requires grab")?,
-                )?,
-            ),
+                )?)
+            }
             "ManualOutTimerIsActive" => Self::ManualOutTimerIsActive,
             "HasGestureIntent" => Self::Gesture(crate::input::gesture_catalog::Group::parse(
                 a.text("group").unwrap_or(""),
             )?),
-            //82BA59D8/82BA6AC0: missing intent is false even for NotEqual.
             "HasIntent" | "HasFilteredMotionGraphIntent" => Self::Intent {
                 name: a.text("intent").unwrap_or("").into(),
                 filtered: a.text("name") == Some("HasFilteredMotionGraphIntent"),
@@ -131,9 +129,8 @@ impl MotionCondition {
                 sequence_id: f32::from_bits(a.float_bits("sequenceid", (-1.0f32).to_bits())) as i32,
                 numeric: numeric(),
             },
-            "ExpireInTime" => Self::ExpireInTime(numeric()), //82BA65A0
+            "ExpireInTime" => Self::ExpireInTime(numeric()),
             "WillExpire" => Self::WillExpire {
-                //82BA6620/82BA6708
                 in_time: f32::from_bits(a.float_bits("InTime", 0)),
                 tag: a
                     .text("InTimeTag")
@@ -142,12 +139,10 @@ impl MotionCondition {
                 wait_for_transitions: a.boolean_byte("waitForTransitions", 1) != 0,
             },
             "InTimeWindow" => Self::InTimeWindow {
-                //82BC4558/82BA6808
                 start: f32::from_bits(a.float_bits("StartTime", 0)),
                 length: f32::from_bits(a.float_bits("WindowFrameLength", 0)),
             },
             "InStateForTime" => Self::InStateForTime {
-                //82BC3788/82BA4658
                 name: a.text("state").unwrap_or("").into(),
                 target: None,
                 numeric: numeric(),
@@ -155,10 +150,9 @@ impl MotionCondition {
             "InParentStateForTime" => Self::InParentStateForTime {
                 target: None,
                 numeric: numeric(),
-            }, //82BA45D0
-            "IsProSkater" => Self::ProSkater(encode(a.text("skater").unwrap_or("").as_bytes())), //82BC56C0/82BA6A48
+            },
+            "IsProSkater" => Self::ProSkater(encode(a.text("skater").unwrap_or("").as_bytes())),
             "BreakOutOfPush" => Self::BreakOutOfPush,
-            //Factory82BC54B8 and Activation82BA7130.
             "ShouldLeaveSlide" => Self::ShouldLeaveSlide {
                 right: a.boolean_byte("right", 1) != 0,
             },
@@ -181,7 +175,9 @@ impl MotionCondition {
             "OBTimeToLand" => Self::ObTimeToLand(numeric()),
             "OBTrajTime" => Self::ObTrajTime(numeric()),
             "LocoState" => Self::LocoState(super::motion_offboard_cadence::LocoState::parse(a)?),
-            "GroundSlopeType" => Self::GroundSlopeType(super::motion_ground_slope::GroundSlopeType::parse(a)?),
+            "GroundSlopeType" => {
+                Self::GroundSlopeType(super::motion_ground_slope::GroundSlopeType::parse(a)?)
+            }
             "IsBipedGroundThin" => Self::IsBipedGroundThin,
             "IsHoldingSkateboard" => Self::IsHoldingSkateboard,
             "IsStandingOnMovingObject" => Self::IsStandingOnMovingObject,
@@ -196,27 +192,25 @@ impl MotionCondition {
         use skate_core::animation::playback_parameters::ParameterInputs;
         Ok(match self {
             Self::Grind(condition) => condition.evaluate(
-                host.grind_conditions.as_ref()
-                    .ok_or("Grind condition requires completed physical output")?
+                host.grind_conditions
+                    .as_ref()
+                    .ok_or("Grind condition requires completed physical output")?,
             ),
-            // 82BA7760/82BA7848 compares the authored type through
-            // ISkaterAnim; SetGrabType Begin/End writes that same owner.
             Self::CurrentGrabType(grab) => host.animation.grab_type == Some(*grab),
-            // TU3 82BA6B90 uses the filtered MG map (virtual +12),
-            // requires at least one axis, then compares vector magnitude.
             Self::HasTweak(numeric) => {
                 let x = host.animation.filtered_intent("TweakX");
                 let y = host.animation.filtered_intent("TweakY");
                 (x.is_some() || y.is_some())
                     && (numeric.comparison == Comparison::None
-                        || numeric.matches((x.unwrap_or(0.0).powi(2)
-                            + y.unwrap_or(0.0).powi(2)).sqrt()))
+                        || numeric
+                            .matches((x.unwrap_or(0.0).powi(2) + y.unwrap_or(0.0).powi(2)).sqrt()))
             }
-            // Native 82BA78B0: strictly positive retained manual-out timer.
             Self::ManualOutTimerIsActive => host.riding.manual_out_timer > 0.0,
             Self::ShouldLeaveSlide { right } => host.slide_latch.should_leave(*right),
             Self::Gesture(group) => group.has_intent(|name| host.action_controls.has(name)),
-            Self::DisableDismount(condition) => condition.evaluate(host.condition_inputs.push_brake.as_ref())?,
+            Self::DisableDismount(condition) => {
+                condition.evaluate(host.condition_inputs.push_brake.as_ref())?
+            }
             Self::Shared(condition) => condition
                 .evaluate(
                     &host.condition_inputs,
@@ -228,17 +222,22 @@ impl MotionCondition {
             Self::Gameplay(condition) => condition.evaluate(host)?,
             Self::Riding(condition) => condition.evaluate(host)?,
             Self::TimeToLand(n) => {
-                let p = host.gameplay_conditions.as_ref()
+                let p = host
+                    .gameplay_conditions
+                    .as_ref()
                     .ok_or("TimeToLand requires physical condition publication")?;
                 p.time_to_land_valid && n.matches(p.time_to_land)
             }
             Self::ObTimeToLand(n) => n.matches(
-                host.gameplay_conditions.as_ref()
+                host.gameplay_conditions
+                    .as_ref()
                     .ok_or("OBTimeToLand requires physical condition publication")?
                     .offboard_time_to_land,
             ),
             Self::ObTrajTime(n) => {
-                let p = host.gameplay_conditions.as_ref()
+                let p = host
+                    .gameplay_conditions
+                    .as_ref()
                     .ok_or("OBTrajTime requires physical condition publication")?;
                 p.offboard_trajectory_valid && n.matches(p.offboard_trajectory_time)
             }
@@ -254,12 +253,14 @@ impl MotionCondition {
             Self::IsBipedGroundThin => host
                 .biped_ground_thin
                 .ok_or("IsBipedGroundThin requires the native ground geometry publication")?,
-            Self::IsHoldingSkateboard => host.toggle_board_physical
-                .is_some_and(|p| p.holding_board),
-            Self::IsStandingOnMovingObject => host
-                .gameplay_conditions
-                .ok_or("IsStandingOnMovingObject requires the physical state publication")?
-                .moving_object,
+            Self::IsHoldingSkateboard => {
+                host.toggle_board_physical.is_some_and(|p| p.holding_board)
+            }
+            Self::IsStandingOnMovingObject => {
+                host.gameplay_conditions
+                    .ok_or("IsStandingOnMovingObject requires the physical state publication")?
+                    .moving_object
+            }
             Self::StockGameplay(condition) => condition.evaluate(host)?,
             Self::PushOff(condition) => condition.evaluate(),
             Self::Wipeout(condition) => condition.evaluate(host.wipeout_physical)?,
@@ -270,8 +271,6 @@ impl MotionCondition {
                     .map(|p| p.override_prelanding(&host.spin)),
             )?,
             Self::LastState { target, .. } => {
-                //82BA4798 obtains the last state, then uses the same native
-                //ancestor membership test as CurrentState82C13820.
                 let mut cursor = frame.last;
                 let mut matched = false;
                 if let Some(target) = target {
@@ -317,7 +316,6 @@ impl MotionCondition {
                 tag,
                 wait_for_transitions,
             } => {
-                //8296E988 uses authored InTime if tag is empty/component absent.
                 let time = match (tag, &host.time_tags) {
                     (Some(tag), Some(tags)) => *tags
                         .get(tag)
@@ -347,8 +345,6 @@ impl MotionCondition {
             }
             Self::ProSkater(name) => host.playback_context.pro_skater == *name,
             Self::BreakOutOfPush => {
-                //82BA6258: current tree time >= out factor * length, and
-                // the push lifecycle has not latched continue_push.
                 let push = host
                     .push_state
                     .as_ref()
@@ -368,8 +364,6 @@ impl MotionCondition {
                 .is_switch
                 .ok_or("IsRidingSwitch requires actual relative stance")?,
             Self::MongoPushFootTooFar => {
-                //82BA6378 queries the FIRST cached tree record via82D19010.
-                //The event payload is a toe-bone FastString, not its weight.
                 if let Some(event) = host
                     .animation
                     .tree_attributes()
@@ -429,8 +423,6 @@ pub fn bind_states(
         let mut element = parents[graph.binding.operations[id].element];
         while let Some(id) = element {
             if let Some(state) = graph.binding.states.iter().position(|s| s.element == id) {
-                // GetParentState82C11B88 climbs expression nodes to the
-                // containing state; it does not select that state's parent.
                 *target = name.as_ref().map_or(Some(state), |name| {
                     graph.binding.find_state(state, name, true)
                 });

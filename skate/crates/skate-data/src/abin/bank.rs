@@ -73,8 +73,6 @@ impl Bank {
                 _ => RecordData::Opaque,
             };
             let index = records.len();
-            // SetDBContent82D1B428..45C overwrites map entries in file order.
-            // Clips also participate in the animation-tree map, poses do not.
             match header.type_id {
                 2 => {
                     clips.insert(header.name.clone(), index);
@@ -144,11 +142,6 @@ impl Bank {
             _ => None,
         }
     }
-    ///The stock OnBoard/OffBoard VBR banks carry all eight parts in hierarchy
-    ///order. Their encoded ids are all zero; source82D20608/82D20924 advances
-    ///its equal-id cursor one entry at a time, preserving this ordinal mapping.
-    ///Call before using positional part association; partial banks may require
-    ///the original named/id association and are not silently treated as full.
     pub fn validate_positional_parts(&self) -> Result<()> {
         let hierarchy = self
             .hierarchy()

@@ -42,8 +42,6 @@ pub(crate) fn append(
         rows.push(build_drive_rows(
             body(hands[i], hand_reactions[i]),
             body(deck, deck_reaction),
-            //82763BC4..3C44 normalizes both quaternions of every registered
-            //drive before Jacobian construction, including possession drives.
             prepare_bone_drive_frames(RetailDriveFrames {
                 body_a: frame(drive.child),
                 body_b: frame(drive.parent),

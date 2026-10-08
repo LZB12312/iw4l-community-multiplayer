@@ -10,7 +10,6 @@ pub struct PoseInput {
     ///Skeleton12672: this frame's mapped animation board translation.
     pub animation_board_position: V,
 }
-///Full-angle axis matrix used by82D71430 and82BDCFB0 (not half-angle quaternion).
 pub(super) fn axis_rotation(axis: V, angle: f32) -> Frame {
     let (sin, cos) = crate::trigonometry::sin_cos(angle);
     let [x, y, z, _] = axis;
@@ -45,8 +44,6 @@ pub(super) fn direction(frame: Frame, vector: V) -> V {
     )
 }
 impl Adjustment {
-    ///82BDCFB0: R(up,Y)*R(rail,X)*R(physicalZ,Z), converted to animation space,
-    ///then pivot around the current mapped board and add the local displacement.
     pub fn local_transform(self, input: PoseInput) -> Frame {
         //Unlike NormalizeSafe, this native wrapper has no zero-vector fallback.
         let across = cross(UP, self.axis);

@@ -39,7 +39,6 @@ pub(crate) struct SurfaceObservation {
     pub material_1472: u32,
     pub friction_vs_time_1496: f32,
     pub reckon_blend_selector_1500: f32,
-    /// S3 gravity-relief producer82D8ACF0; NOT UpdateFrictionVsTime.
     pub gravity_relief_1512: f32,
 }
 
@@ -63,8 +62,6 @@ pub(crate) struct EngagementObservation {
     pub kind_1248: u32,
 }
 
-/// Jumper cache after82D739D8; invalid investigation retains its previous
-/// geometry/normals. Do not reconstruct these from the current deck frame.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct JumperObservation {
     pub geometry_kind_16: u32,

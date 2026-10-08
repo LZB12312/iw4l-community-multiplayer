@@ -1,5 +1,3 @@
-//! Native normal-camera rig update82E03300. The rig owns one copy of each
-//! shared field; operation adapters below cannot retain inconsistent snapshots.
 use super::*;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -30,7 +28,6 @@ pub struct RigSettings {
     pub anchor: AnchorTrackingSettings,
     pub avoidance: AvoidanceSettings,
     pub positioning: RigPositioningSettings,
-    /// Parameter620 and native global830BD350 respectively.
     pub collision_hold_duration: f32,
     pub normalization_threshold: [f32; 4],
 }
@@ -191,7 +188,6 @@ impl Rig {
             inverse = (inverse * 0.5).mul_add((-square).mul_add(inverse * inverse, 1.0), inverse);
         }
         let magnitude = if square == 0.0 { 0.0 } else { square * inverse };
-        // Mapped TU3 read-only constant82139A30.
         let fallback = [0.0, 0.0, 1.0, 0.0];
         let direction = core::array::from_fn(|i| {
             if magnitude > settings.normalization_threshold[i] {

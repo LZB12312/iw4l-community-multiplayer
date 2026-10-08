@@ -1,11 +1,5 @@
 use super::{NativeMatrix, PoseBufferError};
 
-/// TU3 0x828D3B58: local matrices to hierarchy-composed matrices.
-///
-/// `detached_parent` is native r5 (hierarchy +8 at the caller). A parent equal to
-/// it, or -1, causes a verbatim local copy. No world transform is introduced.
-/// The first matrix is copied even for a nonpositive count. Other output slots
-/// retain caller state until visited, including when a forward parent is read.
 pub fn compose_hierarchy(
     bone_count: i32,
     parents: &[i32],

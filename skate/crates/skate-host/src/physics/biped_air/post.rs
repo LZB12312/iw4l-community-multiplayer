@@ -1,8 +1,6 @@
-//! State501 Post82D2FFF8, after completed physical skeleton feedback.
 use super::SkaterRuntime;
 use skate_core::player::{offboard::biped_air::recovered::post::PostInput, wipeout::Frame};
 pub(crate) fn post(skater: &mut SkaterRuntime, frame: Frame) -> Result<(), String> {
-    //82D30018..30: synchronize the SAME manager state503 will consume.
     skater.landing_deck.post_physics(&skater.player_input)?;
     let p = &skater.player_input.processed;
     let mode = skater.wipeout.mode(p)?;

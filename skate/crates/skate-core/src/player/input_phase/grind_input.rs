@@ -1,6 +1,3 @@
-//! Value snapshot copied by82D87E80 into Processed1104..1519 after manager post.
-//! Native pointers are stable host identities; all geometry/control values are
-//! retained independently. Zero is the native416-byte investigation reset.
 use super::RawVector;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]

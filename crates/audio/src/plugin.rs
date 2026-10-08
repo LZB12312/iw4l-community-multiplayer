@@ -8,6 +8,7 @@ impl Plugin for AudioPlugin {
     fn build(&self, app: &mut App) {
         crate::backend::register(app);
         crate::minecraft::register(app);
+        crate::skate::register(app);
         crate::match_bus::register(app);
         app.add_plugins(PlayerSoundPlugin);
         crate::match_set::register(app);
@@ -16,5 +17,6 @@ impl Plugin for AudioPlugin {
         crate::rumble::register(app);
         crate::script_music::register(app);
         crate::script_mix::register(app);
+        crate::output::register(app);
     }
 }

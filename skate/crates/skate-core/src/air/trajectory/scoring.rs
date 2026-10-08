@@ -1,6 +1,3 @@
-//! TU3 scoring82D68FE8/82D68AF0/82D69790 for a world with no grind edges.
-//! That topology is supplied by the authored BoardWorld, not inferred from a
-//! failed collision. Every wall probe still queries real world geometry.
 use super::{
     Prediction, SelectorInput, SelectorSettings, SurfaceHit, launch::adjust_trajectory, math::*,
 };
@@ -69,7 +66,8 @@ pub(super) fn score(
         } else if evaluation.score != 0.0 {
             evaluation.score
         } else if input.grind_lock_distance > 0.5 || !middle {
-            s.grind_penalty_vs_distance.evaluate(evaluation.penalty_input())
+            s.grind_penalty_vs_distance
+                .evaluate(evaluation.penalty_input())
         } else {
             0.0
         };

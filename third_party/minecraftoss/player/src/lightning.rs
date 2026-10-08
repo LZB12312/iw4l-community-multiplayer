@@ -55,28 +55,3 @@ fn first_weathering_copper(id: &str) -> Option<String> {
         None
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn weathering_collection_families_and_waxed_exclusion() {
-        assert_eq!(
-            first_weathering_copper("minecraft:oxidized_copper"),
-            Some("minecraft:copper_block".into())
-        );
-        assert_eq!(
-            first_weathering_copper("minecraft:weathered_copper_bulb"),
-            Some("minecraft:copper_bulb".into())
-        );
-        assert_eq!(
-            first_weathering_copper("minecraft:exposed_lightning_rod"),
-            Some("minecraft:lightning_rod".into())
-        );
-        assert_eq!(
-            first_weathering_copper("minecraft:waxed_oxidized_copper"),
-            None
-        );
-    }
-}

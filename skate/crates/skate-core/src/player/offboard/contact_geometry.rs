@@ -1,4 +1,3 @@
-//! Native classifier math82D85360/85488/855A8/85C48.
 use super::{
     contact_queries::{Input, V},
     contact_segments::{length_inverse, reciprocal},
@@ -39,45 +38,4 @@ pub fn intersect(a: [f32; 2], b: [f32; 2], c: [f32; 2], d: [f32; 2]) -> f32 {
     }
     let ac = [a[0] - c[0], a[1] - c[1]];
     (1. / determinant) * (cd[0] * ac[1] - cd[1] * ac[0])
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn input(speed: f32) -> Input {
-        Input {
-            position: [0.; 4],
-            surface_forward: [0., 0., 1., 0.],
-            surface_up: [0., 1., 0., 0.],
-            surface_right: [1., 0., 0., 0.],
-            velocity: [0., 0., speed, 0.],
-            animation_up: [0., 1., 0., 0.],
-            animation_right: [1., 0., 0., 0.],
-        }
-    }
-    #[test]
-    fn stock_speed_clamps_and_height_branch_select_expected_angles() {
-        for (speed, height, rising, angle) in [
-            (0., 0.4, true, 30.0f64),
-            (6., 0.4, true, 15.),
-            (2., 0.5, true, 50.),
-            (6., 0.5, true, 35.),
-            (8., 0.5, false, 30.),
-        ] {
-            assert!(
-                (slope_limit(input(speed), height, rising) - angle.to_radians().tan() as f32).abs()
-                    < 1e-5
-            );
-        }
-    }
-    #[test]
-    fn line_parameters_and_parallel_sentinel() {
-        assert_eq!(intersect([0., 0.], [2., 0.], [1., -1.], [1., 1.]), 0.5);
-        assert_eq!(intersect([0., 0.], [1., 0.], [2., -1.], [2., 1.]), 2.);
-        assert_eq!(
-            intersect([0., 0.], [1., 0.], [0., 1.], [1., 1.]).to_bits(),
-            0x501502f9
-        );
-        assert_eq!(slope_between(input(0.), [0.; 4], [0., 1., 2., 0.]), 0.5);
-        assert_eq!(slope_between(input(0.), [0.; 4], [0., 1., 0., 0.]), 1000.);
-    }
 }

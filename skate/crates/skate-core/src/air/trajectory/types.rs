@@ -1,4 +1,3 @@
-//! Launch data82D33448/82BE33D0 and the source-owned caller observations.
 use super::math::{IDENTITY, Transform, Vector, ZERO};
 use crate::point_graph::PointGraph;
 #[derive(Clone, Copy, Debug)]
@@ -21,7 +20,6 @@ pub struct LaunchInfo {
     pub trajectory_count: u16,           //270 GetLaunchInfo selects1 or7
 }
 impl Default for LaunchInfo {
-    ///Original ctor82D33448; Fill must supply current physical observations.
     fn default() -> Self {
         Self {
             reckoning_transform: IDENTITY,

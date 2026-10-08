@@ -1,5 +1,3 @@
-//! Original S3 82D71138/82D34FE8/82D712E0, with persistent native histories.
-//! Independent PC arithmetic; not a bit-exact Xenon emulation claim.
 mod angles;
 mod pose;
 mod prediction;
@@ -68,7 +66,6 @@ impl Default for GrindAir {
     }
 }
 impl GrindAir {
-    ///82D34FE8. Started/activated latches are owned by the existing KnownAir caller.
     pub fn start(&mut self, target: Target) {
         self.target = Some(target);
         self.offset_delta = ZERO;
@@ -114,7 +111,6 @@ impl GrindAir {
         self.selected_kind = Some(kind);
         let probe = targets::CONTACTS[kind];
         let time = contacts.times[probe];
-        //82D72610, per-frame and total displacement are separately bounded.
         self.offset_delta = limited(
             add(
                 self.offset_delta,
@@ -197,7 +193,6 @@ fn wrap(angle: f32) -> f32 {
     let fraction = turns - turns.floor();
     (fraction - if fraction > 0.5 { 1. } else { 0. }) * TAU
 }
-///8296EC98: one refinement, positive full-turn signed angle then8258DB98 wrap.
 fn signed_angle(a: V, b: V, axis: V) -> f32 {
     let aa = dot(a, a);
     let bb = dot(b, b);

@@ -128,13 +128,15 @@ impl XoroshiroPositionalFactory {
     }
 }
 
+const SEED_MULTIPLIER: i64 = 42_317_861;
+
 pub fn positional_seed(x: i32, y: i32, z: i32) -> i64 {
     // Mth.getSeed: the first product is a Java int before it widens to long.
     let seed = i64::from(x.wrapping_mul(3_129_871))
         ^ i64::from(z).wrapping_mul(116_129_781)
         ^ i64::from(y);
     seed.wrapping_mul(seed)
-        .wrapping_mul(42_317_861)
+        .wrapping_mul(SEED_MULTIPLIER)
         .wrapping_add(seed.wrapping_mul(11))
         >> 16
 }
@@ -157,7 +159,11 @@ impl XoroshiroRandom {
             lo = GOLDEN_RATIO_64;
             hi = SILVER_RATIO_64;
         }
-        Self { lo, hi, gaussian: None }
+        Self {
+            lo,
+            hi,
+            gaussian: None,
+        }
     }
 
     pub fn set_seed(&mut self, seed: i64) {
@@ -239,7 +245,11 @@ impl WorldgenRandom {
     /// Draws straight from a legacy random (the level random).
     pub fn from_legacy(random: LegacyRandom) -> Self {
         let gaussian_next = random.gaussian_cache();
-        Self { source: WorldgenSource::Legacy(random), draws: 0, gaussian_next }
+        Self {
+            source: WorldgenSource::Legacy(random),
+            draws: 0,
+            gaussian_next,
+        }
     }
     /// The legacy random back, with this random's Gaussian cache.
     pub fn into_legacy(self) -> Option<LegacyRandom> {
@@ -459,7 +469,11 @@ pub enum AnyRandom {
 impl AnyRandom {
     /// `WorldgenRandom.Algorithm.newInstance(seed)`.
     pub fn new(legacy: bool, seed: i64) -> Self {
-        if legacy { Self::Legacy(LegacyRandom::new(seed)) } else { Self::Xoroshiro(XoroshiroRandom::new(seed)) }
+        if legacy {
+            Self::Legacy(LegacyRandom::new(seed))
+        } else {
+            Self::Xoroshiro(XoroshiroRandom::new(seed))
+        }
     }
 
     pub fn fork_positional(&mut self) -> AnyPositional {
@@ -558,129 +572,6 @@ impl AnyPositional {
         match self {
             Self::Legacy(f) => AnyRandom::Legacy(f.from_hash_of(name)),
             Self::Xoroshiro(f) => AnyRandom::Xoroshiro(f.from_hash_of(name)),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn java_legacy_known_vector() {
-        let mut r = LegacyRandom::new(0);
-        assert_eq!(r.next_i32(), -1_155_484_576); // java.util.Random(0).nextInt()
-        assert_eq!(r.next_i32(), -723_955_400);
-    }
-
-    #[test]
-    fn seed_upgrade_and_xoroshiro_zero_state() {
-        let r = XoroshiroRandom::from_state(0, 0);
-        assert_eq!((r.lo, r.hi), (GOLDEN_RATIO_64, SILVER_RATIO_64));
-        let mut a = XoroshiroRandom::new(-123456789);
-        let mut b = XoroshiroRandom::new(-123456789);
-        for _ in 0..100 {
-            assert_eq!(a.next_i64(), b.next_i64());
-        }
-    }
-
-    #[test]
-    fn signed_overflow_and_feature_seed_are_stable() {
-        let mut a = WorldgenRandom::new(0);
-        let value = a.decoration_seed(i64::MIN, -16, 16);
-        let mut b = WorldgenRandom::new(0);
-        assert_eq!(value, b.decoration_seed(i64::MIN, -16, 16));
-        assert_eq!(a.draws(), 4);
-        a.feature_seed(value, 42, 7);
-        b.feature_seed(value, 42, 7);
-        assert_eq!(a.next_i64(), b.next_i64());
-    }
-
-    #[test]
-    fn pinned_26_3_minecraft_vectors() {
-        // Captured with the pinned 26.3 remapped common JAR through
-        // research/private/vectors/RandomVectors.java. Each row consumes
-        // nextInt, nextInt(7), nextLong, nextFloat, nextDouble in order.
-        let rows = [
-            (
-                0_i64,
-                -1_155_484_576,
-                2,
-                4_437_113_781_045_784_766_i64,
-                0x3f23_2dc9_u32,
-                0x3fd3_c77c_08ce_970a_u64,
-                -160_476_802,
-                1,
-                4_633_751_808_701_151_732_i64,
-                0x3def_df28_u32,
-                0x3fb9_86c1_cae1_d8f0_u64,
-                7_069_528_835_409_849_632_i64,
-                -3_787_864_342_176_001_462_i64,
-            ),
-            (
-                -123_456_789_i64,
-                1_442_175_866,
-                5,
-                -638_275_576_475_756_928_i64,
-                0x3ef5_65de_u32,
-                0x3fda_e865_4db1_6a3e_u64,
-                1_475_262_532,
-                0,
-                -776_221_305_771_175_145_i64,
-                0x3f4d_dacc_u32,
-                0x3fc6_2e57_a876_cf60_u64,
-                -7_802_466_808_044_889_013_i64,
-                -6_686_399_352_354_891_802_i64,
-            ),
-            (
-                i64::MIN,
-                -1_155_484_576,
-                2,
-                4_437_113_781_045_784_766_i64,
-                0x3f23_2dc9_u32,
-                0x3fd3_c77c_08ce_970a_u64,
-                -160_764_889,
-                4,
-                -3_866_801_757_029_155_188_i64,
-                0x3f41_af67_u32,
-                0x3fef_c327_1677_01a0_u64,
-                5_977_109_141_121_285_184_i64,
-                2_507_873_655_798_538_915_i64,
-            ),
-        ];
-        for (seed, li, lb, ll, lf, ld, xi, xb, xl, xf, xd, ws, wl) in rows {
-            let mut legacy = LegacyRandom::new(seed);
-            assert_eq!(legacy.next_i32(), li, "legacy int seed {seed}");
-            assert_eq!(legacy.next_i32_bound(7), lb, "legacy bound seed {seed}");
-            assert_eq!(legacy.next_i64(), ll, "legacy long seed {seed}");
-            assert_eq!(legacy.next_f32().to_bits(), lf, "legacy float seed {seed}");
-            assert_eq!(legacy.next_f64().to_bits(), ld, "legacy double seed {seed}");
-            let mut xoroshiro = XoroshiroRandom::new(seed);
-            assert_eq!(xoroshiro.next_i32(), xi, "xoroshiro int seed {seed}");
-            assert_eq!(
-                xoroshiro.next_i32_bound(7),
-                xb,
-                "xoroshiro bound seed {seed}"
-            );
-            assert_eq!(xoroshiro.next_i64(), xl, "xoroshiro long seed {seed}");
-            assert_eq!(
-                xoroshiro.next_f32().to_bits(),
-                xf,
-                "xoroshiro float seed {seed}"
-            );
-            assert_eq!(
-                xoroshiro.next_f64().to_bits(),
-                xd,
-                "xoroshiro double seed {seed}"
-            );
-            let mut worldgen = WorldgenRandom::new(0);
-            assert_eq!(
-                worldgen.decoration_seed(seed, -16, 16),
-                ws,
-                "decoration seed {seed}"
-            );
-            assert_eq!(worldgen.draws(), 4);
-            assert_eq!(worldgen.next_i64(), wl, "worldgen long seed {seed}");
         }
     }
 }

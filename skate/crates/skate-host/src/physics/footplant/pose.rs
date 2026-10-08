@@ -1,4 +1,3 @@
-//! Footplant82D70070 publishes real FootIK targets and temporary collision disables.
 use super::{Footplant, math::*};
 use crate::physics::{animated_skeleton::AnimatedSkeleton, foot_ik::FootIk};
 use skate_core::{
@@ -12,7 +11,6 @@ impl Footplant {
         ik: &mut FootIk,
         collision: &mut SkeletonCollisionMode,
     ) {
-        //82453298, shared source-derived polynomial and independent PC estimate seed.
         let angle = skate_core::trigonometry::acos(dot(self.launch_direction, self.leg_direction));
         let turns = angle * f32::from_bits(0x3e22f983);
         let fraction = turns - turns.floor();

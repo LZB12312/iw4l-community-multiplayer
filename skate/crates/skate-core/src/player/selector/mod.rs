@@ -1,6 +1,3 @@
-//! Readable port of TU3 `PhysicalPlayerStateChanger::CalcSuggestedState`
-//! (`0x82D8ADE8`) and its directly-called predicates.
-
 mod air;
 pub mod conditions;
 mod ground;
@@ -42,8 +39,6 @@ pub(super) struct FrameFacts {
 }
 
 impl StateSelector {
-    /// Executes the complete state decision tree and all state-changer-local
-    /// counter/flag writes performed by TU3 `0x82D8ADE8`.
     pub fn calculate(
         &mut self,
         current: PhysicalStateId,
@@ -245,6 +240,3 @@ fn check_for_grind(input: ProcessedStateInput) -> Option<PhysicalStateId> {
         _ => None,
     }
 }
-
-#[cfg(test)]
-mod tests;

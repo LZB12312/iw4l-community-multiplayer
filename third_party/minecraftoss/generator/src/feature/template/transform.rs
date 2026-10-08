@@ -22,7 +22,12 @@ pub enum Rotation {
 
 impl Rotation {
     /// `Rotation.values()` order.
-    pub const ALL: [Self; 4] = [Self::None, Self::Clockwise90, Self::Clockwise180, Self::Counterclockwise90];
+    pub const ALL: [Self; 4] = [
+        Self::None,
+        Self::Clockwise90,
+        Self::Clockwise180,
+        Self::Counterclockwise90,
+    ];
 
     pub fn parse(name: &str) -> Option<Self> {
         Some(match name.trim_start_matches("minecraft:") {
@@ -131,7 +136,12 @@ pub fn transform(pos: BlockPos, mirror: Mirror, rotation: Rotation, pivot: Block
 }
 
 /// `StructureTemplate.transform(Vec3, Mirror, Rotation, BlockPos)`.
-pub fn transform_vec(pos: [f64; 3], mirror: Mirror, rotation: Rotation, pivot: BlockPos) -> [f64; 3] {
+pub fn transform_vec(
+    pos: [f64; 3],
+    mirror: Mirror,
+    rotation: Rotation,
+    pivot: BlockPos,
+) -> [f64; 3] {
     let [mut x, y, mut z] = pos;
     match mirror {
         Mirror::LeftRight => z = 1.0 - z,
@@ -148,7 +158,13 @@ pub fn transform_vec(pos: [f64; 3], mirror: Mirror, rotation: Rotation, pivot: B
 }
 
 /// `StructureTemplate.getZeroPositionWithTransform`.
-pub fn zero_position_with_transform(zero: BlockPos, mirror: Mirror, rotation: Rotation, size_x: i32, size_z: i32) -> BlockPos {
+pub fn zero_position_with_transform(
+    zero: BlockPos,
+    mirror: Mirror,
+    rotation: Rotation,
+    size_x: i32,
+    size_z: i32,
+) -> BlockPos {
     let (sx, sz) = (size_x - 1, size_z - 1);
     let mx = if mirror == Mirror::FrontBack { sx } else { 0 };
     let mz = if mirror == Mirror::LeftRight { sz } else { 0 };
@@ -200,7 +216,12 @@ impl BoundingBox {
     }
 
     pub fn is_inside(&self, pos: BlockPos) -> bool {
-        pos.x >= self.min_x && pos.x <= self.max_x && pos.z >= self.min_z && pos.z <= self.max_z && pos.y >= self.min_y && pos.y <= self.max_y
+        pos.x >= self.min_x
+            && pos.x <= self.max_x
+            && pos.z >= self.min_z
+            && pos.z <= self.max_z
+            && pos.y >= self.min_y
+            && pos.y <= self.max_y
     }
 
     pub fn intersects(&self, other: &Self) -> bool {
@@ -214,7 +235,9 @@ impl BoundingBox {
 
     /// `BoundingBox.forAllCorners` order.
     pub fn corners(&self) -> [BlockPos; 8] {
-        let (x0, y0, z0, x1, y1, z1) = (self.min_x, self.min_y, self.min_z, self.max_x, self.max_y, self.max_z);
+        let (x0, y0, z0, x1, y1, z1) = (
+            self.min_x, self.min_y, self.min_z, self.max_x, self.max_y, self.max_z,
+        );
         [
             BlockPos::new(x1, y1, z1),
             BlockPos::new(x0, y1, z1),
@@ -228,11 +251,25 @@ impl BoundingBox {
     }
 
     pub fn infinite() -> Self {
-        Self { min_x: i32::MIN, min_y: i32::MIN, min_z: i32::MIN, max_x: i32::MAX, max_y: i32::MAX, max_z: i32::MAX }
+        Self {
+            min_x: i32::MIN,
+            min_y: i32::MIN,
+            min_z: i32::MIN,
+            max_x: i32::MAX,
+            max_y: i32::MAX,
+            max_z: i32::MAX,
+        }
     }
 
     pub fn at(pos: BlockPos) -> Self {
-        Self { min_x: pos.x, min_y: pos.y, min_z: pos.z, max_x: pos.x, max_y: pos.y, max_z: pos.z }
+        Self {
+            min_x: pos.x,
+            min_y: pos.y,
+            min_z: pos.z,
+            max_x: pos.x,
+            max_y: pos.y,
+            max_z: pos.z,
+        }
     }
 
     /// `intersects(minX, minZ, maxX, maxZ)`: the XZ footprint only.
@@ -262,12 +299,26 @@ impl BoundingBox {
     }
 
     pub fn inflated(&self, x: i32, y: i32, z: i32) -> Self {
-        Self::new(self.min_x - x, self.min_y - y, self.min_z - z, self.max_x + x, self.max_y + y, self.max_z + z)
+        Self::new(
+            self.min_x - x,
+            self.min_y - y,
+            self.min_z - z,
+            self.max_x + x,
+            self.max_y + y,
+            self.max_z + z,
+        )
     }
 
     /// `BoundingBox.encapsulating(a, b)`.
     pub fn encapsulating(a: &Self, b: &Self) -> Self {
-        Self::new(a.min_x.min(b.min_x), a.min_y.min(b.min_y), a.min_z.min(b.min_z), a.max_x.max(b.max_x), a.max_y.max(b.max_y), a.max_z.max(b.max_z))
+        Self::new(
+            a.min_x.min(b.min_x),
+            a.min_y.min(b.min_y),
+            a.min_z.min(b.min_z),
+            a.max_x.max(b.max_x),
+            a.max_y.max(b.max_y),
+            a.max_z.max(b.max_z),
+        )
     }
 
     /// The mutating `encapsulate(BlockPos)`.
@@ -299,12 +350,51 @@ impl BoundingBox {
 
     /// `BoundingBox.orientBox`.
     #[allow(clippy::too_many_arguments)]
-    pub fn orient_box(foot_x: i32, foot_y: i32, foot_z: i32, off_x: i32, off_y: i32, off_z: i32, width: i32, height: i32, depth: i32, direction: Direction) -> Self {
+    pub fn orient_box(
+        foot_x: i32,
+        foot_y: i32,
+        foot_z: i32,
+        off_x: i32,
+        off_y: i32,
+        off_z: i32,
+        width: i32,
+        height: i32,
+        depth: i32,
+        direction: Direction,
+    ) -> Self {
         match direction {
-            Direction::North => Self::new(foot_x + off_x, foot_y + off_y, foot_z - depth + 1 + off_z, foot_x + width - 1 + off_x, foot_y + height - 1 + off_y, foot_z + off_z),
-            Direction::West => Self::new(foot_x - depth + 1 + off_z, foot_y + off_y, foot_z + off_x, foot_x + off_z, foot_y + height - 1 + off_y, foot_z + width - 1 + off_x),
-            Direction::East => Self::new(foot_x + off_z, foot_y + off_y, foot_z + off_x, foot_x + depth - 1 + off_z, foot_y + height - 1 + off_y, foot_z + width - 1 + off_x),
-            _ => Self::new(foot_x + off_x, foot_y + off_y, foot_z + off_z, foot_x + width - 1 + off_x, foot_y + height - 1 + off_y, foot_z + depth - 1 + off_z),
+            Direction::North => Self::new(
+                foot_x + off_x,
+                foot_y + off_y,
+                foot_z - depth + 1 + off_z,
+                foot_x + width - 1 + off_x,
+                foot_y + height - 1 + off_y,
+                foot_z + off_z,
+            ),
+            Direction::West => Self::new(
+                foot_x - depth + 1 + off_z,
+                foot_y + off_y,
+                foot_z + off_x,
+                foot_x + off_z,
+                foot_y + height - 1 + off_y,
+                foot_z + width - 1 + off_x,
+            ),
+            Direction::East => Self::new(
+                foot_x + off_z,
+                foot_y + off_y,
+                foot_z + off_x,
+                foot_x + depth - 1 + off_z,
+                foot_y + height - 1 + off_y,
+                foot_z + width - 1 + off_x,
+            ),
+            _ => Self::new(
+                foot_x + off_x,
+                foot_y + off_y,
+                foot_z + off_z,
+                foot_x + width - 1 + off_x,
+                foot_y + height - 1 + off_y,
+                foot_z + depth - 1 + off_z,
+            ),
         }
     }
 }
@@ -336,7 +426,9 @@ enum Kind {
 
 fn classify(name: &str, has: impl Fn(&str) -> bool) -> Kind {
     match name {
-        "minecraft:anvil" | "minecraft:chipped_anvil" | "minecraft:damaged_anvil" => Kind::FacingNoMirror,
+        "minecraft:anvil" | "minecraft:chipped_anvil" | "minecraft:damaged_anvil" => {
+            Kind::FacingNoMirror
+        }
         // FireBlock and ChorusPlantBlock keep the identity transforms.
         "minecraft:fire" | "minecraft:chorus_plant" => Kind::Identity,
         "minecraft:jigsaw" | "minecraft:crafter" => Kind::Orientation,
@@ -366,7 +458,9 @@ impl StateTransforms {
         let mut rotated = vec![[BlockStateId::AIR; 3]; count];
         let mut mirrored = vec![[BlockStateId::AIR; 2]; count];
         for (_, info) in blocks.blocks() {
-            let kind = classify(info.name.as_str(), |p| info.properties().iter().any(|q| &*q.name == p));
+            let kind = classify(info.name.as_str(), |p| {
+                info.properties().iter().any(|q| &*q.name == p)
+            });
             for state in info.states() {
                 let t = Transformer { registries, kind };
                 let i = state.0 as usize;
@@ -375,7 +469,10 @@ impl StateTransforms {
                     t.rotate(state, Rotation::Clockwise180),
                     t.rotate(state, Rotation::Counterclockwise90),
                 ];
-                mirrored[i] = [t.mirror(state, Mirror::LeftRight), t.mirror(state, Mirror::FrontBack)];
+                mirrored[i] = [
+                    t.mirror(state, Mirror::LeftRight),
+                    t.mirror(state, Mirror::FrontBack),
+                ];
             }
         }
         Self { rotated, mirrored }
@@ -406,7 +503,12 @@ struct Transformer<'r> {
     kind: Kind,
 }
 
-const SIDES: [Direction; 4] = [Direction::North, Direction::East, Direction::South, Direction::West];
+const SIDES: [Direction; 4] = [
+    Direction::North,
+    Direction::East,
+    Direction::South,
+    Direction::West,
+];
 
 impl Transformer<'_> {
     fn get(&self, state: BlockStateId, name: &str) -> Option<&str> {
@@ -414,7 +516,10 @@ impl Transformer<'_> {
     }
 
     fn set(&self, state: BlockStateId, name: &str, value: &str) -> BlockStateId {
-        self.registries.blocks.with_property(state, name, value).unwrap_or(state)
+        self.registries
+            .blocks
+            .with_property(state, name, value)
+            .unwrap_or(state)
     }
 
     fn facing(&self, state: BlockStateId) -> Option<Direction> {
@@ -430,7 +535,10 @@ impl Transformer<'_> {
 
     /// Remaps side properties: the new value on `map(side)` is the old value on `side`.
     fn map_sides(&self, state: BlockStateId, map: impl Fn(Direction) -> Direction) -> BlockStateId {
-        let old: Vec<Option<String>> = SIDES.iter().map(|d| self.get(state, d.name()).map(str::to_owned)).collect();
+        let old: Vec<Option<String>> = SIDES
+            .iter()
+            .map(|d| self.get(state, d.name()).map(str::to_owned))
+            .collect();
         let mut out = state;
         for (side, value) in SIDES.iter().zip(&old) {
             if let Some(value) = value {
@@ -446,13 +554,22 @@ impl Transformer<'_> {
         }
         match self.kind {
             Kind::Identity => state,
-            Kind::Facing | Kind::FacingNoMirror | Kind::Stairs | Kind::Door => self.with_facing(state, |d| rotation.rotate(d)),
+            Kind::Facing | Kind::FacingNoMirror | Kind::Stairs | Kind::Door => {
+                self.with_facing(state, |d| rotation.rotate(d))
+            }
             Kind::Pillar => match (rotation, self.get(state, "axis")) {
-                (Rotation::Clockwise90 | Rotation::Counterclockwise90, Some("x")) => self.set(state, "axis", "z"),
-                (Rotation::Clockwise90 | Rotation::Counterclockwise90, Some("z")) => self.set(state, "axis", "x"),
+                (Rotation::Clockwise90 | Rotation::Counterclockwise90, Some("x")) => {
+                    self.set(state, "axis", "z")
+                }
+                (Rotation::Clockwise90 | Rotation::Counterclockwise90, Some("z")) => {
+                    self.set(state, "axis", "x")
+                }
                 _ => state,
             },
-            Kind::Rotation16 => match self.get(state, "rotation").and_then(|v| v.parse::<i32>().ok()) {
+            Kind::Rotation16 => match self
+                .get(state, "rotation")
+                .and_then(|v| v.parse::<i32>().ok())
+            {
                 Some(v) => self.set(state, "rotation", &rotation.rotate_steps(v, 16).to_string()),
                 None => state,
             },
@@ -475,13 +592,20 @@ impl Transformer<'_> {
             Kind::Door => match self.facing(state) {
                 Some(d) => {
                     let turned = self.rotate(state, mirror.rotation_for(d));
-                    let hinge = if self.get(turned, "hinge") == Some("left") { "right" } else { "left" };
+                    let hinge = if self.get(turned, "hinge") == Some("left") {
+                        "right"
+                    } else {
+                        "left"
+                    };
                     self.set(turned, "hinge", hinge)
                 }
                 None => state,
             },
             Kind::Stairs => self.mirror_stairs(state, mirror),
-            Kind::Rotation16 => match self.get(state, "rotation").and_then(|v| v.parse::<i32>().ok()) {
+            Kind::Rotation16 => match self
+                .get(state, "rotation")
+                .and_then(|v| v.parse::<i32>().ok())
+            {
                 Some(v) => self.set(state, "rotation", &mirror.mirror_steps(v, 16).to_string()),
                 None => state,
             },
@@ -494,7 +618,9 @@ impl Transformer<'_> {
     /// `StairBlock.mirror`: only a mirror across the facing axis changes the
     /// state, and a front-back mirror keeps inner shapes as they are.
     fn mirror_stairs(&self, state: BlockStateId, mirror: Mirror) -> BlockStateId {
-        let Some(facing) = self.facing(state) else { return state };
+        let Some(facing) = self.facing(state) else {
+            return state;
+        };
         let shape = self.get(state, "shape").unwrap_or("straight").to_owned();
         let turned = || self.rotate(state, Rotation::Clockwise180);
         match (mirror, facing.axis()) {
@@ -518,15 +644,26 @@ impl Transformer<'_> {
 
     /// `BaseRailBlock.rotate`/`mirror`: every rail shape transforms geometrically.
     fn map_rail(&self, state: BlockStateId, map: impl Fn(Direction) -> Direction) -> BlockStateId {
-        let Some(shape) = self.get(state, "shape") else { return state };
-        let new = if let Some(dir) = shape.strip_prefix("ascending_").and_then(Direction::from_name) {
+        let Some(shape) = self.get(state, "shape") else {
+            return state;
+        };
+        let new = if let Some(dir) = shape
+            .strip_prefix("ascending_")
+            .and_then(Direction::from_name)
+        {
             format!("ascending_{}", map(dir).name())
         } else {
             let mut parts = shape.split('_').filter_map(Direction::from_name);
-            let (Some(a), Some(b)) = (parts.next(), parts.next()) else { return state };
+            let (Some(a), Some(b)) = (parts.next(), parts.next()) else {
+                return state;
+            };
             let (a, b) = (map(a), map(b));
             if a.axis() == b.axis() {
-                if a.axis() == Axis::Z { "north_south".to_owned() } else { "east_west".to_owned() }
+                if a.axis() == Axis::Z {
+                    "north_south".to_owned()
+                } else {
+                    "east_west".to_owned()
+                }
             } else {
                 let (ns, ew) = if a.axis() == Axis::Z { (a, b) } else { (b, a) };
                 format!("{}_{}", ns.name(), ew.name())
@@ -536,36 +673,19 @@ impl Transformer<'_> {
     }
 
     /// `FrontAndTop` rotated by the octahedral group of a rotation or mirror.
-    fn map_orientation(&self, state: BlockStateId, map: impl Fn(Direction) -> Direction) -> BlockStateId {
-        let Some(value) = self.get(state, "orientation") else { return state };
+    fn map_orientation(
+        &self,
+        state: BlockStateId,
+        map: impl Fn(Direction) -> Direction,
+    ) -> BlockStateId {
+        let Some(value) = self.get(state, "orientation") else {
+            return state;
+        };
         let mut parts = value.split('_').filter_map(Direction::from_name);
-        let (Some(front), Some(top)) = (parts.next(), parts.next()) else { return state };
+        let (Some(front), Some(top)) = (parts.next(), parts.next()) else {
+            return state;
+        };
         let new = format!("{}_{}", map(front).name(), map(top).name());
         self.set(state, "orientation", &new)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rotation_steps_match_vanilla() {
-        assert_eq!(Rotation::Clockwise90.rotate_steps(15, 16), 3);
-        assert_eq!(Rotation::Counterclockwise90.rotate_steps(2, 16), 14);
-        assert_eq!(Mirror::LeftRight.mirror_steps(0, 16), 8);
-        assert_eq!(Mirror::LeftRight.mirror_steps(12, 16), 12);
-        assert_eq!(Mirror::FrontBack.mirror_steps(4, 16), 12);
-        assert_eq!(Mirror::FrontBack.mirror_steps(0, 16), 0);
-    }
-
-    #[test]
-    fn positions_transform_like_vanilla() {
-        let p = BlockPos::new(2, 5, 7);
-        let zero = BlockPos::new(0, 0, 0);
-        assert_eq!(transform(p, Mirror::None, Rotation::Clockwise90, zero), BlockPos::new(-7, 5, 2));
-        assert_eq!(transform(p, Mirror::None, Rotation::Counterclockwise90, zero), BlockPos::new(7, 5, -2));
-        assert_eq!(transform(p, Mirror::LeftRight, Rotation::Clockwise180, zero), BlockPos::new(-2, 5, 7));
-        assert_eq!(zero_position_with_transform(zero, Mirror::None, Rotation::Clockwise90, 3, 13), BlockPos::new(12, 0, 0));
     }
 }

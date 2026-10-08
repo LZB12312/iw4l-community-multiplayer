@@ -11,8 +11,6 @@ fn end(feature: &MaximumFeature, edge: usize) -> V {
     std::array::from_fn(|i| direction[i].mul_add(length[i], origin[i]))
 }
 
-/// Complete TU3 82ACCA28 corner/edge fallback. Returns one or two point pairs;
-/// the caller writes the prism count. Both feature headers are replaced here.
 pub fn intersect_feature_corner_edge(
     output: &mut FeaturePrism,
     a: &mut MaximumFeature,

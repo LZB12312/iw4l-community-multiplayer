@@ -1,4 +1,3 @@
-//! TU3 82D84060: profile lookahead, candidate selection and prefix publication.
 use super::analyzer_math::madd;
 use super::candidate::Candidate;
 use super::classification::History;

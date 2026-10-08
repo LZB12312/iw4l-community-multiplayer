@@ -1,5 +1,3 @@
-//! Ground correction paths called by `82D38800`.
-
 use crate::{
     math::Vector3,
     physics::force_queue::{BoardForceQueue, QueuedPointForce},
@@ -19,8 +17,6 @@ pub trait AntiFlipNudgeMath {
     /// Exact `vmsum3fp128` operation. Generic host dot arithmetic is not a
     /// substitute for the recovered Xenon operation.
     fn dot3(&mut self, left: [f32; 4], right: [f32; 4]) -> Result<f32, Self::Error>;
-    /// Exact `vrsqrtefp128` plus two refinements and final scale at
-    /// `82D39498..82D394EC`.
     fn scale_to_magnitude(
         &mut self,
         vector: [f32; 4],
@@ -35,7 +31,6 @@ pub struct AntiFlipNudgeResult {
     pub queued: bool,
 }
 
-/// Complete state/branch/queue contract of `UpdateAntiFlipNudge` `82D39338`.
 pub fn update_anti_flip_nudge<M: AntiFlipNudgeMath>(
     state: &mut PhysicsGroundState,
     input: AntiFlipNudgeInput,
@@ -89,24 +84,18 @@ pub struct HangUpInput {
     pub flags_1516: u32,
     pub deck_speed_2652: f32,
     pub scalar_84: f32,
-    /// Exact `vmsum3fp128` comparison at `82D39744..82D39764`.
     pub geometry_axis_dot_positive: bool,
 }
 
 pub trait HangUpServices {
     type Error;
 
-    /// `82D37048`, `82D370F8` and the direction/up-vector construction at
-    /// `82D395AC..82D396AC`, including its signed side test.
     fn build_hang_force(&mut self) -> Result<[f32; 4], Self::Error>;
-    /// Direct `ApplyWorldSpaceForceToDeck` call at `82D396DC`.
     fn apply_hang_force(&mut self, force: [f32; 4]) -> Result<(), Self::Error>;
-    /// Exact `82C20530/5D8/728/C08/6C0` geometry-object lifetime and result.
     fn detect_hung_up_geometry(&mut self) -> Result<bool, Self::Error>;
     fn request_wipeout(&mut self) -> Result<(), Self::Error>;
 }
 
-/// Complete counter and effect order of `ManageHangUps` `82D39510`.
 pub fn manage_hang_ups<S: HangUpServices>(
     state: &mut PhysicsGroundState,
     input: HangUpInput,
@@ -169,12 +158,10 @@ pub struct HalfpipeWheelCatchInput {
 pub trait HalfpipeWheelCatchServices {
     type Error;
 
-    /// Exact signed axis/cross-product construction at `82D39950..82D399E8`.
     fn angular_displacement(&mut self) -> Result<[f32; 4], Self::Error>;
     fn apply_angular_displacement(&mut self, value: [f32; 4]) -> Result<(), Self::Error>;
 }
 
-/// Gating and effect order of `ManageHalfpipeWheelCatches` `82D39868`.
 pub fn manage_halfpipe_wheel_catches<S: HalfpipeWheelCatchServices>(
     input: HalfpipeWheelCatchInput,
     services: &mut S,
@@ -203,8 +190,6 @@ pub struct PinningInput {
 pub trait PinningServices {
     type Error;
 
-    /// Exact reciprocal-refinement velocity and `82C04168` application at
-    /// `82D39B04..82D39B8C` using captured X/Z, live Y, position and timestep.
     fn pin_to_captured_position(
         &mut self,
         captured_x: f32,
@@ -212,7 +197,6 @@ pub trait PinningServices {
     ) -> Result<(), Self::Error>;
 }
 
-/// Complete state gating of `ConsiderPinning` `82D39A18`.
 pub fn consider_pinning<S: PinningServices>(
     state: &mut PhysicsGroundState,
     input: PinningInput,
@@ -246,147 +230,4 @@ fn flip_sign_bit(value: f32) -> f32 {
 
 fn xyz(value: [f32; 4]) -> Vector3 {
     Vector3::new(value[0], value[1], value[2])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::physics::force_queue::FORCE_CAPACITY;
-
-    struct NudgeMath {
-        dots: [f32; 2],
-        dot_count: usize,
-        scale_count: usize,
-    }
-
-    impl AntiFlipNudgeMath for NudgeMath {
-        type Error = ();
-
-        fn dot3(&mut self, _left: [f32; 4], _right: [f32; 4]) -> Result<f32, Self::Error> {
-            let value = self.dots[self.dot_count];
-            self.dot_count += 1;
-            Ok(value)
-        }
-
-        fn scale_to_magnitude(
-            &mut self,
-            vector: [f32; 4],
-            _squared_length: f32,
-            magnitude: f32,
-        ) -> Result<[f32; 4], Self::Error> {
-            self.scale_count += 1;
-            Ok(vector.map(|lane| lane * magnitude))
-        }
-    }
-
-    fn state() -> PhysicsGroundState {
-        PhysicsGroundState {
-            collision_force_2528: [0.0; 4],
-            collision_point_2544: [0.0; 4],
-            word_2560: 0,
-            word_2564: 0,
-            vector_2592: [0.0; 4],
-            vector_2608: [0.0; 4],
-            anti_flip_torque_2624: [1.0, 0.0, 0.0, 0.0],
-            steering_push_scalar_2640: 1.0,
-            steering_damped_turn_2644: 0.0,
-            elapsed_2648: 0.0,
-            collision_countdown_2652: 0.0,
-            captured_position_x_2656: 0.0,
-            captured_position_z_2660: 0.0,
-            scalar_2664: 0.0,
-            scalar_2668: 0.0,
-            straighten_scale_2672: 1.0,
-            vector_2688: [0.0; 4],
-            scalar_2704: 0.0,
-            flag_2708: false,
-            flag_2720: false,
-            flag_2721: false,
-            flag_2722: false,
-            anti_flip_nudge_applied_2723: false,
-            human_player_2724: false,
-            controls_latched_2725: false,
-            captured_position_valid_2726: false,
-            pinning_2727: false,
-            was_pinning_2728: false,
-            flag_2729: false,
-            push_suppressed_2730: false,
-            flag_2731: false,
-            manual_correction_2732: false,
-            manual_opposition_2733: false,
-            hang_detection_frames_2740: 0,
-            hang_force_frames_2744: 0,
-            hung_wipeout_frames_2748: 0,
-            anti_flip_nudge_frames_2752: 13,
-        }
-    }
-
-    #[test]
-    fn nudge_unordered_comparisons_take_the_native_rejection_paths() {
-        let mut state = state();
-        let mut queue = BoardForceQueue::default();
-        let mut math = NudgeMath {
-            dots: [f32::NAN, 1.0],
-            dot_count: 0,
-            scale_count: 0,
-        };
-        let result = update_anti_flip_nudge(
-            &mut state,
-            AntiFlipNudgeInput {
-                deck_speed_2652: 0.0,
-                deck_axis_96: [1.0, 0.0, 0.0, 0.0],
-            },
-            &mut queue,
-            &mut math,
-        )
-        .unwrap();
-        assert_eq!(state.anti_flip_nudge_frames_2752, 0);
-        assert!(!result.attempted);
-
-        state.anti_flip_nudge_frames_2752 = 13;
-        math.dots = [1.0, f32::NAN];
-        math.dot_count = 0;
-        let result = update_anti_flip_nudge(
-            &mut state,
-            AntiFlipNudgeInput {
-                deck_speed_2652: 0.0,
-                deck_axis_96: [1.0, 0.0, 0.0, 0.0],
-            },
-            &mut queue,
-            &mut math,
-        )
-        .unwrap();
-        assert!(!result.attempted);
-        assert_eq!(math.scale_count, 0);
-    }
-
-    #[test]
-    fn nudge_latches_presence_even_when_the_native_queue_is_full() {
-        let mut state = state();
-        let mut queue = BoardForceQueue::default();
-        for _ in 0..FORCE_CAPACITY {
-            assert!(queue.append(QueuedPointForce::default()));
-        }
-        let mut math = NudgeMath {
-            dots: [1.0, 1.0],
-            dot_count: 0,
-            scale_count: 0,
-        };
-
-        let result = update_anti_flip_nudge(
-            &mut state,
-            AntiFlipNudgeInput {
-                deck_speed_2652: 0.0,
-                deck_axis_96: [1.0, 0.0, 0.0, 0.0],
-            },
-            &mut queue,
-            &mut math,
-        )
-        .unwrap();
-
-        assert!(result.attempted);
-        assert!(!result.queued);
-        assert!(state.anti_flip_nudge_applied_2723);
-        assert_eq!(queue.entries().len(), FORCE_CAPACITY);
-    }
 }

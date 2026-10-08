@@ -1,8 +1,6 @@
 use super::ContactRecord;
 use super::arithmetic::{V, cross, dot, scale, sub, vector};
 
-/// Complete geometric predicate 8277A208. Body IDs are checked by its caller.
-/// The native comparison uses the *smaller* absolute plane displacement.
 pub fn coplanar_contacts(a: &ContactRecord, b: &ContactRecord) -> bool {
     let normal = vector(a, 8);
     if f32::from_bits(0x3f7f_be77) > dot(normal, vector(b, 8)) {
@@ -14,9 +12,6 @@ pub fn coplanar_contacts(a: &ContactRecord, b: &ContactRecord) -> bool {
     selected < f32::from_bits(0x3c23_d70a)
 }
 
-/// Full 827798F8 point selection. Inputs are paired world-space positions;
-/// output slots beyond the returned count retain the native write behavior.
-/// The caller provides at least one pair, as the native function requires.
 pub fn select_contact_points(a: &[V], b: &[V], normal: V, output: &mut [u32; 4]) -> usize {
     assert!(!a.is_empty() && a.len() == b.len());
     let mut first = 0;
@@ -96,8 +91,6 @@ pub fn select_contact_points(a: &[V], b: &[V], normal: V, output: &mut [u32; 4])
     3 + usize::from(fourth != first && fourth != far && fourth != third && fourth != 9999)
 }
 
-/// Complete 82779EB0 grouping/reduction. Retained contacts are restored to
-/// original order; discarded tail records are not cleared. No drop count change.
 pub(super) fn reduce(records: &mut [ContactRecord; 50], count: &mut u32) {
     let original = *count as usize;
     assert!(original <= 50);
@@ -134,8 +127,6 @@ pub(super) fn reduce(records: &mut [ContactRecord; 50], count: &mut u32) {
         *count = retained.len() as u32;
         for (destination, source) in retained.into_iter().enumerate() {
             if destination != source {
-                // Native 8277A300 loads/stores float fields individually. Its
-                // f32→f64→f32 copy quiets sNaNs; IDs/tag remain integer stores.
                 records[destination] = records[source].map(|bits| {
                     if bits & 0x7f80_0000 == 0x7f80_0000 && bits & 0x007f_ffff != 0 {
                         bits | 0x0040_0000

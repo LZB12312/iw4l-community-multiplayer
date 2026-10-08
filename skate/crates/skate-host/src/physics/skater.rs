@@ -27,6 +27,8 @@ use std::path::Path;
 
 #[derive(Resource)]
 pub(crate) struct SkaterRuntime {
+    pub environment_impact: Option<(f32, [f32; 3])>,
+    pub hall_of_meat_enabled: bool,
     pub scoring: crate::scoring_runtime::Runtime,
     pub climbing: super::climbing::Runtime,
     /// Completed physical pose in native animation space, read by rendering.
@@ -113,7 +115,10 @@ impl SkaterRuntime {
     }
 
     pub(crate) fn load_for_world(
-        asset_root: &Path, graphs: &StockGraphs, physics: &GamePhysics, mode: &str,
+        asset_root: &Path,
+        graphs: &StockGraphs,
+        physics: &GamePhysics,
+        mode: &str,
         source: Option<std::sync::Arc<crate::skater_animation::AnimationSource>>,
     ) -> Result<Self, String> {
         let data = Collections::load(asset_root)?;
@@ -188,8 +193,6 @@ impl SkaterRuntime {
             spawn,
             physics.settings.step.simulation,
         )?;
-        // Reset82BD9990 finishes by publishing both COM targets to the
-        // actual extra bodies. These bodies subsequently share the solver.
         let initial_targets = skeleton_drives.targets.update_extra_targets(
             &mut skeleton,
             &animated_skeleton.board_frames.com_frame,
@@ -198,8 +201,6 @@ impl SkaterRuntime {
         let foot_ik = FootIk::load(&data, &animation.evaluator.frames, &animated_skeleton)?;
         let skeleton_output =
             SkeletonOutput::load(&data, &animation.evaluator.frames, &animated_skeleton)?;
-        // Actor82591448 passes network || ghost for self-pair suppression.
-        // This local game has neither networking nor a ghost actor.
         let skeleton_collision = skeleton_body::load_collision(
             asset_root,
             &data,
@@ -222,13 +223,17 @@ impl SkaterRuntime {
             initial_targets.following_com,
         ];
         Ok(Self {
+            environment_impact: None,
+            hall_of_meat_enabled: false,
             respawn,
             scoring: crate::scoring_runtime::Runtime::load(&data)?,
-            climbing: super::climbing::Runtime::load(asset_root, &animation.evaluator.frames.bone_names)?,
+            climbing: super::climbing::Runtime::load(
+                asset_root,
+                &animation.evaluator.frames.bone_names,
+            )?,
             render_pose: initial_hierarchy,
             pose_generation: 0,
             centre_of_mass_filter: Default::default(),
-            // PhysOut reset82DE53F0 clears these observations before first output.
             centre_of_mass_output: skate_core::physics::centre_of_mass_filter::CentreOfMassOutput {
                 velocity: [0.0; 4],
                 acceleration: [0.0; 4],
@@ -247,7 +252,9 @@ impl SkaterRuntime {
             landing_on_deck: super::landing_on_deck::Runtime::load(&data)?,
             landing_deck: super::offboard::landing_deck::Owner::load(&data)?,
             ground_animation: Default::default(),
-            ground_animation_settings: super::ground_animation::GroundAnimationSettings::load(&data)?,
+            ground_animation_settings: super::ground_animation::GroundAnimationSettings::load(
+                &data,
+            )?,
             revert_state: super::revert_state::RevertState::load(&data)?,
             slide_state: super::slide_state::SlideState::load(&data)?,
             trajectory,

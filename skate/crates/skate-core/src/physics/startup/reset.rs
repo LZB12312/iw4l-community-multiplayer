@@ -1,5 +1,3 @@
-//! Complete 82C0D680 and its 82C00D68 dependency, guest big-endian record bytes.
-
 fn word(bytes: &[u8], offset: usize) -> u32 {
     u32::from_be_bytes(bytes[offset..offset + 4].try_into().unwrap())
 }
@@ -11,8 +9,6 @@ fn up(bytes: &mut [u8], offset: usize) {
     put(bytes, offset + 4, 0x3f80_0000);
 }
 
-/// Complete CollisionInfo initialization/reset at 82C00D68. This is distinct
-/// from the selective per-frame reset at 82C00CA0. Unwritten bytes survive.
 pub fn reset_collision_info(info: &mut [u8; 812]) {
     up(info, 0);
     up(info, 16);
@@ -41,14 +37,6 @@ pub fn reset_collision_info(info: &mut [u8; 812]) {
     put(info, 808, flags);
 }
 
-/// Complete SkateboardBody reset at 82C0D680. `bodies` are assembly parts in
-/// their native order; each gravity vector is read from that body's Simulation
-/// at +144. The hook assembly is separate and is not traversed here.
-///
-/// XYZ rates/torque clear; force XYZ receives the simulation vector. Fourth
-/// lanes, pose, body flags/cooldown and all other body words survive. Ancillary
-/// board bytes are preserved except for stores present in the native function.
-/// Returns the original byte at board+8384, matching native r3.
 pub fn reset_board_body(
     board: &mut [u8; 8400],
     bodies: &mut [[u32; 44]],

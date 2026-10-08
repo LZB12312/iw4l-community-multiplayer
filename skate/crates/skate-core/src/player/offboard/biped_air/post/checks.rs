@@ -1,5 +1,3 @@
-//! S3 82D8FEE8/82D90000; S2 82DD8C90/82DD8EF0 cross-check.
-//! These are Air's called checks, not replacements for general wipeout.
 use super::{Frame, Mode, Requests, Vector, dot};
 use crate::player::wipeout::regional_force;
 #[derive(Clone, Copy, Debug)]
@@ -31,7 +29,6 @@ fn collision(requests: &mut Requests, thresholds: Thresholds, mode: Mode, frame:
     }
 }
 pub fn skeleton_air(requests: &mut Requests, settings: &Settings, mode: Mode, frame: &Frame) {
-    //82D8FEE8 has neither a mode write nor a speed gate.
     collision(requests, settings.skeleton_air, mode, frame);
 }
 pub fn offboard_air(

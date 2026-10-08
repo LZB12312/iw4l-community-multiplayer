@@ -1,4 +1,3 @@
-//! PhysicsSlideGround101: Enter82D3A700, Exit82D3A828 and board82D3A900.
 mod forces;
 pub use forces::{SlideInput, SlideSettings, SlideSurface, angular_correction, sliding_force};
 

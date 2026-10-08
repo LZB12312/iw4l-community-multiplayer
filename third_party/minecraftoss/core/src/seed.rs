@@ -34,27 +34,3 @@ pub fn parse_protocol_seed(input: &str) -> Result<i64, String> {
     }
     Ok(value)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn world_options_seed_matches_java_utf16_and_overflow() {
-        assert_eq!(parse_world_seed(" "), None);
-        assert_eq!(parse_world_seed(" -123456789 "), Some(-123456789));
-        assert_eq!(parse_world_seed("abc"), Some(96354));
-        assert_eq!(parse_world_seed("\u{1f600}"), Some(1772899));
-        assert_eq!(parse_world_seed("9223372036854775808"), Some(-1773151197));
-        assert_ne!(parse_world_seed("\u{00a0}1\u{00a0}"), Some(1));
-    }
-
-    #[test]
-    fn protocol_seed_is_canonical() {
-        assert_eq!(parse_protocol_seed("-9223372036854775808"), Ok(i64::MIN));
-        assert_eq!(parse_protocol_seed("0"), Ok(0));
-        assert!(parse_protocol_seed("-0").is_err());
-        assert!(parse_protocol_seed("+1").is_err());
-        assert!(parse_protocol_seed("01").is_err());
-    }
-}

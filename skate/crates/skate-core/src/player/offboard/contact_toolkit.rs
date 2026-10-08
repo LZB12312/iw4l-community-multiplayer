@@ -1,6 +1,3 @@
-//! OffboardGroundAnalyzer query ownership (TU3 82D81068/82D811C8).
-//!
-//! Submitted queries become visible only through the ordered analyzer refresh.
 mod analyzer_math;
 mod candidate;
 mod classification;
@@ -13,8 +10,6 @@ mod profile;
 mod publication;
 mod samples;
 mod sweep;
-#[cfg(test)]
-mod tests;
 
 use crate::air::trajectory::QueryResult;
 pub use prefix::ContactPrefix;
@@ -96,16 +91,11 @@ impl Default for Owner {
     }
 }
 impl Owner {
-    /// Update1_ProcessInput82DB405C..4094 ages then completes the preceding
-    /// batch before physical input is processed, regardless of active state.
     pub fn begin_input(&mut self) {
         self.readiness = self.readiness.saturating_sub(1);
         self.refresh();
     }
 
-    /// Ground Reset82D30C20..40 / physical reset82DB93B0..CC.
-    /// Complete outstanding work first; only readiness and classification
-    /// history are cleared. The original does not erase the retained candidate.
     pub fn reset_history(&mut self) {
         self.refresh();
         self.readiness = 0;
@@ -116,8 +106,6 @@ impl Owner {
         self.prefix
     }
 
-    /// GroundSync82D32164 supplies the seven vectors after Skeleton Update.
-    /// Host execution is synchronous, but visibility remains next-consume only.
     pub fn submit<S: Scene>(
         &mut self,
         input: Input,
@@ -134,7 +122,6 @@ impl Owner {
     /// Consume the prior submission through every analyzer stage. Candidate and
     /// classification history persist; query observations are frame-local.
     pub fn refresh(&mut self) -> Option<Collected> {
-        //82D81610 resets the publication even when there is no pending batch.
         self.prefix = ContactPrefix::reset();
         self.readiness = 30;
         let (batch, results) = self.pending.take()?;

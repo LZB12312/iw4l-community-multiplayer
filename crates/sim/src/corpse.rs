@@ -10,12 +10,16 @@ use crate::bullet_collision::{MASK_PLAYER_SOLID, PLAYER_MAXS, PLAYER_MINS};
 
 pub const G_CLONE_PLAYER_MAX_VELOCITY: f32 = 80.0;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PlayerCorpseSlot {
     pub occupied: bool,
 
     pub entnum: i32,
     pub victim: ClientId,
+    pub life: u32,
+    pub spawn_time_ms: i32,
+    pub appearance: crate::CharacterAppearance,
+    pub skate_damage: crate::presentation::SkateDamage,
     pub origin: [f32; 3],
     pub viewangles: [f32; 3],
 
@@ -42,6 +46,10 @@ impl Default for PlayerCorpseSlot {
             occupied: false,
             entnum: -1,
             victim: ClientId(0),
+            life: 0,
+            spawn_time_ms: 0,
+            appearance: Default::default(),
+            skate_damage: Default::default(),
             origin: [0.0; 3],
             viewangles: [0.0; 3],
             anim: AnimPair::default(),
@@ -71,9 +79,10 @@ impl PlayerCorpseSlot {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct PlayerCorpsePool {
     pub slots: [PlayerCorpseSlot; MAX_CLIENT_CORPSES as usize],
+    pub skates: [Option<crate::SkatePose>; MAX_CLIENT_CORPSES as usize],
 
     pub spawn_ring: u8,
 }
@@ -81,13 +90,32 @@ pub struct PlayerCorpsePool {
 impl Default for PlayerCorpsePool {
     fn default() -> Self {
         Self {
-            slots: [PlayerCorpseSlot::default(); MAX_CLIENT_CORPSES as usize],
+            slots: std::array::from_fn(|_| PlayerCorpseSlot::default()),
+            skates: std::array::from_fn(|_| None),
             spawn_ring: 0,
         }
     }
 }
 
 impl PlayerCorpsePool {
+    pub fn clear_skater(&mut self, victim: ClientId) {
+        for (i, slot) in self.slots.iter_mut().enumerate() {
+            if slot.occupied
+                && slot.victim == victim
+                && (slot.appearance.skater || self.skates[i].is_some())
+            {
+                diag::info!(
+                    Sim,
+                    "Skate corpse cleared on respawn: victim={} entity={}",
+                    victim.0,
+                    slot.entnum
+                );
+                *slot = PlayerCorpseSlot::default();
+                self.skates[i] = None;
+            }
+        }
+    }
+
     pub fn alloc_clone_entity(&mut self) -> i32 {
         let entnum = PLAYER_CORPSE_ENTITY_BASE + i32::from(self.spawn_ring);
         self.spawn_ring = (self.spawn_ring + 1) % MAX_CLIENT_CORPSES as u8;
@@ -96,9 +124,10 @@ impl PlayerCorpsePool {
     }
 
     pub fn clear_entnum(&mut self, entnum: i32) {
-        for slot in &mut self.slots {
+        for (i, slot) in self.slots.iter_mut().enumerate() {
             if slot.entnum == entnum {
                 *slot = PlayerCorpseSlot::default();
+                self.skates[i] = None;
             }
         }
     }
@@ -139,6 +168,7 @@ impl PlayerCorpsePool {
         body.occupied = true;
         body.entnum = entnum;
         self.slots[i] = body;
+        self.skates[i] = None;
         i as u8
     }
 }
@@ -155,6 +185,11 @@ pub(crate) fn occupy_player_clone(
     ps: &PlayerState,
     time_ms: i32,
 ) -> u8 {
+    let meta = world.client_meta(victim);
+    let appearance = meta.map_or(Default::default(), |m| m.appearance.clone());
+    let skate_damage = meta.map_or(Default::default(), |m| m.skate_damage);
+    let life = meta.map_or(0, |m| m.life_sequence.0);
+    let skate = meta.and_then(|m| m.skate.clone());
     let pool = world.corpses_mut();
     let entnum = pool.alloc_clone_entity();
     let slot = pool.get_free(ps.origin);
@@ -163,6 +198,10 @@ pub(crate) fn occupy_player_clone(
         entnum,
         PlayerCorpseSlot {
             victim,
+            appearance,
+            skate_damage,
+            life,
+            spawn_time_ms: time_ms,
             origin: ps.origin,
 
             viewangles: [0.0, client_think_entity_yaw(ps), 0.0],
@@ -179,6 +218,7 @@ pub(crate) fn occupy_player_clone(
             ..PlayerCorpseSlot::default()
         },
     );
+    pool.skates[slot as usize] = skate;
     world.corpse_dobj_tree_install(entnum, ps.anim().legs_anim);
     slot
 }
@@ -241,8 +281,20 @@ fn is_ragdoll_tr_type(tr_type: i32) -> bool {
 pub(crate) fn phase_run_corpse_move(world: &mut FrameWorld, time_ms: i32) {
     let n = world.corpses().slots.len();
     for i in 0..n {
-        let slot = world.corpses().slots[i];
+        let slot = world.corpses().slots[i].clone();
         if !slot.occupied {
+            continue;
+        }
+        if (slot.appearance.skater || world.corpses().skates[i].is_some())
+            && time_ms.saturating_sub(slot.spawn_time_ms) > 5000
+        {
+            diag::info!(
+                Sim,
+                "Skate corpse expired: victim={} entity={}",
+                slot.victim.0,
+                slot.entnum
+            );
+            world.corpses_mut().clear_entnum(slot.entnum);
             continue;
         }
         let ragdoll = is_ragdoll_tr_type(slot.tr_type);
@@ -411,7 +463,7 @@ pub(crate) fn phase_sync_corpse_info(world: &mut FrameWorld) {
 }
 
 pub(crate) fn sync_corpse_info_player_anims(world: &mut FrameWorld, slot: usize) {
-    let body = world.corpses().slots[slot];
+    let body = world.corpses().slots[slot].clone();
     let src = entity_iw4::CorpseInfoPlayerAnimCopy {
         legs_anim: body.anim.legs_anim,
         torso_anim: body.anim.torso_anim,

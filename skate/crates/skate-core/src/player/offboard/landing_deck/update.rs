@@ -1,11 +1,8 @@
-//! Ordered Air assistance82D78D30, manager Update82D794A0 and IK82D792D0.
 use super::*;
 use crate::player::wipeout_state::math::{add, dot, length, madd, normalize_or, scale, sub};
 const UP: Vector = [0., 1., 0., 0.];
 
 impl Manager {
-    ///82D78D30. No pending guard is added: the host's real batch must preserve
-    ///the original Begin/submit ordering when replacing an outstanding request.
     pub fn assist(&mut self, input: &AssistInput, settings: &Settings) -> Option<QueryRequest> {
         self.completed_queries_252 = 0;
         self.tested_259 = false;
@@ -29,8 +26,6 @@ impl Manager {
         None
     }
 
-    ///82D794A0. This returns ALL numeric fields consumed by503; no target-frame
-    ///input is consumed by the original (r4 is its output structure).
     pub fn update(&mut self, p: &Input, settings: &Settings) -> UpdateOutput {
         self.publish_moving_contact_261 = false;
         self.elapsed_160 += STEP;
@@ -76,8 +71,6 @@ impl Manager {
         }
     }
 
-    ///82D792D0. Disassembly792DC..79308 restores the decompiler's lost elapsed
-    ///sum. Root transforms the LOCAL mapped-position-minus-animation-COM vector.
     pub fn calculate_accurate_ik_offset(&mut self, input: &IkInput) -> Vector {
         let p = &input.processed;
         let trajectory_time = self.elapsed_160 + input.time_to_land;

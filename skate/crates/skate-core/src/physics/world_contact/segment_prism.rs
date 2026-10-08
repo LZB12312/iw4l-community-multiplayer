@@ -20,9 +20,6 @@ fn endpoint(feature: &mut MaximumFeature, start: bool) -> V {
     }
 }
 
-/// Complete TU3 82ACBAD0 segment/segment prism, including the parallel overlap
-/// and disjoint endpoint branches. Normal/flags and untouched point slots survive.
-/// `a_is_first` represents the helper's two independently supplied output pointers.
 pub fn intersect_feature_segments(
     output: &mut FeaturePrism,
     a: &mut MaximumFeature,

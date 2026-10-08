@@ -3,8 +3,6 @@ use crate::physics::reciprocal_sqrt::estimate;
 
 type V = [f32; 4];
 
-/// Full triangle maximum-feature callback82ADDD68, including near-tangent
-/// edge/vertex branches. Header word0 is preserved outside the face branch.
 pub fn triangle_maximum_feature(
     gp: &[u32; 48],
     mode: u32,
@@ -79,8 +77,6 @@ pub fn triangle_maximum_feature(
     build_feature_edge_planes(out, mode, direction);
 }
 
-/// Complete82AC6F88. Only edge plane vectors are changed. Mode0 negates the
-/// incoming direction before crossing, preserving the native arithmetic order.
 pub fn build_feature_edge_planes(feature: &mut MaximumFeature, mode: u32, direction: [u32; 4]) {
     let count = feature[140] as i32;
     if count <= 0 {

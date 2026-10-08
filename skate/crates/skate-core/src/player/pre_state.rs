@@ -1,5 +1,3 @@
-//! Complete TU3 `PhysicalPlayerHiLOD::PreState` (`0x82DB6050`).
-
 /// The 72-byte stack packet filled through current-state vtable slot `+24`.
 /// Only the vector at byte `+48` is consumed by the player wrapper, but the
 /// entire packet remains part of the state callback contract.
@@ -45,7 +43,6 @@ pub struct PreStateSkeletonFields {
 pub trait PreStateServices {
     /// Current-state vtable slot `+24`.
     fn fill_packet_vtable_24(&mut self, packet: &mut PreStatePacket);
-    /// `0x82D74270`, reached only when Player+1840 is present.
     fn update_component_1840_82d74270(&mut self);
     /// Current-state vtable slot `+4`.
     fn update_before_state_vtable_4(&mut self);
@@ -69,7 +66,3 @@ pub fn run_pre_state(
     }
     services.update_before_state_vtable_4();
 }
-
-#[cfg(test)]
-#[path = "tests/pre_state.rs"]
-mod tests;

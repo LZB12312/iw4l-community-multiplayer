@@ -1,4 +1,3 @@
-//! Common82D40EA0 and six family FillOut overrides. Post/selector are separate.
 use super::{Family, ManagerObservation};
 use skate_core::player::input_phase::GrindOutputFields;
 type V = [f32; 4];

@@ -1776,6 +1776,8 @@ struct PreparedExactDraw {
 
     state: super::state::GfxPassState,
 
+    blend_constant_bits: [u32; 4],
+
     bsp_kind: Option<BspCameraLane>,
     bsp_run_first: u16,
     bsp_first_surf: u16,
@@ -2842,6 +2844,7 @@ impl CameraWorldPretess {
 
 fn exact_draw_run_continues(prev: &PreparedExactDraw, next: &PreparedExactDraw) -> bool {
     prev.after_scene_resolve == next.after_scene_resolve
+        && prev.blend_constant_bits == next.blend_constant_bits
         && prev.tess == next.tess
         && prev.pipeline == next.pipeline
         && prev.port == next.port
@@ -3014,7 +3017,9 @@ fn shadow_gpu_state_continues(
 
 fn shadow_draw_run_continues(prev: &PreparedExactDraw, next: &PreparedExactDraw) -> bool {
     shadow_gpu_state_continues(
-        prev.pipeline == next.pipeline && prev.port == next.port,
+        prev.pipeline == next.pipeline
+            && prev.port == next.port
+            && prev.blend_constant_bits == next.blend_constant_bits,
         prev.tess == next.tess,
         prev.ring_epoch == next.ring_epoch,
         same_texture_slots(prev, next),
@@ -3190,6 +3195,7 @@ fn submit_exact_draw_run<'a>(
     let mut bound_smc_off = None;
     let mut bound_depth = None;
     let mut bound_arena = None;
+    let mut bound_blend_constant = None;
     let mut textures_bound = false;
 
     let indirect_args = indirect.buffer();
@@ -3331,6 +3337,13 @@ fn submit_exact_draw_run<'a>(
             bound_depth = Some((draw.depth_min, draw.depth_max));
         }
 
+        if bound_blend_constant != Some(draw.blend_constant_bits) {
+            issue_indirect_batch!();
+            let [red, green, blue, alpha] = draw.blend_constant_bits.map(f32::from_bits);
+            pass.set_blend_constant(LinearRgba::new(red, green, blue, alpha));
+            bound_blend_constant = Some(draw.blend_constant_bits);
+            record_n.state = record_n.state.saturating_add(1);
+        }
         if bound_arena != Some(draw.arena_lane) {
             issue_indirect_batch!();
             pass.set_bind_group(0, constants_bind, &[]);
@@ -4218,6 +4231,7 @@ fn record_shadowmap_draws<'a>(
     let mut bound_tess = None;
     let mut bound_epoch = None;
     let mut bound_depth = None;
+    let mut bound_blend_constant = None;
     let mut constants_bound = false;
     let mut indexed = 0u32;
     // A map standing in for a Minecraft world casts no shadows.
@@ -4284,6 +4298,12 @@ fn record_shadowmap_draws<'a>(
             bound_epoch = Some(draw.ring_epoch);
         }
 
+        if bound_blend_constant != Some(draw.blend_constant_bits) {
+            let [red, green, blue, alpha] = draw.blend_constant_bits.map(f32::from_bits);
+            pass.set_blend_constant(LinearRgba::new(red, green, blue, alpha));
+            bound_blend_constant = Some(draw.blend_constant_bits);
+            record_n.state = record_n.state.saturating_add(1);
+        }
         if bound_depth != Some((draw.depth_min, draw.depth_max)) {
             pass.set_viewport(
                 vp.x as f32,
@@ -5548,6 +5568,21 @@ impl ExactPrepare<'_> {
         binds_spot_shadow: bool,
         out: &mut Vec<PreparedExactDraw>,
     ) -> Result<usize, GpuSubmitRefusal> {
+        let blend_constant_bits = self
+            .extracted
+            .world
+            .catalog
+            .as_deref()
+            .and_then(|catalog| {
+                render_material::resolve_sorted_material(
+                    catalog,
+                    render_material::MaterialDrawKey::new(item.key, item.material_rank)
+                        .with_material_id(item.material_id),
+                )
+                .ok()
+            })
+            .and_then(|material| material.blend_constant_bits)
+            .unwrap_or([1.0_f32.to_bits(); 4]);
         let after_scene_resolve = matches!(self.textures, PrepareTextureTables::SceneShared(_))
             && (item.camera_region == Some(asset_iw4::CAMERA_REGION_EMISSIVE)
                 || matches!(item.kind, RetainedDrawKind::CodeMesh { .. })
@@ -5939,6 +5974,7 @@ impl ExactPrepare<'_> {
                     depth_min,
                     depth_max,
                     state: GfxPassState::from_bits(executable.state),
+                    blend_constant_bits,
                     ring_epoch: 0,
                     smc_stream_off,
                     bsp_kind,

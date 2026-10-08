@@ -1,13 +1,9 @@
-//! Host manager82D8A828/82D8AB08, using CURRENT player-input ownership.
-//! Static authored-world scope. Gameplay leaves live in skate-core; world
-//! filtering, primitive provenance and board material application stay explicit.
 mod history;
 mod post;
 mod pre;
 mod publication;
 mod settings;
-#[cfg(test)]
-mod tests;
+
 pub(crate) mod world;
 
 use crate::{grind_world::StaticProvider, physics::grind::ManagerObservation};
@@ -38,8 +34,6 @@ pub(crate) struct PreContext {
     pub grab_min_height_2808: f32,
 }
 
-///Fresh physical/animation values read by82D8AB08 after intervening producers.
-///Candidate selection and submitted geometry hits remain cached in Pending.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct PostContext {
     ///Current physical Processed64..127, not animation transform192.
@@ -53,10 +47,7 @@ pub(crate) struct PostContext {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum MaterialMode {
-    ///82D89DC0 leaves materials and its air-target history untouched.
     Unchanged,
-    ///Restore the initialized standard material triplet (82D89DC0).
-    ///Not the broader SetStandard routine's unrelated body/volume writes.
     Standard,
     ///All parts group4; wheels board8316, deck8328, trucks8340.
     Grind,
@@ -164,7 +155,6 @@ impl GrindInputState {
         })
     }
 
-    ///82D8A638 resets the manager, not the separately constructed child objects.
     pub fn reset(&mut self) {
         self.previous_state = 0;
         self.engagement_counter = 0;

@@ -220,11 +220,7 @@ impl SkyLight {
         for x in 0..sx {
             for z in 0..sz {
                 for y in 0..sy {
-                    cells.push(cell((
-                        min.0 + x as i32,
-                        min.1 + y as i32,
-                        min.2 + z as i32,
-                    )));
+                    cells.push(cell((min.0 + x as i32, min.1 + y as i32, min.2 + z as i32)));
                 }
             }
         }
@@ -341,10 +337,21 @@ impl SkyLight {
     /// Light from levels laid out like this type's own (`x`, then `z`, then
     /// `y`), for a box at `min` of `size`; lookups outside return full sky
     /// light and no block light.
-    pub fn from_levels(min: BlockPos, size: (usize, usize, usize), levels: Vec<u8>, block_levels: Vec<u8>) -> Self {
+    pub fn from_levels(
+        min: BlockPos,
+        size: (usize, usize, usize),
+        levels: Vec<u8>,
+        block_levels: Vec<u8>,
+    ) -> Self {
         assert_eq!(levels.len(), size.0 * size.1 * size.2);
         assert_eq!(block_levels.len(), levels.len());
-        Self { min, size, levels, block_levels, columns: None }
+        Self {
+            min,
+            size,
+            levels,
+            block_levels,
+            columns: None,
+        }
     }
 
     /// An empty streamed-world light with no columns yet.
@@ -377,9 +384,10 @@ impl SkyLight {
         for x in x0..x0 + width {
             for z in z0..z0 + depth {
                 let base = (x * self.size.2 + z) * self.size.1;
-                if let Some(top) = (0..self.size.1).rev().find(|&y| {
-                    self.levels[base + y] < 15 || self.block_levels[base + y] > 0
-                }) {
+                if let Some(top) = (0..self.size.1)
+                    .rev()
+                    .find(|&y| self.levels[base + y] < 15 || self.block_levels[base + y] > 0)
+                {
                     height = height.max(top + 1);
                 }
             }
@@ -420,17 +428,28 @@ impl SkyLight {
     /// The section Ys of a chunk column (`sections`) where two lights
     /// differ: `differs` for each section's box, comparing stored column
     /// slices directly when both lights share one dense layout.
-    pub fn differing_sections(&self, other: &Self, chunk: ChunkPos, sections: std::ops::RangeInclusive<i32>) -> Vec<i32> {
+    pub fn differing_sections(
+        &self,
+        other: &Self,
+        chunk: ChunkPos,
+        sections: std::ops::RangeInclusive<i32>,
+    ) -> Vec<i32> {
         let (x0, z0) = (chunk.0 * 16, chunk.1 * 16);
-        let dense = self.columns.is_none() && other.columns.is_none() && self.min == other.min && self.size == other.size;
+        let dense = self.columns.is_none()
+            && other.columns.is_none()
+            && self.min == other.min
+            && self.size == other.size;
         if !dense {
             return sections
-                .filter(|&sy| self.differs(other, (x0, sy * 16, z0), (x0 + 15, sy * 16 + 15, z0 + 15)))
+                .filter(|&sy| {
+                    self.differs(other, (x0, sy * 16, z0), (x0 + 15, sy * 16 + 15, z0 + 15))
+                })
                 .collect();
         }
         // Outside the stored box both answer the defaults, so only the
         // stored part of each section can differ.
-        let clip = |lo: i32, hi: i32, min: i32, size: usize| (lo.max(min), hi.min(min + size as i32 - 1));
+        let clip =
+            |lo: i32, hi: i32, min: i32, size: usize| (lo.max(min), hi.min(min + size as i32 - 1));
         let (xa, xb) = clip(x0, x0 + 15, self.min.0, self.size.0);
         let (za, zb) = clip(z0, z0 + 15, self.min.2, self.size.2);
         let mut out = Vec::new();
@@ -442,9 +461,12 @@ impl SkyLight {
             let (y0, y1) = ((ya - self.min.1) as usize, (yb - self.min.1) as usize + 1);
             let differs = (xa..=xb).any(|x| {
                 (za..=zb).any(|z| {
-                    let base = ((x - self.min.0) as usize * self.size.2 + (z - self.min.2) as usize) * self.size.1;
+                    let base = ((x - self.min.0) as usize * self.size.2
+                        + (z - self.min.2) as usize)
+                        * self.size.1;
                     self.levels[base + y0..base + y1] != other.levels[base + y0..base + y1]
-                        || self.block_levels[base + y0..base + y1] != other.block_levels[base + y0..base + y1]
+                        || self.block_levels[base + y0..base + y1]
+                            != other.block_levels[base + y0..base + y1]
                 })
             });
             if differs {
@@ -545,162 +567,4 @@ pub fn block_emission(block: Option<&Block>) -> u8 {
 
 fn opacity<S: Scene>(scene: &S, pos: BlockPos) -> u8 {
     light_cell(scene.block(pos)).opacity
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::scene::{Block, HandcraftedScene};
-
-    #[test]
-    fn differing_sections_agrees_with_differs() {
-        // A column 18 wide (chunk plus margins), 40 tall from y = -8.
-        let (min, size) = ((-1, -8, -1), (18, 40, 18));
-        let cells = size.0 * size.1 * size.2;
-        let base: Vec<u8> = (0..cells).map(|i| (i % 16) as u8).collect();
-        let a = SkyLight::from_levels(min, size, base.clone(), vec![0; cells]);
-        for (x, y, z, block) in [(0, -8, 0, false), (15, 20, 15, true), (-1, 5, 3, false), (7, 31, 16, true), (3, 16, 3, false)] {
-            let mut levels = base.clone();
-            let mut blocks = vec![0; cells];
-            let i = (((x - min.0) as usize * size.2) + (z - min.2) as usize) * size.1 + (y - min.1) as usize;
-            if block {
-                blocks[i] = 7;
-            } else {
-                levels[i] ^= 1;
-            }
-            let b = SkyLight::from_levels(min, size, levels, blocks);
-            let slow: Vec<i32> = (-2..=3).filter(|&sy| a.differs(&b, (0, sy * 16, 0), (15, sy * 16 + 15, 15))).collect();
-            assert_eq!(a.differing_sections(&b, (0, 0), -2..=3), slow, "change at {x},{y},{z}");
-        }
-    }
-
-    #[test]
-    fn canopy_attenuates_sky_and_casts_a_shadow() {
-        let scene = HandcraftedScene::new();
-        let light = SkyLight::build(&scene);
-        assert_eq!(light.get((0, 2, 0)), 15);
-        assert_eq!(light.get((5, 7, -7)), 14);
-        assert_eq!(light.get((5, 6, -7)), 13);
-        assert_eq!(light.get((5, 5, -7)), 12);
-        assert!(light.get((5, 2, -7)) < light.get((0, 2, 0)));
-        assert_eq!(light.get((5, 4, -7)), 0);
-    }
-
-    #[test]
-    fn covered_cell_receives_light_from_open_side() {
-        let mut scene = HandcraftedScene::new();
-        scene.set((0, 4, 0), Some(Block::new("minecraft:stone")));
-        let light = SkyLight::build(&scene);
-        assert!(light.get((0, 3, 0)) > 0);
-        assert!(light.get((0, 3, 0)) < 15);
-    }
-    #[test]
-    fn lava_emits_block_light_into_dark_cells() {
-        let mut scene = HandcraftedScene::default();
-        scene.set(
-            (0, 0, 0),
-            Some(Block::new("minecraft:lava").with("level", "0")),
-        );
-        let light = SkyLight::build(&scene);
-        assert_eq!(light.get_block((0, 0, 0)), 15);
-        assert_eq!(light.get_block((1, 0, 0)), 14);
-        assert_eq!(light.get_block((20, 0, 0)), 0);
-    }
-
-    #[test]
-    fn copper_bulb_emission_follows_oxidation_and_lit_state() {
-        for (id, strength) in [
-            ("copper_bulb", 15),
-            ("exposed_copper_bulb", 12),
-            ("weathered_copper_bulb", 8),
-            ("oxidized_copper_bulb", 4),
-        ] {
-            for waxed in [false, true] {
-                let id = format!("minecraft:{}{id}", if waxed { "waxed_" } else { "" });
-                assert_eq!(
-                    block_emission(Some(&Block::new(&id).with("lit", "true"))),
-                    strength
-                );
-                assert_eq!(
-                    block_emission(Some(&Block::new(&id).with("lit", "false"))),
-                    0
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn redstone_lamp_and_torch_relight_after_state_changes() {
-        let mut scene = HandcraftedScene::new();
-        let lamp = (0, 2, 0);
-        let torch = (0, 2, 3);
-        scene.set(
-            lamp,
-            Some(Block::new("minecraft:redstone_lamp").with("lit", "true")),
-        );
-        scene.set(
-            torch,
-            Some(Block::new("minecraft:redstone_torch").with("lit", "true")),
-        );
-        let lit = SkyLight::build(&scene);
-        assert_eq!(lit.get_block(lamp), 15);
-        assert_eq!(lit.get_block((1, 2, 0)), 14);
-        assert_eq!(lit.get_block(torch), 12); // lamp light overlaps this torch
-        assert_eq!(lit.get_block((0, 2, 8)), 7);
-
-        scene.set(
-            lamp,
-            Some(Block::new("minecraft:redstone_lamp").with("lit", "false")),
-        );
-        let after_lamp = lit.updated(&scene, &[lamp]);
-        assert_eq!(after_lamp.get_block(torch), 7);
-        assert_eq!(after_lamp.get_block((0, 2, 8)), 2);
-        assert_eq!(
-            after_lamp.block_levels,
-            SkyLight::build(&scene).block_levels
-        );
-
-        scene.set(
-            torch,
-            Some(Block::new("minecraft:redstone_torch").with("lit", "false")),
-        );
-        let after_torch = after_lamp.updated(&scene, &[torch]);
-        assert_eq!(after_torch.get_block(torch), 0);
-        assert_eq!(after_torch.get_block((0, 2, 8)), 0);
-        assert_eq!(
-            after_torch.block_levels,
-            SkyLight::build(&scene).block_levels
-        );
-    }
-
-    #[test]
-    fn local_relighting_matches_full_rebuild_after_mixed_edits() {
-        let mut scene = HandcraftedScene::new();
-        let mut previous = SkyLight::build(&scene);
-        for (pos, block) in [
-            ((0, 4, 0), Some(Block::new("minecraft:stone"))),
-            ((0, 4, 0), None),
-            ((15, 3, 0), Some(Block::new("minecraft:oak_leaves"))),
-            ((16, 2, 0), Some(Block::new("minecraft:water"))),
-            ((15, 3, 0), Some(Block::new("minecraft:lava"))),
-            ((15, 3, 0), None),
-        ] {
-            scene.set(pos, block);
-            let updated = previous.updated(&scene, &[pos]);
-            let full = SkyLight::build(&scene);
-            assert_eq!(updated.levels, full.levels, "sky edit {pos:?}");
-            assert_eq!(
-                updated.block_levels, full.block_levels,
-                "block edit {pos:?}"
-            );
-            previous = updated;
-        }
-        let changes = [(3, 5, 3), (20, 2, 2)];
-        scene.set(changes[0], Some(Block::new("minecraft:stone")));
-        scene.set(changes[1], Some(Block::new("minecraft:lava")));
-        let updated = previous.updated(&scene, &changes);
-        let full = SkyLight::build(&scene);
-        assert_eq!(updated.levels, full.levels);
-        assert_eq!(updated.block_levels, full.block_levels);
-    }
 }

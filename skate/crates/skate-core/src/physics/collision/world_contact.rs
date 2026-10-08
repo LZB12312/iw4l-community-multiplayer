@@ -1,5 +1,3 @@
-//! Physics/world pair query 8277B720, called by triangle dispatch 8277BC58.
-//! This is distinct from the general Volume query (82AD3CD8).
 use super::{
     ContactPair, Sphere, Triangle, TriangleFixup, arithmetic::*, fix_up_triangle,
     sphere_triangle::build_prism,
@@ -26,8 +24,6 @@ pub struct WorldContact {
     pub points: ContactPair,
 }
 
-/// 8277BF0C..BF8C. The original predicts using the literal 1/60, independent
-/// of the simulation timestep. Do not replace it with a caller's frame dt.
 pub fn world_separation_limit(
     velocity: Vector3,
     triangle_normal: Vector3,
@@ -78,8 +74,6 @@ pub fn sphere_triangle_world_contact(
     ) {
         return None;
     }
-    // 8277B9E0..BA7C: fixup precedes publication. Both fatness operations
-    // use separate multiply and add/subtract (the Volume query uses an FMA).
     let a = scale(normal, sphere.radius);
     Some(WorldContact {
         normal: neg(normal),

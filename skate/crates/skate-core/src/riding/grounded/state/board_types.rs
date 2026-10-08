@@ -1,5 +1,3 @@
-//! Typed boundaries for `PhysicsGround::UpdateSkateboard` (`82D38800`).
-
 use crate::{
     math::Vector3,
     physics::{
@@ -52,11 +50,9 @@ pub struct GroundBoardSettings<'a> {
     pub collision_response_scale: f32,
     /// Global selected ground layout +272.
     pub ground_force_contact_time_limit: f32,
-    /// Live scalar `flt_82098D0C`.
     pub speed_model_reset_force_squared: f32,
 }
 
-/// Values used to construct both `82D931E8` calls in their native caller.
 pub struct GroundForceFrame {
     pub argument_1_2752: f32,
     pub processed_2776: f32,
@@ -73,9 +69,6 @@ pub struct GroundForceFrame {
     pub axis_544: [f32; 4],
 }
 
-/// Contiguous local record copied from board-body +8032 through +8084 before
-/// the `82D93DF0` call. The names deliberately retain offsets where semantics
-/// have not been independently recovered.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GroundContactFrame {
     pub vector_8032: [f32; 4],
@@ -93,7 +86,6 @@ pub struct GroundBoardInput {
     pub truck_flags_2468: u32,
     pub truck_flags_2472: u32,
     pub contact: GroundContactFrame,
-    /// Ground context +1216, copied verbatim for `82D944E8`.
     pub ground_vector_1216: [f32; 4],
     pub propulsion: GroundPropulsionInput,
     pub ground_force: GroundForceFrame,
@@ -228,7 +220,6 @@ pub trait GroundBoardServices:
         &mut self,
         ground_vector_1216: [f32; 4],
     ) -> Result<Option<CollisionForceResponse>, Self::BoardError>;
-    /// Exact normalize/threshold/dot sequence at `82D38E18..82D38EA8`.
     fn collision_force_dot_velocity_82d38e18(
         &mut self,
         force: [f32; 4],

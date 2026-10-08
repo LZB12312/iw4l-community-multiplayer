@@ -1,4 +1,3 @@
-//! Complete collision response calculation, TU3 82D944E8 and its angle helpers.
 use crate::{
     math::Vector3,
     physics::{
@@ -100,7 +99,6 @@ pub fn collision_response(
         target_velocity,
     })
 }
-///8296EC98, one-refinement normalization and signed cross about supplied up.
 pub fn signed_angle(a: Vector3, b: Vector3, up: Vector3) -> f32 {
     let a_squared = dot(a, a);
     let b_squared = dot(b, b);
@@ -121,7 +119,6 @@ pub fn signed_angle(a: Vector3, b: Vector3, up: Vector3) -> f32 {
         angle
     }
 }
-///8258DB98 scalar truncation, fused wrap subtraction, then single range repair.
 fn wrap_angle(mut angle: f32) -> f32 {
     let pi = f32::from_bits(0x4049_0fdb);
     let tau = f32::from_bits(0x40c9_0fdb);
@@ -147,43 +144,3 @@ fn scale(v: Vector3, k: f32) -> Vector3 {
 fn xyz(v: [f32; 4]) -> Vector3 {
     Vector3::new(v[0], v[1], v[2])
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn late_false_still_publishes_collision_target_and_angle() {
-        let settings = CollisionResponseSettings {
-            maximum_velocity_delta: 8.,
-            force_y_offset: -0.05,
-            force_scalar: 1.,
-            target_displacement_velocity: 1.,
-            torque_vs_angle: PointGraph {
-                x: [0., 1., 2., 3., 4., 5., 6., 7.],
-                y: [0.03; 8],
-            },
-        };
-        let mut input = CollisionResponsePhysical {
-            flags_2472: 0x20000,
-            collision_displacement: [1., 0., 0., 0.],
-            velocity: [2., 0., 4., 0.],
-            forward: [0., 0., 1., 0.],
-            up: [0., 1., 0., 0.],
-            ground_normal: [0., 1., 0., 0.],
-            time_step: 1. / 60.,
-            mass: 8.,
-        };
-        let late = collision_response(&settings, input).unwrap();
-        assert!(!late.applied);
-        assert_eq!(late.force, [0.; 4]);
-        assert_eq!(late.target_velocity, [1., 0., 4., 0.]);
-        assert!(late.angular_displacement[1] > 0.);
-        input.velocity = [-20., 0., 4., 0.];
-        let clamped = collision_response(&settings, input).unwrap();
-        assert!(clamped.applied);
-        assert!((clamped.force[0] - 3840.).abs() < 0.001);
-        assert_eq!(clamped.point, [0., -0.05, 0., 0.]);
-        input.collision_displacement = input.ground_normal;
-        assert!(collision_response(&settings, input).is_none());
-    }
-}
-

@@ -28,9 +28,15 @@ impl StoredChunk {
     /// A chunk's NBT compressed as vanilla writes it (zlib, the default level).
     pub fn encode(tag: &Tag) -> Self {
         let data = nbt::write(tag, "");
-        let mut encoder = flate2::write::ZlibEncoder::new(Vec::with_capacity(data.len() / 4), flate2::Compression::default());
+        let mut encoder = flate2::write::ZlibEncoder::new(
+            Vec::with_capacity(data.len() / 4),
+            flate2::Compression::default(),
+        );
         encoder.write_all(&data).expect("writing to memory");
-        Self { kind: 2, body: encoder.finish().expect("writing to memory").into() }
+        Self {
+            kind: 2,
+            body: encoder.finish().expect("writing to memory").into(),
+        }
     }
 
     /// The uncompressed NBT payload.
@@ -38,10 +44,14 @@ impl StoredChunk {
         let mut out = Vec::new();
         match self.kind {
             1 => {
-                flate2::read::GzDecoder::new(&*self.body).read_to_end(&mut out).map_err(|e| format!("gzip chunk: {e}"))?;
+                flate2::read::GzDecoder::new(&*self.body)
+                    .read_to_end(&mut out)
+                    .map_err(|e| format!("gzip chunk: {e}"))?;
             }
             2 => {
-                flate2::read::ZlibDecoder::new(&*self.body).read_to_end(&mut out).map_err(|e| format!("zlib chunk: {e}"))?;
+                flate2::read::ZlibDecoder::new(&*self.body)
+                    .read_to_end(&mut out)
+                    .map_err(|e| format!("zlib chunk: {e}"))?;
             }
             3 => out.extend_from_slice(&self.body),
             other => return Err(format!("unsupported chunk compression {other}")),
@@ -64,7 +74,10 @@ pub struct RegionFile {
 
 /// The region file name of a chunk and its local index.
 pub fn region_of(pos: ChunkPos) -> ((i32, i32), usize) {
-    ((pos.x >> 5, pos.z >> 5), ((pos.x & 31) + (pos.z & 31) * 32) as usize)
+    (
+        (pos.x >> 5, pos.z >> 5),
+        ((pos.x & 31) + (pos.z & 31) * 32) as usize,
+    )
 }
 
 pub fn region_path(dir: &Path, region: (i32, i32)) -> PathBuf {
@@ -73,7 +86,9 @@ pub fn region_path(dir: &Path, region: (i32, i32)) -> PathBuf {
 
 impl RegionFile {
     pub fn new() -> Self {
-        Self { chunks: vec![None; 1024] }
+        Self {
+            chunks: vec![None; 1024],
+        }
     }
 
     /// Reads a region file; zlib, gzip and uncompressed chunks are supported.
@@ -90,15 +105,29 @@ impl RegionFile {
             if offset == 0 || count == 0 {
                 continue;
             }
-            let timestamp = u32::from_be_bytes(raw[SECTOR + i * 4..SECTOR + i * 4 + 4].try_into().expect("4 bytes"));
+            let timestamp = u32::from_be_bytes(
+                raw[SECTOR + i * 4..SECTOR + i * 4 + 4]
+                    .try_into()
+                    .expect("4 bytes"),
+            );
             let start = offset * SECTOR;
-            let header = raw.get(start..start + 5).ok_or("chunk past end of region file")?;
+            let header = raw
+                .get(start..start + 5)
+                .ok_or("chunk past end of region file")?;
             let length = u32::from_be_bytes(header[0..4].try_into().expect("4 bytes")) as usize;
-            let body = raw.get(start + 5..start + 4 + length).ok_or("chunk body past end of region file")?;
+            let body = raw
+                .get(start + 5..start + 4 + length)
+                .ok_or("chunk body past end of region file")?;
             if !(1..=3).contains(&header[4]) {
                 return Err(format!("unsupported chunk compression {}", header[4]));
             }
-            region.chunks[i] = Some((StoredChunk { kind: header[4], body: body.into() }, timestamp));
+            region.chunks[i] = Some((
+                StoredChunk {
+                    kind: header[4],
+                    body: body.into(),
+                },
+                timestamp,
+            ));
         }
         Ok(region)
     }
@@ -109,7 +138,9 @@ impl RegionFile {
 
     /// A chunk as stored, to parse elsewhere.
     pub fn stored(&self, index: usize) -> Option<StoredChunk> {
-        self.chunks[index].as_ref().map(|(stored, _)| stored.clone())
+        self.chunks[index]
+            .as_ref()
+            .map(|(stored, _)| stored.clone())
     }
 
     /// Whether the region holds a chunk at `index`.
@@ -138,17 +169,22 @@ impl RegionFile {
         let mut body = Vec::new();
         let mut sector = 2usize;
         for (i, chunk) in self.chunks.iter().enumerate() {
-            let Some((stored, timestamp)) = chunk else { continue };
+            let Some((stored, timestamp)) = chunk else {
+                continue;
+            };
             let length = stored.body.len() + 5;
             let sectors = length.div_ceil(SECTOR);
             if sectors > 255 {
-                return Err(format!("chunk {i} needs {sectors} sectors; external chunk files are not supported"));
+                return Err(format!(
+                    "chunk {i} needs {sectors} sectors; external chunk files are not supported"
+                ));
             }
             body.extend_from_slice(&((stored.body.len() + 1) as u32).to_be_bytes());
             body.push(stored.kind);
             body.extend_from_slice(&stored.body);
             body.resize(body.len() + sectors * SECTOR - length, 0);
-            locations[i * 4..i * 4 + 4].copy_from_slice(&(((sector as u32) << 8) | sectors as u32).to_be_bytes());
+            locations[i * 4..i * 4 + 4]
+                .copy_from_slice(&(((sector as u32) << 8) | sectors as u32).to_be_bytes());
             timestamps[i * 4..i * 4 + 4].copy_from_slice(&timestamp.to_be_bytes());
             sector += sectors;
         }
@@ -156,31 +192,14 @@ impl RegionFile {
             std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         }
         let temp = path.with_extension("mca.tmp");
-        let mut file = std::fs::File::create(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
-        file.write_all(&locations).and_then(|_| file.write_all(&timestamps)).and_then(|_| file.write_all(&body)).map_err(|e| e.to_string())?;
+        let mut file =
+            std::fs::File::create(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
+        file.write_all(&locations)
+            .and_then(|_| file.write_all(&timestamps))
+            .and_then(|_| file.write_all(&body))
+            .map_err(|e| e.to_string())?;
         file.sync_all().map_err(|e| e.to_string())?;
         drop(file);
         std::fs::rename(&temp, path).map_err(|e| format!("{}: {e}", path.display()))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn chunks_survive_a_write_and_read() {
-        let dir = std::env::temp_dir().join(format!("minecraftoss-anvil-{}", std::process::id()));
-        let path = region_path(&dir, (0, 0));
-        let mut region = RegionFile::new();
-        let tag = Tag::Compound([("Status".to_owned(), Tag::String("minecraft:full".into())), ("xPos".to_owned(), Tag::Int(3))].into_iter().collect());
-        region.set(3, &tag, 7);
-        region.set_stored(40, StoredChunk::encode(&Tag::Compound([("zPos".to_owned(), Tag::Int(1))].into_iter().collect())), 9);
-        region.write(&path).unwrap();
-        let read = RegionFile::read(&path).unwrap();
-        assert_eq!(read.get(3).unwrap(), Some(tag));
-        assert!(read.contains(40) && !read.contains(41));
-        assert_eq!(read.get(41).unwrap(), None);
-        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

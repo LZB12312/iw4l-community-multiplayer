@@ -1,7 +1,3 @@
-//! Dynamic graph object construction and name binding from TU3 82C15F50,
-//! 82C11930, 82C16708, 82C169B8, 82C16D68, 82C16FF0 and 82C16C10.
-//! Concrete operations are created through the native factory boundary and
-//! receive each nested parameter in authored order.
 use super::{
     StateGraph,
     attributes::{Attributes, key_hash},
@@ -65,8 +61,6 @@ pub struct Operation {
     pub kind: OperationKind,
     pub name: String,
     pub enabled: u8,
-    /// Condition::mMask from 82C12CB0/82C12BB0. Other operation kinds have no
-    /// condition mask.
     pub condition_mask: Option<u32>,
     /// Ordered `param` elements, consumed by the concrete virtual40 handler.
     pub parameters: Vec<usize>,
@@ -87,9 +81,6 @@ pub struct OperationInstances<T> {
     pub operations: Vec<T>,
 }
 
-/// Readable boundary for 8241BFF0 (factory create) and the parser's virtual+40
-/// parameter dispatch in 82C15F50. A missing registration is represented by
-/// `Ok(None)` and is rejected by `instantiate_operations` with source context.
 pub trait OperationFactory {
     type Instance;
     type Error: std::fmt::Display;
@@ -343,7 +334,6 @@ impl Binding {
             let target =
                 self.find_state(transition.owner, attrs.text("target").unwrap_or(""), true);
             self.transitions[id].target = target;
-            // 82C16FF0 disables unresolved/disabled targets; no invented fallback.
             if target.is_none_or(|i| self.states[i].enabled == 0) {
                 self.transitions[id].enabled = 0;
             }
@@ -351,9 +341,6 @@ impl Binding {
         Ok(())
     }
 
-    /// Complete 82C16C10 search: first direct child, then self/ancestors if
-    /// allowed. Dotted paths search their first component with ascent enabled,
-    /// even if the caller disabled ascent, then resolve the suffix locally.
     pub fn find_state(&self, start: usize, name: &str, ascend: bool) -> Option<usize> {
         if let Some((first, rest)) = name.split_once('.') {
             let found = self.find_state(start, first, true)?;
@@ -378,16 +365,13 @@ impl Binding {
     }
 }
 
-/// Native interned-name comparison 82C118A0 uses FNV-1, without string equality
-/// after the hash comparison. This differs from BinaryAttributeMap's key hash.
 pub fn name_hash(text: &str) -> u32 {
+    const FNV_PRIME: u32 = 0x01000193;
     text.bytes().fold(0x811c9dc5_u32, |hash, byte| {
-        hash.wrapping_mul(0x01000193) ^ u32::from(byte)
+        hash.wrapping_mul(FNV_PRIME) ^ u32::from(byte)
     })
 }
 
-/// StateGraph::ParseMask 82C12BB0. Comparison is case-sensitive. TU3 returns
-/// the precondition mask for a missing or unrecognized value.
 pub fn parse_condition_mask(value: Option<&str>) -> u32 {
     match value {
         Some("sustain") => 2,

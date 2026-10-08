@@ -586,6 +586,7 @@ fn advance_authority_clock(
 }
 
 fn ingress_authority(
+    mut world: Option<ResMut<AuthorityWorld>>,
     hub: Option<ResMut<crate::transport::udp_session::UdpAuthorityHub>>,
     mut cmd_inbox: ResMut<ClientCommandInbox>,
     mut action_inbox: ResMut<ClientActionInbox>,
@@ -608,6 +609,11 @@ fn ingress_authority(
             Some(&mut reliable),
         ) {
             diag::warn!(Net, "udp ingress: {e}");
+        }
+        if let Some(world) = world.as_deref_mut() {
+            for (id, (appearance, skate)) in hub.take_presentations() {
+                world.0.set_presentation(id, appearance, skate);
+            }
         }
     }
 }

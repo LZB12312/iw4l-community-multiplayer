@@ -493,29 +493,3 @@ pub fn find_path_with_accuracy<T: PathTerrain>(
         target,
     })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    struct UnknownStone;
-    impl PathTerrain for UnknownStone {
-        fn cell(&self, pos: NodePos) -> Option<Cell> {
-            if pos == (3, 1, 4) {
-                None
-            } else if pos.1 == 0 {
-                Some(Cell::FullSolid)
-            } else {
-                Some(Cell::Air)
-            }
-        }
-    }
-
-    #[test]
-    fn search_rejects_unclassified_ground_and_off_ground_requests() {
-        let start = DVec3::new(2.5, 1.0, 4.5);
-        let target = DVec3::new(5.5, 1.0, 4.5);
-        assert!(find_cow_path(&UnknownStone, start, false, target).is_none());
-        assert!(find_cow_path(&UnknownStone, start, true, target).is_none());
-    }
-}

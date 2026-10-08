@@ -11,8 +11,6 @@ pub struct PartPose {
     pub inertia: Option<[u32; 10]>,
 }
 
-/// 82585CB0: return the Part transform from its body, or its cached part matrix
-/// if no body exists. This is not the whole game Body::GetPosition method.
 pub fn part_transform(part: &PartPose) -> PoseMatrix {
     let Some(body) = part.body.as_ref() else {
         return part.transform;
@@ -30,8 +28,6 @@ pub fn part_transform(part: &PartPose) -> PoseMatrix {
     })
 }
 
-/// 82BD4318: update a live body's pose/caches, then always copy the original
-/// requested matrix to the part. Velocity, forces and other packed lanes survive.
 pub fn set_part_transform(part: &mut PartPose, requested: PoseMatrix) {
     if let Some(body) = part.body.as_mut() {
         let m = if let Some(local) = part.local_mass_frame {
@@ -63,7 +59,6 @@ pub fn set_part_transform(part: &mut PartPose, requested: PoseMatrix) {
 
 fn quaternion(m: M) -> V {
     let [ri, up, at, _] = m;
-    // Sign masks are initialized by TU3 82F83360/90/C0, not image defaults.
     let rx = [ri[0], ri[0], -ri[0], -ri[0]];
     let uy = [up[1], -up[1], up[1], -up[1]];
     let az = [at[2], -at[2], -at[2], at[2]];

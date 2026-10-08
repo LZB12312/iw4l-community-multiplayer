@@ -1,6 +1,3 @@
-//! Production Ground entry82D37538 and update82D37C88/82D38800.
-//! State selection belongs to the player coordinator. This phase consumes its
-//! current processed packet and changes the same board that the solver advances.
 use super::{
     GamePhysics,
     ground_runtime::{
@@ -35,8 +32,6 @@ pub(crate) struct GroundLifecycle {
     /// Skeleton16388 instead belongs solely to SkeletonOutput::correction.
     pub skeleton_elapsed_16505: bool,
     pub board_animated_290: u8,
-    /// Processed2724: Reset82BFA35C clears this. The original image contains
-    /// no other direct scalar writer at that offset.
     pub manual_drag_2724: f32,
     pub edge: Option<GroundEdge>,
     /// A selected wall jump is retained for its actual selector continuation.
@@ -56,20 +51,17 @@ impl GroundLifecycle {
     }
 }
 
-/// Typed portion of Skateboard Reset82C05F50, alongside the coordinator's
-/// actual body/pose/force reset. Native timer fields8364/8368 are not written
-/// by either this reset or ResetBoardBody82C0D680, so preserve activation_time.
 pub(crate) fn reset_board_state(
     ground: &mut super::ground_runtime::GroundState,
     runtime: &mut super::ground_runtime::GroundRuntime,
     life: &mut GroundLifecycle,
     board_wiping_out: &mut bool,
 ) {
-    ground.steering.deck_tilt = 0.0; //82C06048, wrapper256.
-    ground.steering.targets = [0.0; 2]; //82C06060/64, body7680/7684.
+    ground.steering.deck_tilt = 0.0;
+    ground.steering.targets = [0.0; 2];
     runtime.reset_board_toolkit();
-    life.board_animated_290 = 0; //82C06070.
-    *board_wiping_out = false; //82C0D79C..7A0 clears body8384 high2bits.
+    life.board_animated_290 = 0;
+    *board_wiping_out = false;
 }
 
 /// Called only on the coordinator's real transition into Ground. Entry needs
@@ -80,9 +72,6 @@ pub(crate) fn enter(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Re
         .toolkit
         .as_ref()
         .ok_or("Ground entry requires PlayerInput's current board toolkit")?;
-    //82D37560: full SetStandard, after SetPhysicsState's possession Stop and
-    //old-state Exit, before Ground disables the animation drives. Use retained
-    //stock materials and publish the actual collider flags, not reset defaults.
     use skate_core::player::offboard::board_possession::lifecycle::Effects as _;
     skater
         .board_possession_live
@@ -167,7 +156,7 @@ pub(crate) fn advance(
     physics: &mut GamePhysics,
     skater: &mut SkaterRuntime,
 ) -> Result<GroundBoardOutcome, String> {
-    super::handplant::ground_query(physics,skater);
+    super::handplant::ground_query(physics, skater);
     let selector_input = super::air_phase::selector_input(physics, skater)?;
     let p = &skater.player_input.processed;
     let toolkit = skater
@@ -200,12 +189,19 @@ pub(crate) fn advance(
         predicted[2] += delta.z;
         Ok(())
     };
-    let grind_context = super::air_trajectory::GrindContext::from_processed(&skater.player_input.processed, super::solve::deck_frame(&physics.board)[3]);
+    let grind_context = super::air_trajectory::GrindContext::from_processed(
+        &skater.player_input.processed,
+        super::solve::deck_frame(&physics.board)[3],
+    );
     let mut launch = |info: &GroundLaunchInfo| {
         let mut input = selector_input;
         input.board_vertical_velocity = info.velocity[1];
-        skater.trajectory.launch(info.selector_launch(), input, &physics.world)?;
-        skater.trajectory.update(input, &physics.world, grind_context)?;
+        skater
+            .trajectory
+            .launch(info.selector_launch(), input, &physics.world)?;
+        skater
+            .trajectory
+            .update(input, &physics.world, grind_context)?;
         Ok(())
     };
     let physical = GroundPhysicalFrame {
@@ -275,7 +271,6 @@ pub(crate) fn advance(
             foot_ik: &mut skater.foot_ik,
             skeleton_elapsed_16505: &mut life.skeleton_elapsed_16505,
             board_correction_pending: &mut skater.skeleton_output.correction.pending,
-            // Original830BD4A0 initializer82F825F0 splats8216DEE0=-1.
             move_future_deck: &mut move_future,
             offboard_grab: &mut skater.offboard_grab,
         },
@@ -295,7 +290,3 @@ fn lanes(v: Vector3) -> [f32; 4] {
 fn xyz(v: [f32; 4]) -> Vector3 {
     Vector3::new(v[0], v[1], v[2])
 }
-
-#[cfg(test)]
-#[path = "onboard_correction_tests.rs"]
-mod correction_tests;

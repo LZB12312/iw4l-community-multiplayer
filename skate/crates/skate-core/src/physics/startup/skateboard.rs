@@ -1,15 +1,5 @@
 use super::reset_board_body;
 use crate::physics::board_pose::{PartPose, PoseMatrix, set_board_transform, set_part_transform};
-/// Complete 82C05F50 reset orchestration. `authored` supplies the seven matrices
-/// produced by InitializeTransforms82C0ADF0 for the current stock geometry;
-/// deck6 is published first, then wheels0..3 and trucks4..5. This explicit input
-/// does not select a spawn or change joint anchors to a presumed settled pose.
-///
-/// `wrapper` is the native Skateboard prefix; `wrapper_base` only reconstructs
-/// its three force-queue pointers. `body_state` is its SkateboardBody record.
-/// Parts must have live bodies, as in the native seven-part board assembly.
-/// Processed+2468 bit20 flips all four lanes of Ri and At before SetTransform.
-/// The hook receives that target separately and its body rates are not reset.
 #[allow(clippy::too_many_arguments)]
 pub fn reset_skateboard(
     wrapper: &mut [u8; 1360],

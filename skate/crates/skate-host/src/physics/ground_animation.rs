@@ -1,4 +1,3 @@
-//! GroundAnimation103 lifecycle82D33BF8/33DB8/33C70/34150, original Skate3TU3.
 mod board;
 mod settings;
 mod skeleton;
@@ -17,7 +16,6 @@ pub(crate) struct GroundAnimationRuntime {
     pub launch_velocity: [f32; 4], //96, selector launch-info2048
 }
 impl GroundAnimationRuntime {
-    ///82D34150 writes only its active fields after the common PhysOut reset.
     pub fn fill(&self, p: &ProcessedPhysicsInput, out: &mut AirOutputFields) {
         if p.flags_2468 & 0x0040_0000 != 0 {
             out.jump_velocity_delta_112 = std::array::from_fn(|i| {

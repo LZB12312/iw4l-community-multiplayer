@@ -1,12 +1,10 @@
-//! TU3 ToggleBoard82BA8FD8/82BA8FE8, retrieval82BA9310/82BA9E20,
-//! drop82BA9990. Instance and channel clocks remain owned by the graph.
 use super::motion_animation::MotionAnimation;
 use skate_core::animation::{
     channel_playback::ChannelSettings, playback::TransitionSettings,
     playback_parameters::AttributeSink, skeleton_input::name::encode,
 };
 use skate_core::graph::intents::IntentMap;
-const CHANNEL: &str = "RetrieveBoard"; //82F87410
+const CHANNEL: &str = "RetrieveBoard";
 const FADE: f32 = f32::from_bits(0x3e2aaaab);
 #[derive(Clone, Copy, Default)]
 pub(crate) struct Physical {

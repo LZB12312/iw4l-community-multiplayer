@@ -229,6 +229,12 @@ impl PacketHeader {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ClientPacket {
+    Presentation {
+        header: PacketHeader,
+        claimed_client: u32,
+        appearance: sim::CharacterAppearance,
+        skate: Option<sim::SkatePose>,
+    },
     Connect(HandshakeHello),
 
     Commands {
@@ -448,6 +454,18 @@ fn get_reject(input: &mut WireReader<'_>) -> Result<HandshakeReject, WireError> 
 impl ClientPacket {
     pub fn encode(&self, out: &mut WireWriter) {
         match self {
+            Self::Presentation {
+                header,
+                claimed_client,
+                appearance,
+                skate,
+            } => {
+                out.put_u8(4);
+                put_header(out, header);
+                out.put_u32(*claimed_client);
+                super::presentation::encode_appearance(out, appearance);
+                super::presentation::encode_skate(out, skate.as_ref());
+            }
             Self::Connect(hello) => {
                 out.put_u8(TAG_CLIENT_CONNECT);
                 put_hello(out, hello);
@@ -492,6 +510,12 @@ impl ClientPacket {
 
     pub fn decode(input: &mut WireReader<'_>) -> Result<Self, WireError> {
         match input.get_u8()? {
+            4 => Ok(Self::Presentation {
+                header: get_header(input)?,
+                claimed_client: input.get_u32()?,
+                appearance: super::presentation::decode_appearance(input)?,
+                skate: super::presentation::decode_skate(input)?,
+            }),
             TAG_CLIENT_CONNECT => Ok(Self::Connect(get_hello(input)?)),
             TAG_CLIENT_COMMANDS => {
                 let header = get_header(input)?;

@@ -3,20 +3,11 @@ use crate::physics::{board_motion_output::inverse_length_squared, native_arithme
 pub(super) fn length(v: [f32; 4]) -> f32 {
     let sq = dot3(v, v);
     let inv = inverse_length_squared(sq, 2);
-    if sq == 0.0 {
-        0.0
-    } else {
-        sq * inv
-    }
+    if sq == 0.0 { 0.0 } else { sq * inv }
 }
 fn selected_max(a: f32, b: f32) -> f32 {
-    if a - b >= 0.0 {
-        a
-    } else {
-        b
-    }
+    if a - b >= 0.0 { a } else { b }
 }
-///82BD88A0 reads unweighted regional forces in this exact pair order.
 pub(crate) fn force(frame: &Frame, body: f32, arms: f32) -> bool {
     let f = frame.regions_force;
     let a = selected_max(f[0], f[1]);
@@ -34,7 +25,6 @@ pub(super) fn vehicle(state: &mut Requests, s: &Settings, f: &Frame) {
         state.request(7, 0.0);
     }
 }
-///82D90AB8 rotates closing velocity656 by the actual WorldToAnim basis.
 pub(super) fn closing(state: &mut Requests, f: &Frame, xz: f32, y: f32) {
     if !f.board_contact {
         return;

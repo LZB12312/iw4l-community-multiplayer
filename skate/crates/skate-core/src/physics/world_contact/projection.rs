@@ -1,8 +1,6 @@
 use super::arithmetic::{dot, scale, vector};
 use super::separating_axis_candidates;
 
-/// Verified GP dispatch IDs from mapped TU3 table 82FD5870. Cylinder (5) and
-/// invalid (0) are outside the board primitive set and have no fallback here.
 #[derive(Clone, Copy, Debug)]
 pub enum PrimitiveKind {
     Sphere,
@@ -11,9 +9,6 @@ pub enum PrimitiveKind {
     Box,
 }
 
-/// Full single-direction GP interval callbacks: sphere82ADD800,
-/// capsule82AD99C8, triangle82ADE3B8, box82AD8508. Output is the native48-byte
-/// interval; the last16bytes are untouched. Radius/padding is handled by caller.
 pub fn project_direction(
     gp: &[u32; 48],
     kind: PrimitiveKind,
@@ -23,9 +18,6 @@ pub fn project_direction(
     project(gp, kind, direction, output, false);
 }
 
-/// Full batch GP callbacks: sphere82ADD820, capsule82AD9A88,
-/// triangle82ADE400, box82AD86B0. Box batch scales the axes *before* dot products;
-/// its single callback scales the dot products instead. Preserve that difference.
 pub fn project_directions(
     gp: &[u32; 48],
     kind: PrimitiveKind,
@@ -82,10 +74,6 @@ fn project(
     output[4..8].fill(max.to_bits());
 }
 
-/// Complete generic82ACF070 plus recovered GP batch callbacks for board shapes.
-/// Specialized triangle/box82ACF950 and box/box82ACF448 dispatch entries must
-/// still be selected by the caller; this function is only the generic entry.
-/// Returns (broadcast separation, oriented four-lane axis).
 pub fn best_separating_direction(
     a: &[u32; 48],
     a_kind: PrimitiveKind,

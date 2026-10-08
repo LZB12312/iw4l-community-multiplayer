@@ -2,9 +2,6 @@ use super::*;
 use skate_core::physics::grind_contact::{admission::Admission, investigator};
 
 impl GrindInputState {
-    ///82D8A828: permission -> bounded static query -> materials -> investigator
-    ///-> directed tangent -> previous velocity -> friction -> geometry probes.
-    /// Main may run other input producers between this and post_update.
     pub fn pre_update(
         &mut self,
         p: &ProcessedPhysicsInput,
@@ -89,8 +86,6 @@ impl GrindInputState {
             fields.owner_1296 = Some(edge.owner);
             fields.primitive_flags_1300 = native.flags & 0x8000_0000;
             fields.flags_1516 = if contact.front { 0x2000_0000 } else { 0 };
-            //82D8939C/A0 writes both truck hits. FiveO82D89CB8/9D5C
-            //writes the selected hit to+96 regardless of front/rear selection.
             if contact.kind == 0 {
                 fields.front_contact_1200 = raw(g.front);
                 fields.rear_contact_1216 = raw(g.rear);
@@ -118,7 +113,6 @@ impl GrindInputState {
                 let native = provider
                     .metadata(indices[proximity.contact.primitive])
                     .ok_or("Static grind proximity lacks metadata")?;
-                //82D87E18/34/3C: contact+128 and SECOND primitive+208/+224.
                 fields.vector_1232 = raw(proximity.contact.position);
                 fields.second_start_1312 = raw(edge.start);
                 fields.second_end_1328 = raw(edge.end);
@@ -136,8 +130,6 @@ impl GrindInputState {
         self.friction_vs_time = self.settings.friction.evaluate(self.elapsed);
         fields.friction_1496 = self.friction_vs_time;
         self.investigation = fields;
-        //82D8AA54..82D8AAF8 publishes previous velocity and friction before
-        //submitting geometry descriptors. Post resolves these exact results.
         if let Some(work) = &mut geometry {
             if let Some(plan) = &work.plan {
                 for (index, &probe) in plan.probes.iter().enumerate() {

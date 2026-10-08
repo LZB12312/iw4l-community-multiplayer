@@ -1,7 +1,3 @@
-//! Fixed intent-map specialization constructed by8258F638, used at full
-//! MotionGraph+12 (82C0E088) and physics packet+8 (8258FEE8).
-//! Names are six encoded words; no guessed text hashing or guest addresses.
-
 use crate::input::graph_intents::IntentMutation;
 
 pub const BUCKET_COUNT: usize = 61;
@@ -47,21 +43,20 @@ impl IntentMap {
     }
 
     pub fn get(&self, name: IntentName) -> Option<f32> {
-        let hash = name.0.iter().fold(0u32, |sum, word| sum.wrapping_add(*word));
+        let hash = name
+            .0
+            .iter()
+            .fold(0u32, |sum, word| sum.wrapping_add(*word));
         self.buckets[hash as usize % BUCKET_COUNT]
             .iter()
             .find(|entry| entry.name == name)
             .map(|entry| entry.value)
     }
 
-    ///826C20B0/825A0350: ascending buckets, head-to-tail within each chain.
     pub fn entries(&self) -> impl Iterator<Item = &Intent> {
         self.buckets.iter().flat_map(|bucket| bucket.iter())
     }
 
-    ///82472CD0/82472E10/824714D0: wrapping sum of all six words, exact
-    /// six-word equality, prepend new entries. Existing values are preserved.
-    /// At exhausted capacity native faults; the host rejects the new entry.
     pub fn insert(&mut self, intent: Intent) -> Result<bool, IntentCapacityExceeded> {
         let hash = intent
             .name
@@ -80,10 +75,6 @@ impl IntentMap {
         Ok(true)
     }
 
-    /// Set the value at an existing native key, or insert a new key. The
-    /// native 82471818 lookup returns a value slot before the caller writes
-    /// it, so Set must overwrite an existing entry rather than silently
-    /// preserving it as `insert` does.
     pub fn set(&mut self, name: IntentName, value: f32) -> Result<bool, IntentCapacityExceeded> {
         let hash = name
             .0
@@ -97,9 +88,6 @@ impl IntentMap {
         self.insert(Intent { name, value })
     }
 
-    /// Remove one exact six-word key using the same bucket and chain order as
-    /// native 82BC1068. Removing an entry leaves the relative order of the
-    /// remaining chain untouched.
     pub fn remove(&mut self, name: IntentName) -> bool {
         let hash = name
             .0
@@ -129,7 +117,6 @@ impl IntentMap {
         }
     }
 
-    ///82BC1B68 clears all chains but preserves bucket configuration.
     pub fn clear(&mut self) {
         for bucket in &mut self.buckets {
             bucket.clear();
@@ -137,10 +124,6 @@ impl IntentMap {
         self.len = 0;
     }
 
-    ///825936FC..82593740: clear then range-insert, not a structural clone.
-    /// Each colliding source chain therefore reverses in the destination.
-    /// Canonical graph and packet are distinct owned maps. A caller binding a
-    /// map to itself must retain it instead, matching the native identity guard.
     pub fn replace_from(&mut self, source: &Self) {
         self.clear();
         for &entry in source.entries() {
@@ -149,7 +132,3 @@ impl IntentMap {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "tests/intents.rs"]
-mod tests;

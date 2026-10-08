@@ -57,8 +57,6 @@ impl AngleTracker {
     }
 }
 
-/// Candidate 8258DB98 wrapping sequence. Its fast interval is [-pi, pi), and
-/// its reduction uses truncation followed by one correction, not rem_euclid.
 pub fn normalize_angle(angle: f32) -> f32 {
     const PI: f32 = f32::from_bits(0x40490fdb);
     const NEG_PI: f32 = f32::from_bits(0xc0490fdb);

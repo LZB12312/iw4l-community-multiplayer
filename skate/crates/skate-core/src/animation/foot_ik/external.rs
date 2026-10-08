@@ -1,4 +1,3 @@
-//! SkeletonIK::CalculateExternalIKOffset82BEE390.
 use super::{
     math::{axis_rotation, cross, length, limit_length, reciprocal},
     status::{LimbStatus, Mode},
@@ -35,7 +34,6 @@ pub fn update(
     let original = compose_affine(animation_to_world, animated);
     let mut rotation = IDENTITY;
     if target.normal_blend > 0.0 {
-        // Native v16 is the fixed Y basis82139A20, not the animated limb's up.
         let axis = cross([0.0, 1.0, 0.0, 0.0], target.normal);
         let magnitude = length(axis);
         if magnitude > 0.05 {

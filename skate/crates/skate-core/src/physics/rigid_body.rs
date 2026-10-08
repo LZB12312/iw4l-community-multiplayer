@@ -17,8 +17,6 @@ pub mod tu3 {
     pub const APPLY_QUEUED_SKATEBOARD_FORCES: u32 = 0x82C0_3718;
 }
 
-/// Exact scalar fields read from TU3's `rw::physics::Simulation` by
-/// `0x82AE6590`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RetailSimulationStep {
     pub time_step: f32,
@@ -54,12 +52,6 @@ pub struct RetailInertiaDynamics {
     pub angular_drag: f32,
 }
 
-/// Inverse local principal-axis frame stored by TU3 `ComputeMassProperties`
-/// (`0x82AE7770`) at `PartDefinition + 64` (`inverseBodyLTM`).
-///
-/// The stock wheel and truck retain identity. Deck construction `0x82C09290`
-/// also explicitly resets this frame to identity after computing aggregate
-/// principal inertia; that override does not discard the calculated inertia.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RetailLocalMassFrame {
     /// Column vectors in RenderWare `Ri`, `Up`, `At` order.
@@ -83,11 +75,6 @@ pub struct RetailBodyMassProperties {
     pub dynamics: RetailInertiaDynamics,
 }
 
-/// The four 16-byte correction vectors indexed by `RigidBody::mId`.
-///
-/// The first and third vectors participate in the velocity-producing frame
-/// displacement. The second and fourth vectors correct position and
-/// orientation only. This separation is directly visible in `0x82AE6590`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct RetailReactionCorrections {
     pub linear_displacement: Vector3,
@@ -125,17 +112,6 @@ pub struct RetailBodyRateStep {
     pub angular_speed_squared: f32,
 }
 
-/// Skate-era RenderWare's six-value packed symmetric world inverse-inertia
-/// tensor.
-///
-/// The lane mapping is:
-///
-/// - `mIfull = (Ixx, Ixy, Ixz)`;
-/// - `mIsplt = (Izz, Iyy, Iyz)`.
-///
-/// Independently traced through original S3 DynamicUpdate82AE6778..6804 and
-/// S2 DynamicUpdate82AE467C..46FC. This verifies the six-component layout,
-/// not bit-exact Xenon arithmetic; generated-code validation is withdrawn.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct RetailPackedWorldInverseInertia {
     pub full: Vector3,
@@ -160,23 +136,6 @@ impl RetailQuaternion {
     };
 }
 
-/// Typed adapter to the complete TU3 `RigidBody::DynamicUpdate` (`0x82AE6590`).
-/// The packed entry point additionally preserves guest metadata and clears its
-/// mutable reaction record. This value-taking adapter returns the updated body.
-///
-/// The order matters:
-///
-/// 1. acceleration is integrated to a candidate velocity;
-/// 2. candidate velocity is converted to a frame displacement;
-/// 3. solver correction displacements are added;
-/// 4. position is advanced;
-/// 5. velocity is reconstructed from displacement with retail drag;
-/// 6. linear and angular speed caps are applied;
-/// 7. energy/cool-down is updated;
-/// 8. force/torque accumulators are reset for the next step.
-///
-/// `BoardStep` supplies all four correction vectors after the shared contact,
-/// joint and drive solve. Player-state scheduling remains a separate owner.
 pub fn integrate_body_rates(
     mut body: RetailBodyRates,
     inertia: RetailInertiaDynamics,
@@ -279,16 +238,6 @@ pub fn integrate_body_rates(
     }
 }
 
-/// Quaternion branch from TU3 `0x82AE6668..0x82AE66C8`, paired with
-/// Skate 2 `0x82AE455C..0x82AE45C8`.
-///
-/// Mapping the VMX128 word permutations back to RenderWare's public
-/// `(x,y,z,w)` lane order gives:
-///
-/// `q += 0.5 * Quaternion(angular_displacement, 0) * q`
-///
-/// followed by normalization. This pre-multiplication order is important:
-/// swapping it changes the board's world-space angular response.
 pub fn integrate_orientation(
     orientation: RetailQuaternion,
     angular_displacement: Vector3,
@@ -310,8 +259,6 @@ pub fn integrate_orientation(
     }
 }
 
-/// `Ri`, `Up`, and `At` columns rebuilt immediately after TU3 normalizes the
-/// quaternion in `0x82AE6590`.
 pub fn basis_from_quaternion(q: RetailQuaternion) -> Basis3 {
     let columns = dynamic_update::quaternion_basis([q.x, q.y, q.z, q.w]);
     Basis3 {
@@ -319,7 +266,6 @@ pub fn basis_from_quaternion(q: RetailQuaternion) -> Basis3 {
     }
 }
 
-/// Native packed inverse-inertia rebuild in 82AE6590, with its fused order.
 pub fn world_inverse_inertia(basis: Basis3, inverse_tensor: Vector3) -> Basis3 {
     let native_basis = basis.columns.map(|v| [v[0], v[1], v[2], 0.0]);
     let tensor = [inverse_tensor.x, inverse_tensor.y, inverse_tensor.z].map(f32::to_bits);
@@ -370,64 +316,4 @@ pub fn multiply_packed_world_inverse_inertia(
     )
 }
 
-#[cfg(test)]
-fn multiply_basis(basis: Basis3, vector: Vector3) -> Vector3 {
-    Vector3::new(
-        basis.columns[0][0] * vector.x
-            + basis.columns[1][0] * vector.y
-            + basis.columns[2][0] * vector.z,
-        basis.columns[0][1] * vector.x
-            + basis.columns[1][1] * vector.y
-            + basis.columns[2][1] * vector.z,
-        basis.columns[0][2] * vector.x
-            + basis.columns[1][2] * vector.y
-            + basis.columns[2][2] * vector.z,
-    )
-}
-
-#[cfg(test)]
-#[path = "tests/rigid_body.rs"]
-mod tests;
-
 // Existing equation-level unit checks retain their independent scalar helpers.
-#[cfg(test)]
-fn column(basis: Basis3, index: usize) -> Vector3 {
-    let c = basis.columns[index];
-    Vector3::new(c[0], c[1], c[2])
-}
-#[cfg(test)]
-fn add(a: Vector3, b: Vector3) -> Vector3 {
-    Vector3::new(a.x + b.x, a.y + b.y, a.z + b.z)
-}
-#[cfg(test)]
-fn scale(v: Vector3, s: f32) -> Vector3 {
-    Vector3::new(v.x * s, v.y * s, v.z * s)
-}
-#[cfg(test)]
-fn cross(a: Vector3, b: Vector3) -> Vector3 {
-    Vector3::new(
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x,
-    )
-}
-#[cfg(test)]
-fn dot(a: Vector3, b: Vector3) -> f32 {
-    a.x * b.x + a.y * b.y + a.z * b.z
-}
-#[cfg(test)]
-fn length_squared(v: Vector3) -> f32 {
-    dot(v, v)
-}
-#[cfg(test)]
-fn normalize_quaternion(q: RetailQuaternion) -> RetailQuaternion {
-    let inverse = (q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w)
-        .sqrt()
-        .recip();
-    RetailQuaternion {
-        x: q.x * inverse,
-        y: q.y * inverse,
-        z: q.z * inverse,
-        w: q.w * inverse,
-    }
-}

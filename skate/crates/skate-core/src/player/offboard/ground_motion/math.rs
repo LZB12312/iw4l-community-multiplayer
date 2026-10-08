@@ -88,8 +88,6 @@ pub(super) fn inverse_rigid(f: Frame) -> Frame {
     crate::physics::skeleton_root::inverse_rigid(&f)
 }
 
-///82D7FEE0..FFCC XYZ Rodrigues rotation, using the host's geometric W=0
-///representation rather than native permutation scratch lanes.
 pub(super) fn rotate(v: Vector, axis: Vector, angle: f32) -> Vector {
     let [x, y, z, _] = axis;
     let (s, c) = trigonometry::sin_cos(angle);
@@ -107,7 +105,6 @@ pub(super) fn rotate(v: Vector, axis: Vector, angle: f32) -> Vector {
     transform_vector(v, [columns[0], columns[1], columns[2], ZERO])
 }
 
-/// Original82BD3E78, independently checked against its full raw body.
 pub(super) fn limit_angle(target: Vector, from: Vector, maximum: f32) -> Vector {
     let a = normalize_safe(target, ZERO);
     let b = normalize_safe(from, ZERO);
@@ -123,7 +120,7 @@ pub(super) fn limit_angle(target: Vector, from: Vector, maximum: f32) -> Vector 
     let axis = normalize(axis);
     let (s, c) = trigonometry::sin_cos(-maximum * 0.5);
     let mut q = scale(axis, s);
-    q[3] = c; //82BD4130 vrlimi inserts cosine in the quaternion W lane.
+    q[3] = c;
     let first = cross(q, from);
     let intermediate = madd(from, c, first);
     let second = cross(q, intermediate);

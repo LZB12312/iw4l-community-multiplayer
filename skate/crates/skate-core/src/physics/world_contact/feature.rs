@@ -5,8 +5,6 @@ fn load(words: &[u32], offset: usize) -> [f32; 4] {
     std::array::from_fn(|i| f32::from_bits(words[offset + i]))
 }
 
-/// Complete 82AC6E50 segment initialization. Writes origin, normalized direction
-/// and broadcast length; preserves the unwritten plane vector at words8..12.
 pub fn initialize_feature_segment(output: &mut [u32; 16], origin: [u32; 4], end: [u32; 4]) {
     output[..4].copy_from_slice(&origin);
     let origin = origin.map(f32::from_bits);
@@ -16,8 +14,6 @@ pub fn initialize_feature_segment(output: &mut [u32; 16], origin: [u32; 4], end:
         delta[..3].try_into().unwrap(),
         delta[..3].try_into().unwrap(),
     );
-    // One rsqrt refinement, then one reciprocal refinement. Runtime initializer
-    // 82F837D8 broadcasts 8212BF78 (34000000) to threshold vector830BDD40.
     let mut reciprocal = estimate(squared);
     reciprocal =
         (reciprocal * 0.5).mul_add((-squared).mul_add(reciprocal * reciprocal, 1.0), reciprocal);
@@ -41,10 +37,6 @@ pub fn initialize_feature_segment(output: &mut [u32; 16], origin: [u32; 4], end:
     output[4..8].copy_from_slice(&direction.map(f32::to_bits));
 }
 
-/// Complete capsule maximum-feature callback82AD98A0. `segment_scratch` carries
-/// the native local64-byte segment, including its unwritten plane vector.
-/// No fabricated value is assigned to those copied scratch words. Native r4
-/// mode is unused by this capsule callback.
 pub fn capsule_maximum_feature(
     gp: &[u32; 48],
     direction: [u32; 4],

@@ -1,9 +1,3 @@
-//! Stock TU3 `.stategraph` decoding, independent of graph execution.
-//!
-//! ReadElement 82C15DE0 reads a NUL-terminated tag, BinaryAttributeMap
-//! 82C14F38, a big-endian child count, then children in file order.
-//! Each attribute stores two strings, a float word and a boolean byte.
-//! Keep all three representations: parsing the string again loses stock data.
 use crate::AssetError;
 use std::{fs, path::Path};
 

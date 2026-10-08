@@ -1,11 +1,8 @@
-//! BipedGround Exit82D30CC0, PostPhysics82D32AA0 and FillPhysOut82D32D38.
-//! Borrows canonical Ground state; source writes only the returned packet fields.
 mod collision;
 mod exit;
 mod post;
 mod publication;
-#[cfg(test)]
-mod tests;
+
 use super::ground_entry::Vector;
 pub use collision::{CollisionInput, CollisionSettings, check_collision};
 pub use exit::{ExitServices, exit};

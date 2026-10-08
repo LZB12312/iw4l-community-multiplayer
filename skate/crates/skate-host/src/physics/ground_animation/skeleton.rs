@@ -1,4 +1,3 @@
-//!82D33E00 calls SkeletonUpdateAnimated82BDDA10 with fast blending enabled.
 use super::*;
 use crate::physics::{input_phase, skeleton_input_runtime::SkeletonOwners};
 pub(super) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {

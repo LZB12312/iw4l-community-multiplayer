@@ -1,4 +1,3 @@
-//!82D42DF0 through board helper82D42F50; caller owns final grind reckoning.
 use super::{Family, GamePhysics, LaunchInput, SkaterRuntime, collision_force, skeleton};
 use skate_core::{
     player::selector::conditions::{SkeletonAnimationState, is_skateboard_animated},
@@ -36,7 +35,6 @@ pub(crate) fn execute(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
         skater.grind.nonspecific_jump_velocity = velocity;
         skater.grind.nonspecific_jumped = true;
         skeleton::animated(physics, skater)?;
-        //82D42E8C reapplies velocity AFTER animated board/skeleton update.
         skater
             .ground_runtime
             .set_animated_velocity(&mut physics.board, velocity);
@@ -51,7 +49,6 @@ pub(crate) fn execute(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
         } else {
             skeleton::ground_target(physics, skater)?
         };
-        //82D42F50 starts with steering0 then82C04368, before angular/support.
         let p = &skater.player_input.processed;
         skater.ground.steering.update(
             0.,
@@ -78,7 +75,6 @@ pub(crate) fn execute(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
                 projection_axis_544: up,
             },
         );
-        //82C075B8 adds torque acceleration, not angular velocity/orientation.
         skater
             .ground_runtime
             .apply_angular_displacement(&mut physics.board, correction);

@@ -1,16 +1,15 @@
-//! Original result exporter82D80F48 and frame helper82D2CDC0.
 use super::state::{IDENTITY, ZERO};
 use super::{Frame, State, Vector};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct GroundResult {
     pub physical_frame: Frame,  //result0 <- Biped64
     pub animation_frame: Frame, //64 <-128
-    pub surface_frame: Frame,   //128 <-82D2CDC0(axis416,forward32)
-    pub velocity: Vector,       //192 <-512
-    pub position: Vector,       //208 <-368
-    pub angular_velocity: f32,  //224 <-688
-    pub alternate: bool,        //228 <-709
-    pub sliding: bool,          //229 <-710
+    pub surface_frame: Frame,
+    pub velocity: Vector,      //192 <-512
+    pub position: Vector,      //208 <-368
+    pub angular_velocity: f32, //224 <-688
+    pub alternate: bool,       //228 <-709
+    pub sliding: bool,         //229 <-710
 }
 pub(super) fn export(s: &State) -> GroundResult {
     GroundResult {
@@ -51,7 +50,6 @@ pub(crate) fn build_frame(up: Vector, forward: Vector) -> Frame {
     let q = dot(right, right);
     let raw_length = q * invsqrt(q);
     let length = if q == 0.0 { 0.0 } else { raw_length };
-    //830BD300 initialized82F82690 from821647E0, bits37800000.
     if !(length > f32::from_bits(0x3780_0000)) {
         return IDENTITY;
     }

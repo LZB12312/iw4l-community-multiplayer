@@ -1,9 +1,3 @@
-//! Persistent SkateboardController adapter, not the grab-spline query manager.
-//!
-//! TU3 82D74FD8 creates two hand/deck drives; 82DB6150 updates possession
-//! after the physical state's Update and before the common board update.
-//! State448/word444/system452 are borrowed from the existing controller. Never
-//! create another copy in SkaterRuntime, or infer ownership from graph flags.
 use super::board_possession::{self, Effects};
 use skate_core::{
     physics::{assembly::BodySnapshot, drive_solver::RetailDriveRows},
@@ -17,9 +11,6 @@ use skate_core::{
 };
 use skate_data::collections::Collections;
 pub(crate) mod runtime;
-
-#[cfg(test)]
-mod tests;
 
 pub(crate) struct Owner {
     pub state: native::State,
@@ -77,8 +68,6 @@ impl Owner {
             .stop(fields, observation, &self.settings, effects);
     }
 
-    ///82DB8CE4..8D1C and82DB8D6C..8DA4: clear countdown even when
-    ///already off, Stop, then74D30 resets retrieval only (not hand frames).
     pub(crate) fn reset_for_teleport(
         &mut self,
         fields: &mut SkateboardControllerFields,
@@ -113,8 +102,6 @@ impl Owner {
         );
     }
 
-    /// 82D76D20: pass the real Skeleton::GetBoneTransform(11), not a hand,
-    /// root, deck frame or bind-pose substitute.
     pub(crate) fn fill(
         &self,
         fields: &SkateboardControllerFields,

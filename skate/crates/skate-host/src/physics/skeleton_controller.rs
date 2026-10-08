@@ -1,5 +1,3 @@
-//! Shared collision-policy controller used by Ground and both Air states.
-//! Requests82D911A8 and ascending/falling update82D91660 precede the solve.
 use skate_core::physics::skeleton_body::SkeletonCollisionMode;
 
 pub(crate) struct SkeletonControllerState {
@@ -12,7 +10,6 @@ pub(crate) struct SkeletonControllerState {
 }
 impl SkeletonControllerState {
     pub fn new() -> Self {
-        //Original inline constructor82DB2498..24B0.
         Self {
             effective: 0,
             requested: 0,
@@ -45,7 +42,6 @@ impl SkeletonControllerState {
         let effective = if self.override_enabled {
             self.requested = requested;
             self.has_request = true;
-            //82D911D8..1264: unsigned requested-4 indexes the eight cases.
             match requested {
                 4 => 1,
                 5..=7 => 2,
@@ -67,7 +63,6 @@ impl SkeletonControllerState {
         Some(mode)
     }
 
-    ///Original82D91660 changes the collision request only when byte18 changes.
     pub fn update_air(
         &mut self,
         processed_flags_2472: u32,

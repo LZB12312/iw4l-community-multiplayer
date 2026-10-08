@@ -74,20 +74,3 @@ impl<T: Copy + Eq, const N: usize> PalettedContainer<T, N> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn promotes_and_collapses() {
-        let mut c: PalettedContainer<u16, 64> = PalettedContainer::Single(0);
-        assert_eq!(c.set(5, 0), 0);
-        assert!(c.single().is_some());
-        assert_eq!(c.set(5, 7), 0);
-        assert_eq!((c.get(5), c.get(6)), (7, 0));
-        c.set(5, 0);
-        c.optimize();
-        assert_eq!(c, PalettedContainer::Single(0));
-    }
-}

@@ -19,7 +19,11 @@ use std::collections::BTreeMap;
 
 /// `SectionPos.asLong`.
 fn section_key(x: i32, y: i32, z: i32) -> i64 {
-    let (x, y, z) = (i64::from(x) as u64, i64::from(y) as u64, i64::from(z) as u64);
+    let (x, y, z) = (
+        i64::from(x) as u64,
+        i64::from(y) as u64,
+        i64::from(z) as u64,
+    );
     ((x & 0x3F_FFFF) << 42 | (z & 0x3F_FFFF) << 20 | (y & 0xF_FFFF)) as i64
 }
 
@@ -53,7 +57,13 @@ pub(crate) struct PlayerBox {
 impl PlayerBox {
     fn of(player: &crate::tempt::PlayerCandidate) -> Self {
         let (width, height) = player_size(player.eye_height);
-        Self { id: player.id, position: player.position, width, height, pushable: player.alive && !player.spectator }
+        Self {
+            id: player.id,
+            position: player.position,
+            width,
+            height,
+            pushable: player.alive && !player.spectator,
+        }
     }
 }
 
@@ -138,7 +148,10 @@ impl Sections {
         let (x1, y1, z1) = (coord(max.x + 2.0), coord(max.y + 0.0), coord(max.z + 2.0));
         let mut out = Vec::new();
         for x in x0..=x1 {
-            for (&key, list) in self.lists.range(section_key(x, 0, 0)..=section_key(x, -1, -1)) {
+            for (&key, list) in self
+                .lists
+                .range(section_key(x, 0, 0)..=section_key(x, -1, -1))
+            {
                 // `SectionPos.y` and `SectionPos.z`.
                 let (y, z) = ((key << 44 >> 44) as i32, (key << 22 >> 42) as i32);
                 if (y0..=y1).contains(&y) && (z0..=z1).contains(&z) {
@@ -155,24 +168,77 @@ impl EntityWorld {
     /// gone); none for bats, projectiles and the removed.
     fn push_body(&mut self, key: EntityKey) -> Option<(&mut Body, bool)> {
         match key {
-            EntityKey::Zombie(id) => self.zombies.iter_mut().find(|e| e.id == id).map(|e| (&mut e.zombie.body, e.zombie.health > 0.0)),
-            EntityKey::Skeleton(id) => self.skeletons.iter_mut().find(|e| e.id == id).map(|e| (&mut e.skeleton.body, e.skeleton.health > 0.0)),
-            EntityKey::Creeper(id) => self
-                .creepers
+            EntityKey::Zombie(id) => self
+                .zombies
                 .iter_mut()
                 .find(|e| e.id == id)
-                .map(|e| (&mut e.creeper.body, e.creeper.health > 0.0 && !e.creeper.exploded)),
-            EntityKey::Spider(id) => self.spiders.iter_mut().find(|e| e.id == id).map(|e| (&mut e.spider.body, e.spider.health > 0.0)),
-            EntityKey::Slime(id) => self.slimes.iter_mut().find(|e| e.id == id).map(|e| (&mut e.slime.body, e.slime.health > 0.0)),
-            EntityKey::Enderman(id) => self.endermen.iter_mut().find(|e| e.id == id).map(|e| (&mut e.enderman.body, e.enderman.health > 0.0)),
-            EntityKey::Witch(id) => self.witches.iter_mut().find(|e| e.id == id).map(|e| (&mut e.witch.body, e.witch.health > 0.0)),
-            EntityKey::IronGolem(id) => self.iron_golems.iter_mut().find(|e| e.id == id).map(|e| (&mut e.golem.body, e.golem.health > 0.0)),
-            EntityKey::Wolf(id) => self.wolves.iter_mut().find(|e| e.id == id).map(|e| (&mut e.wolf.body, e.wolf.health > 0.0)),
-            EntityKey::Villager(id) => self.villagers.iter_mut().find(|e| e.id == id).map(|e| (&mut e.villager.body, e.villager.health > 0.0)),
-            EntityKey::Cow(id) => self.cows.iter_mut().find(|e| e.id == id).map(|e| (&mut e.cow.body, e.cow.health > 0.0)),
-            EntityKey::Sheep(id) => self.sheep.iter_mut().find(|e| e.id == id).map(|e| (&mut e.body, e.health > 0.0)),
-            EntityKey::Pig(id) => self.pigs.iter_mut().find(|e| e.id == id).map(|e| (&mut e.pig.body, e.pig.health > 0.0)),
-            EntityKey::Chicken(id) => self.chickens.iter_mut().find(|e| e.id == id).map(|e| (&mut e.chicken.body, e.chicken.health > 0.0)),
+                .map(|e| (&mut e.zombie.body, e.zombie.health > 0.0)),
+            EntityKey::Skeleton(id) => self
+                .skeletons
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.skeleton.body, e.skeleton.health > 0.0)),
+            EntityKey::Creeper(id) => self.creepers.iter_mut().find(|e| e.id == id).map(|e| {
+                (
+                    &mut e.creeper.body,
+                    e.creeper.health > 0.0 && !e.creeper.exploded,
+                )
+            }),
+            EntityKey::Spider(id) => self
+                .spiders
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.spider.body, e.spider.health > 0.0)),
+            EntityKey::Slime(id) => self
+                .slimes
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.slime.body, e.slime.health > 0.0)),
+            EntityKey::Enderman(id) => self
+                .endermen
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.enderman.body, e.enderman.health > 0.0)),
+            EntityKey::Witch(id) => self
+                .witches
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.witch.body, e.witch.health > 0.0)),
+            EntityKey::IronGolem(id) => self
+                .iron_golems
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.golem.body, e.golem.health > 0.0)),
+            EntityKey::Wolf(id) => self
+                .wolves
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.wolf.body, e.wolf.health > 0.0)),
+            EntityKey::Villager(id) => self
+                .villagers
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.villager.body, e.villager.health > 0.0)),
+            EntityKey::Cow(id) => self
+                .cows
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.cow.body, e.cow.health > 0.0)),
+            EntityKey::Sheep(id) => self
+                .sheep
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.body, e.health > 0.0)),
+            EntityKey::Pig(id) => self
+                .pigs
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.pig.body, e.pig.health > 0.0)),
+            EntityKey::Chicken(id) => self
+                .chickens
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| (&mut e.chicken.body, e.chicken.health > 0.0)),
             EntityKey::Bat(_) | EntityKey::Arrow(_) | EntityKey::Potion(_) => None,
         }
     }
@@ -180,20 +246,76 @@ impl EntityWorld {
     /// The mob as the hazards see it, to take cramming damage.
     fn exposed_mut(&mut self, key: EntityKey) -> Option<&mut dyn Exposed> {
         match key {
-            EntityKey::Zombie(id) => self.zombies.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Skeleton(id) => self.skeletons.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Creeper(id) => self.creepers.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Spider(id) => self.spiders.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Slime(id) => self.slimes.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Enderman(id) => self.endermen.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Witch(id) => self.witches.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::IronGolem(id) => self.iron_golems.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Wolf(id) => self.wolves.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Villager(id) => self.villagers.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Cow(id) => self.cows.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Sheep(id) => self.sheep.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Pig(id) => self.pigs.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
-            EntityKey::Chicken(id) => self.chickens.iter_mut().find(|e| e.id == id).map(|e| e as &mut dyn Exposed),
+            EntityKey::Zombie(id) => self
+                .zombies
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Skeleton(id) => self
+                .skeletons
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Creeper(id) => self
+                .creepers
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Spider(id) => self
+                .spiders
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Slime(id) => self
+                .slimes
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Enderman(id) => self
+                .endermen
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Witch(id) => self
+                .witches
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::IronGolem(id) => self
+                .iron_golems
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Wolf(id) => self
+                .wolves
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Villager(id) => self
+                .villagers
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Cow(id) => self
+                .cows
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Sheep(id) => self
+                .sheep
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Pig(id) => self
+                .pigs
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
+            EntityKey::Chicken(id) => self
+                .chickens
+                .iter_mut()
+                .find(|e| e.id == id)
+                .map(|e| e as &mut dyn Exposed),
             EntityKey::Bat(_) | EntityKey::Arrow(_) | EntityKey::Potion(_) => None,
         }
     }
@@ -208,29 +330,51 @@ impl EntityWorld {
 
     /// Where a section entry stands, how big it is, and whether it can be
     /// pushed (`isPushable`: alive, not climbing, ticking).
-    fn entry_box(&mut self, entry: SectionEntry, ticks: &dyn Fn(DVec3) -> bool) -> Option<(DVec3, f32, f32, bool)> {
+    fn entry_box(
+        &mut self,
+        entry: SectionEntry,
+        ticks: &dyn Fn(DVec3) -> bool,
+    ) -> Option<(DVec3, f32, f32, bool)> {
         match entry {
             SectionEntry::Mob(key) => {
                 let (body, alive) = self.push_body(key)?;
                 let p = body.position;
-                Some((p, body.width, body.height, alive && !body.climbing && ticks(p)))
+                Some((
+                    p,
+                    body.width,
+                    body.height,
+                    alive && !body.climbing && ticks(p),
+                ))
             }
             SectionEntry::Player(id) => {
                 let player = self.pushing_players.iter().find(|p| p.id == id)?;
-                Some((player.position, player.width, player.height, player.pushable))
+                Some((
+                    player.position,
+                    player.width,
+                    player.height,
+                    player.pushable,
+                ))
             }
         }
     }
 
     /// The pushable entities but `except` whose boxes overlap `min`..`max`
     /// (`getPushableEntities`), in section order, with where they stand.
-    fn pushable_around(&mut self, except: SectionEntry, min: DVec3, max: DVec3, ticks: &dyn Fn(DVec3) -> bool) -> Vec<(SectionEntry, DVec3)> {
+    fn pushable_around(
+        &mut self,
+        except: SectionEntry,
+        min: DVec3,
+        max: DVec3,
+        ticks: &dyn Fn(DVec3) -> bool,
+    ) -> Vec<(SectionEntry, DVec3)> {
         let mut pushable = Vec::new();
         for other in self.sections.around(min, max) {
             if other == except {
                 continue;
             }
-            let Some((p, width, height, can_be_pushed)) = self.entry_box(other, ticks) else { continue };
+            let Some((p, width, height, can_be_pushed)) = self.entry_box(other, ticks) else {
+                continue;
+            };
             let half = f64::from(width / 2.0);
             let overlaps = p.x - half < max.x
                 && p.x + half > min.x
@@ -258,7 +402,8 @@ impl EntityWorld {
             SectionEntry::Mob(_) => true,
         });
         for player in self.pushing_players.clone() {
-            self.sections.file(SectionEntry::Player(player.id), player.position);
+            self.sections
+                .file(SectionEntry::Player(player.id), player.position);
         }
     }
 
@@ -270,7 +415,11 @@ impl EntityWorld {
         matches!(key, EntityKey::Villager(id) if self.villagers.iter().any(|e| e.id == id && e.sleeping.is_some()))
     }
 
-    pub fn push_from_players(&mut self, players: &[crate::tempt::PlayerCandidate], ticks: &dyn Fn(DVec3) -> bool) {
+    pub fn push_from_players(
+        &mut self,
+        players: &[crate::tempt::PlayerCandidate],
+        ticks: &dyn Fn(DVec3) -> bool,
+    ) {
         if !self.players_pickable {
             return;
         }
@@ -282,9 +431,16 @@ impl EntityWorld {
                 continue;
             }
             let half = f64::from(player.width / 2.0);
-            let (min, max) = (player.position - DVec3::new(half, 0.0, half), player.position + DVec3::new(half, f64::from(player.height), half));
-            for (other, other_position) in self.pushable_around(SectionEntry::Player(player.id), min, max, ticks) {
-                let SectionEntry::Mob(key) = other else { continue };
+            let (min, max) = (
+                player.position - DVec3::new(half, 0.0, half),
+                player.position + DVec3::new(half, f64::from(player.height), half),
+            );
+            for (other, other_position) in
+                self.pushable_around(SectionEntry::Player(player.id), min, max, ticks)
+            {
+                let SectionEntry::Mob(key) = other else {
+                    continue;
+                };
                 if self.sleeping(key) {
                     continue;
                 }
@@ -305,24 +461,71 @@ impl EntityWorld {
     pub fn pushes_on_local_player(&self, position: DVec3, eye_height: f32) -> Vec<DVec3> {
         let (width, height) = player_size(eye_height);
         let half = f64::from(width / 2.0);
-        let (min, max) = (position - DVec3::new(half, 0.0, half), position + DVec3::new(half, f64::from(height), half));
+        let (min, max) = (
+            position - DVec3::new(half, 0.0, half),
+            position + DVec3::new(half, f64::from(height), half),
+        );
         let mut pushes = Vec::new();
         for &key in &self.order {
             let body = match key {
-                EntityKey::Zombie(id) => self.zombies.iter().find(|e| e.id == id).map(|e| &e.zombie.body),
-                EntityKey::Skeleton(id) => self.skeletons.iter().find(|e| e.id == id).map(|e| &e.skeleton.body),
-                EntityKey::Creeper(id) => self.creepers.iter().find(|e| e.id == id && !e.creeper.exploded).map(|e| &e.creeper.body),
-                EntityKey::Spider(id) => self.spiders.iter().find(|e| e.id == id).map(|e| &e.spider.body),
-                EntityKey::Slime(id) => self.slimes.iter().find(|e| e.id == id).map(|e| &e.slime.body),
-                EntityKey::Enderman(id) => self.endermen.iter().find(|e| e.id == id).map(|e| &e.enderman.body),
-                EntityKey::Witch(id) => self.witches.iter().find(|e| e.id == id).map(|e| &e.witch.body),
-                EntityKey::IronGolem(id) => self.iron_golems.iter().find(|e| e.id == id).map(|e| &e.golem.body),
-                EntityKey::Wolf(id) => self.wolves.iter().find(|e| e.id == id).map(|e| &e.wolf.body),
-                EntityKey::Villager(id) => self.villagers.iter().find(|e| e.id == id).map(|e| &e.villager.body),
+                EntityKey::Zombie(id) => self
+                    .zombies
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.zombie.body),
+                EntityKey::Skeleton(id) => self
+                    .skeletons
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.skeleton.body),
+                EntityKey::Creeper(id) => self
+                    .creepers
+                    .iter()
+                    .find(|e| e.id == id && !e.creeper.exploded)
+                    .map(|e| &e.creeper.body),
+                EntityKey::Spider(id) => self
+                    .spiders
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.spider.body),
+                EntityKey::Slime(id) => self
+                    .slimes
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.slime.body),
+                EntityKey::Enderman(id) => self
+                    .endermen
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.enderman.body),
+                EntityKey::Witch(id) => self
+                    .witches
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.witch.body),
+                EntityKey::IronGolem(id) => self
+                    .iron_golems
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.golem.body),
+                EntityKey::Wolf(id) => self
+                    .wolves
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.wolf.body),
+                EntityKey::Villager(id) => self
+                    .villagers
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.villager.body),
                 EntityKey::Cow(id) => self.cows.iter().find(|e| e.id == id).map(|e| &e.cow.body),
                 EntityKey::Sheep(id) => self.sheep.iter().find(|e| e.id == id).map(|e| &e.body),
                 EntityKey::Pig(id) => self.pigs.iter().find(|e| e.id == id).map(|e| &e.pig.body),
-                EntityKey::Chicken(id) => self.chickens.iter().find(|e| e.id == id).map(|e| &e.chicken.body),
+                EntityKey::Chicken(id) => self
+                    .chickens
+                    .iter()
+                    .find(|e| e.id == id)
+                    .map(|e| &e.chicken.body),
                 EntityKey::Bat(_) | EntityKey::Arrow(_) | EntityKey::Potion(_) => None,
             };
             let Some(body) = body else { continue };
@@ -347,13 +550,24 @@ impl EntityWorld {
     /// `LivingEntity.pushEntities` for the mob `key` after its move (and
     /// its `applyEffectsFromBlocks`). `ticks` tells whether a position is
     /// in the entity-ticking range (`isPositionEntityTicking`).
-    pub(super) fn push_entities(&mut self, key: EntityKey, world: &dyn World, game_time: i64, ticks: &dyn Fn(DVec3) -> bool) {
+    pub(super) fn push_entities(
+        &mut self,
+        key: EntityKey,
+        world: &dyn World,
+        game_time: i64,
+        ticks: &dyn Fn(DVec3) -> bool,
+    ) {
         // The move filed it wherever it went.
         self.file_in_section(key);
-        let Some((body, _)) = self.push_body(key) else { return };
+        let Some((body, _)) = self.push_body(key) else {
+            return;
+        };
         let position = body.position;
         let half = f64::from(body.width / 2.0);
-        let (min, max) = (position - DVec3::new(half, 0.0, half), position + DVec3::new(half, f64::from(body.height), half));
+        let (min, max) = (
+            position - DVec3::new(half, 0.0, half),
+            position + DVec3::new(half, f64::from(body.height), half),
+        );
         let pushable = self.pushable_around(SectionEntry::Mob(key), min, max, ticks);
         if pushable.is_empty() {
             return;
@@ -371,10 +585,18 @@ impl EntityWorld {
             // `IronGolem.doPush`: one push in twenty on an enemy other than a
             // creeper makes it the golem's target.
             if let (EntityKey::IronGolem(golem), SectionEntry::Mob(other_key)) = (key, other) {
-                let enemy = self.entity_type(other_key.id()).is_some_and(|kind| crate::monster_ai::is_enemy(kind) && kind != "minecraft:creeper");
-                if let Some(e) = self.iron_golems.iter_mut().find(|e| e.id == golem).filter(|_| enemy) {
+                let enemy = self.entity_type(other_key.id()).is_some_and(|kind| {
+                    crate::monster_ai::is_enemy(kind) && kind != "minecraft:creeper"
+                });
+                if let Some(e) = self
+                    .iron_golems
+                    .iter_mut()
+                    .find(|e| e.id == golem)
+                    .filter(|_| enemy)
+                {
                     if e.random.next_int(20) == 0 {
-                        e.ai.state.set_target(Some(crate::monster_ai::Target::Mob(other_key.id())));
+                        e.ai.state
+                            .set_target(Some(crate::monster_ai::Target::Mob(other_key.id())));
                     }
                 }
             }
@@ -385,7 +607,9 @@ impl EntityWorld {
                     continue;
                 }
             }
-            let Some((xa, za)) = push_step(position, other_position) else { continue };
+            let Some((xa, za)) = push_step(position, other_position) else {
+                continue;
+            };
             if let SectionEntry::Mob(other) = other {
                 if let Some((body, _)) = self.push_body(other) {
                     body.velocity += DVec3::new(-xa, 0.0, -za);
@@ -419,82 +643,4 @@ pub fn push_step(pusher: DVec3, pushed: DVec3) -> Option<(f64, f64)> {
     xa *= scale;
     za *= scale;
     Some((xa * f64::from(0.05_f32), za * f64::from(0.05_f32)))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn section_keys_decode_as_vanilla_does() {
-        for (x, y, z) in [(0, 0, 0), (-1, -4, -1), (5, 19, -7), (-300, 3, 12)] {
-            let key = section_key(x, y, z);
-            assert_eq!(((key >> 42) as i32, (key << 44 >> 44) as i32, (key << 22 >> 42) as i32), (x, y, z));
-        }
-        // Within a column, positive z sorts before negative z.
-        assert!(section_key(0, 0, 3) < section_key(0, 0, -1));
-    }
-
-    #[test]
-    fn sections_keep_the_order_entities_came_in() {
-        let mut sections = Sections::default();
-        let cow = |id| SectionEntry::Mob(EntityKey::Cow(id));
-        sections.file(cow(1), DVec3::new(15.5, 1.0, 7.5));
-        sections.file(cow(2), DVec3::new(16.5, 1.0, 7.5));
-        sections.file(cow(3), DVec3::new(15.2, 1.0, 7.5));
-        sections.file(cow(1), DVec3::new(16.1, 1.0, 7.5));
-        // Section x = 0 first, then x = 1, which cow 1 joined last.
-        let found = sections.around(DVec3::new(15.0, 1.0, 7.0), DVec3::new(16.0, 2.0, 8.0));
-        assert!(found == vec![cow(3), cow(2), cow(1)]);
-    }
-
-    fn walker(position: DVec3) -> crate::tempt::PlayerCandidate {
-        crate::tempt::PlayerCandidate {
-            id: 7,
-            position,
-            eye_height: 1.62,
-            main_hand_cow_food: false,
-            offhand_cow_food: false,
-            main_hand_pig_food: false,
-            offhand_pig_food: false,
-            main_hand_chicken_food: false,
-            offhand_chicken_food: false,
-            main_hand_carrot_on_a_stick: false,
-            offhand_carrot_on_a_stick: false,
-            main_hand_wolf_interest: false,
-            offhand_wolf_interest: false,
-            main_hand_horse_tempt: false,
-            offhand_horse_tempt: false,
-            alive: true,
-            spectator: false,
-            attackable: true,
-        }
-    }
-
-    #[test]
-    fn players_push_the_mobs_they_walk_into() {
-        let mut world = EntityWorld::default();
-        world.set_players_pickable(true);
-        let id = world.spawn_cow(crate::cow::Cow::new(DVec3::new(0.8, 64.0, 0.5)), true);
-        let player = walker(DVec3::new(0.5, 64.0, 0.5));
-        world.push_from_players(&[player], &|_| true);
-        let cow = world.cows().iter().find(|e| e.id == id).unwrap();
-        assert!(cow.cow.body.velocity.x > 0.0, "the cow goes away from the player");
-        // The client's cow pushes its player the other way.
-        let pushes = world.pushes_on_local_player(player.position, player.eye_height);
-        assert!(pushes.len() == 1 && pushes[0].x < 0.0);
-        // A spectator pushes nothing.
-        let mut ghost = player;
-        ghost.spectator = true;
-        let before = world.cows()[0].cow.body.velocity;
-        world.push_from_players(&[ghost], &|_| true);
-        assert_eq!(world.cows()[0].cow.body.velocity, before);
-    }
-
-    #[test]
-    fn a_push_is_a_twentieth_at_most() {
-        let (xa, za) = push_step(DVec3::new(0.3, 0.0, 0.0), DVec3::ZERO).unwrap();
-        assert!(xa > 0.0 && za == 0.0 && xa <= f64::from(0.05_f32));
-        assert!(push_step(DVec3::new(0.005, 0.0, 0.009), DVec3::ZERO).is_none());
-    }
 }

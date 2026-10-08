@@ -1,5 +1,3 @@
-//! Full 82C00940/82C00AF0 matrix33 conversion. Unlike Part::SetTransform,
-//! these functions do not normalize the selected quaternion afterward.
 type V = [f32; 4];
 fn add(a: V, b: V) -> V {
     core::array::from_fn(|i| a[i] + b[i])
@@ -19,11 +17,9 @@ pub(super) fn rsqrt(v: f32) -> f32 {
     }
     e
 }
-/// 82C00940 preserves both translations and the parent quaternion.
 pub fn set_child_angular_frame(frames: &mut [u32; 16], basis: [u32; 12]) {
     frames[..4].copy_from_slice(&convert(basis));
 }
-/// 82C00AF0 preserves both translations and the child quaternion.
 pub fn set_parent_angular_frame(frames: &mut [u32; 16], basis: [u32; 12]) {
     frames[8..12].copy_from_slice(&convert(basis));
 }
@@ -35,7 +31,6 @@ fn convert(basis: [u32; 12]) -> [u32; 4] {
 }
 fn quaternion(m: [V; 3]) -> V {
     let [ri, up, at] = m;
-    // Sign masks are initialized by TU3 82F83360/90/C0, not image defaults.
     let rx = [ri[0], ri[0], -ri[0], -ri[0]];
     let uy = [up[1], -up[1], up[1], -up[1]];
     let az = [at[2], -at[2], -at[2], at[2]];

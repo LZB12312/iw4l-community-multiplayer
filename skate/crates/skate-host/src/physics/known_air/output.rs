@@ -1,4 +1,3 @@
-//! Fill82D36880 overwrites every field below except the explicitly retained pair.
 use skate_core::{
     air::known::{KnownAirOutput, KnownAirTrajectory},
     player::input_phase::AirOutputFields,

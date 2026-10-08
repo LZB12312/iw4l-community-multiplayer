@@ -1,8 +1,3 @@
-//! Direct stock VBR SQT decoding from original Skate 3 TU3.
-//! Source:82E88FA8/82E8A780(header),82E8A928(bits),82E89770(transform),
-//! 82E89A60/82E88BA0(output), and82D20298(SQT channel descriptors).
-//! Host allocation/cache ownership is independent. PC floating-point arithmetic
-//! is not claimed to emulate the Xenon's numerical instructions bit for bit.
 mod bits;
 mod header;
 mod transform;

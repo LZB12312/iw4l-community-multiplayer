@@ -1,5 +1,3 @@
-//! Ground carried-board Update82D31D1C..DB0. State60 is SkateboardController;
-//! state52 in Sync82D324B0 is a DIFFERENT grab-spline manager.
 use super::{GamePhysics, SkaterRuntime};
 
 /// Executes original Stop/Hold effects on the existing possession/solver owner.
@@ -41,7 +39,6 @@ pub(crate) fn update_possession(physics: &mut GamePhysics, skater: &mut SkaterRu
             &mut effects,
         );
     }
-    //82D31D80/DB0 assigns state only AFTER the physical action.
     skater.skateboard_controller.fields.state_448 = target;
     skater.board_possession_live.publish_volumes(physics);
 }

@@ -1,4 +1,3 @@
-//! Contact projection/classification82D81F80. No synthesized floor samples.
 use super::{Input, Vector, dot, length, scale, sub};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ContactSample {

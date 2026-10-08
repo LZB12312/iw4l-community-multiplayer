@@ -10,13 +10,14 @@ use std::sync::{Arc, Mutex, mpsc};
 enum Job {
     Activate(u64, Vec3, f32, f32),
     Step(u64, f32, InputFrame, f32),
+    Impact(u64, [f32; 3], bool),
     Suspend,
 }
 enum Reply {
     Ready,
     Activated(u64, Pose, u128),
     Pose(u64, Pose),
-    Error(String),
+    Error { message: String, initialized: bool },
 }
 #[derive(Resource, Default)]
 struct Host {
@@ -31,6 +32,9 @@ struct Host {
     previous_buttons: u16,
     input_suspended: bool,
     logged_tick: u64,
+    keyboard_jump: bool,
+    keyboard_flick_left: f32,
+    dead_until: Option<f64>,
 }
 
 pub fn register(app: &mut App) {
@@ -123,6 +127,16 @@ fn block_collision(
 fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result<(), String> {
     let root =
         std::env::var_os("IW4L_SKATE_ASSETS").ok_or("IW4L_SKATE_ASSETS is not configured")?;
+    for file in [
+        "private/game.json",
+        "private/skater.glb",
+        "private/stock/physics-skeletons.json",
+        "private/stock/skater-collections.json",
+    ] {
+        if !std::path::Path::new(&root).join(file).is_file() {
+            return Err(format!("Skate data is incomplete: missing {file}"));
+        }
+    }
     rig::reference().ok_or("Skate rig.json could not be loaded")?;
     assets::bot_model::local_skate_board().ok_or("Skate board.json could not be loaded")?;
     let (send, receive) = mpsc::channel();
@@ -132,6 +146,7 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
         .name("iw4l-skate".into())
         .stack_size(32 * 1024 * 1024)
         .spawn(move || {
+            let mut initialized = false;
             let result = (|| -> Result<(), String> {
                 let start = std::time::Instant::now();
                 let world = collision::extract(&geometry);
@@ -142,6 +157,7 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
                     [0., 0., 0.],
                     0.,
                 )?;
+                initialized = true;
                 diag::info!(
                     World,
                     "Skate map session preloaded in {}ms",
@@ -155,7 +171,8 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
                 // the blocks change.
                 let builder = session.collision_builder();
                 let (build_send, build_jobs) = mpsc::channel::<Vec3>();
-                let (built_send, built) = mpsc::channel::<(u64, Vec3, Result<(PreparedCollision, usize), String>)>();
+                let (built_send, built) =
+                    mpsc::channel::<(u64, Vec3, Result<(PreparedCollision, usize), String>)>();
                 std::thread::Builder::new()
                     .name("iw4l-skate-blocks".into())
                     .spawn(move || {
@@ -190,7 +207,10 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
                                     Ok((prepared, n)) => {
                                         session.install_collision(prepared)?;
                                         blocks = Some((revision, spawn));
-                                        diag::info!(World, "Skate: {n} block collision triangles around the spawn");
+                                        diag::info!(
+                                            World,
+                                            "Skate: {n} block collision triangles around the spawn"
+                                        );
                                     }
                                     Err(e) => diag::warn!(World, "Skate block collision: {e}"),
                                 }
@@ -210,6 +230,11 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
                         Job::Suspend => {
                             accumulated = 0.;
                             session.suspend_input();
+                        }
+                        Job::Impact(request, impulse, lethal) => {
+                            if request == epoch {
+                                session.combat_impact(impulse, lethal)?;
+                            }
                         }
                         Job::Step(request, dt, input, aspect_ratio) => {
                             if request != epoch {
@@ -231,13 +256,19 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
                             {
                                 let far = blocks.is_none_or(|(_, centre)| {
                                     let d = (at - centre) / sim::voxel::BLOCK;
-                                    d.truncate().length() > BLOCK_RECENTRE || d.z.abs() > BLOCK_DEPTH as f32 * 0.5
+                                    d.truncate().length() > BLOCK_RECENTRE
+                                        || d.z.abs() > BLOCK_DEPTH as f32 * 0.5
                                 });
                                 // Only changes that reach the blocks it covers: chunks
                                 // stream in and out far away the whole time.
                                 let changed = requested.elapsed().as_secs_f32() > 0.25
                                     && blocks.is_some_and(|(revision, centre)| {
-                                        sim::voxel::changed_near(revision, centre.to_array(), BLOCK_RADIUS, BLOCK_DEPTH)
+                                        sim::voxel::changed_near(
+                                            revision,
+                                            centre.to_array(),
+                                            BLOCK_RADIUS,
+                                            BLOCK_DEPTH,
+                                        )
                                     });
                                 if (far || changed) && build_send.send(at).is_ok() {
                                     building = true;
@@ -270,7 +301,10 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
                 Ok(())
             })();
             if let Err(e) = result {
-                let _ = publish.send(Reply::Error(e));
+                let _ = publish.send(Reply::Error {
+                    message: e,
+                    initialized,
+                });
             }
         })
         .map_err(|e| e.to_string())?;
@@ -281,11 +315,14 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
     Ok(())
 }
 
-fn stop(host: &mut Host, mode: &mut SkateMode, authority: &mut net::AuthorityWorld) {
-    authority
-        .0
-        .set_external_motion(sim::ClientId(mode.client), false);
+fn stop(host: &mut Host, mode: &mut SkateMode, authority: Option<&mut net::AuthorityWorld>) {
+    if let Some(authority) = authority {
+        authority
+            .0
+            .set_external_motion(sim::ClientId(mode.client), false);
+    }
     host.enter_requested = false;
+    host.dead_until = None;
     host.activating = false;
     host.epoch = host.epoch.wrapping_add(1);
     if let Some(send) = &host.send {
@@ -299,7 +336,17 @@ fn stop(host: &mut Host, mode: &mut SkateMode, authority: &mut net::AuthorityWor
     diag::info!(World, "Skate mode stopped; map session retained");
 }
 
-fn present(mode: &mut SkateMode, p: Pose, authority: &mut net::AuthorityWorld) {
+fn present(mode: &mut SkateMode, p: Pose, authority: Option<&mut net::AuthorityWorld>) {
+    mode.collision_sequence = p.collision_sequence;
+    mode.collision_speed = p.collision_speed;
+    mode.collision_native = p.collision_native;
+    mode.collision_normal = [
+        p.collision_normal[0],
+        -p.collision_normal[2],
+        p.collision_normal[1],
+    ];
+    mode.sound_flags = p.sound_flags;
+    mode.speed = p.velocity.length();
     let b = collision::basis();
     let mut root = b * p.root * b.inverse();
     root.w_axis = collision::from_skate(p.root.w_axis.truncate()).extend(1.);
@@ -317,10 +364,12 @@ fn present(mode: &mut SkateMode, p: Pose, authority: &mut net::AuthorityWorld) {
             fov,
         )
     });
-    authority.0.set_origin(
-        sim::ClientId(mode.client),
-        root.w_axis.truncate().to_array(),
-    );
+    if let Some(authority) = authority {
+        authority.0.set_origin(
+            sim::ClientId(mode.client),
+            root.w_axis.truncate().to_array(),
+        );
+    }
 }
 
 fn update(
@@ -328,28 +377,76 @@ fn update(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     screen: Res<AppScreen>,
     local: Res<net::LocalPresentClient>,
+    actions: Res<net::ClientActionInput>,
     presented: Res<net::PresentedSnapshot>,
     clip: Res<crate::DynEntPhysClip>,
     mut authority: Option<ResMut<net::AuthorityWorld>>,
     mut mode: ResMut<SkateMode>,
     mut host: ResMut<Host>,
-    (gamepads, active): (Query<&bevy::input::gamepad::Gamepad>, Option<Res<frame::ActivePad>>),
+    (gamepads, active): (
+        Query<&bevy::input::gamepad::Gamepad>,
+        Option<Res<frame::ActivePad>>,
+    ),
 ) {
-    let Some(authority) = authority.as_deref_mut() else {
-        return;
-    };
     let aspect_ratio = windows
         .single()
         .map(|w| w.width() / w.height().max(1.))
         .unwrap_or(16. / 9.);
     let ps = presented.player(local.0);
     let alive = ps.is_some_and(|p| p.pm_type == 0) && *screen == AppScreen::InGame;
+    let meta = presented
+        .snapshot()
+        .and_then(|s| s.meta.for_client(local.0));
+    let same_life = meta.is_some_and(|m| m.life_sequence.0 == mode.life);
+    mode.xray = meta
+        .filter(|m| m.life_sequence.0 == mode.life)
+        .filter(|m| {
+            presented.snapshot().is_some_and(|s| {
+                s.tick
+                    .0
+                    .wrapping_sub(m.skate_damage.impact.tick)
+                    .saturating_mul(sim::MATCH_TICK_MS)
+                    < 5000
+            })
+        })
+        .map_or(0, |m| m.skate_damage.injuries);
+    if mode.active
+        && same_life
+        && let Some(meta) = meta
+    {
+        let impact = meta.skate_damage.impact;
+        if impact.sequence != 0 && impact.sequence != mode.impact {
+            mode.impact = impact.sequence;
+            let i = impact.impulse;
+            if let Some(send) = &host.send {
+                let _ = send.send(Job::Impact(host.epoch, [i[0], i[2], -i[1]], impact.lethal));
+            }
+            if impact.lethal {
+                host.dead_until = Some(time.elapsed_secs_f64() + 4.);
+            }
+            diag::info!(
+                World,
+                "Skate combat impact={} damage={} lethal={}",
+                impact.sequence,
+                impact.damage,
+                impact.lethal
+            );
+        }
+    }
+    let corpse_active = mode.active
+        && same_life
+        && *screen == AppScreen::InGame
+        && host
+            .dead_until
+            .is_some_and(|until| time.elapsed_secs_f64() < until);
     let same_map = host
         .clip
         .as_ref()
         .is_none_or(|a| clip.0.as_ref().is_some_and(|b| Arc::ptr_eq(a, b)));
-    if (mode.active || host.enter_requested || host.activating) && (!alive || !same_map) {
-        stop(&mut host, &mut mode, authority);
+    if (mode.active || host.enter_requested || host.activating)
+        && ((!alive && !corpse_active) || (mode.active && !same_life) || !same_map)
+    {
+        stop(&mut host, &mut mode, authority.as_deref_mut());
     }
     if !same_map {
         host.send = None;
@@ -367,17 +464,55 @@ fn update(
         mode.preload_pending = true;
         host.clip = Some(geometry.clone()); // A failed load retries on a new map, never every frame.
         if let Err(e) = preload_map(&mut host, geometry) {
+            stop(&mut host, &mut mode, authority.as_deref_mut());
             diag::warn!(World, "Skate map preload: {e}");
+            mode.preloaded = false;
             mode.preload_pending = false;
             mode.status = e;
         }
     }
     // Skating reads the same controller as the rest of the game, whatever
     // kind it is, converted to the Xbox layout the skate input expects.
-    let pad = active.and_then(|active| active.0).and_then(|entity| gamepads.get(entity).ok());
+    let pad = active
+        .and_then(|active| active.0)
+        .and_then(|entity| gamepads.get(entity).ok());
     host.pad_packet = host.pad_packet.wrapping_add(1);
-    let input = pad.map_or_else(InputFrame::neutral, |pad| pad_frame(pad, host.pad_packet));
-    mode.controller = input.controller();
+    let input = if let Some(pad) = pad {
+        host.keyboard_jump = false;
+        host.keyboard_flick_left = 0.;
+        pad_frame(pad, host.pad_packet)
+    } else {
+        let kb = &actions.client.kb;
+        let jump = kb.gostand.active;
+        if jump {
+            host.keyboard_flick_left = 0.;
+        } else if host.keyboard_jump {
+            // Keep the flick across several native input ticks, including when
+            // rendering runs faster than the fixed skating simulation.
+            host.keyboard_flick_left = 0.06;
+        }
+        let flick = if jump {
+            -32767
+        } else if host.keyboard_flick_left > 0. {
+            32767
+        } else {
+            0
+        };
+        host.keyboard_flick_left = (host.keyboard_flick_left - time.delta_secs()).max(0.);
+        host.keyboard_jump = jump;
+        let axis =
+            |positive: bool, negative: bool| (i16::from(positive) - i16::from(negative)) * 32767;
+        let buttons =
+            if kb.forward.active { 0x1000 } else { 0 } | if kb.back.active { 0x2000 } else { 0 };
+        InputFrame::from_pad(
+            buttons,
+            [0, 0],
+            [axis(kb.moveright.active, kb.moveleft.active), 0],
+            [axis(kb.right.active, kb.left.active), flick],
+            host.pad_packet,
+        )
+    };
+    mode.controller = pad.and_then(|_| input.controller());
     host.previous_buttons = input.buttons();
 
     let mut replies = Vec::new();
@@ -388,7 +523,10 @@ fn update(
                 Ok(reply) => replies.push(reply),
                 Err(mpsc::TryRecvError::Empty) => break,
                 Err(mpsc::TryRecvError::Disconnected) => {
-                    replies.push(Reply::Error("Skate worker disconnected".into()));
+                    replies.push(Reply::Error {
+                        message: "Skate worker disconnected".into(),
+                        initialized: host.ready,
+                    });
                     break;
                 }
             }
@@ -407,8 +545,10 @@ fn update(
                 mode.entering = false;
                 mode.active = true;
                 host.input_suspended = false;
-                authority.0.set_external_motion(local.0, true);
-                present(&mut mode, p, authority);
+                if let Some(authority) = authority.as_deref_mut() {
+                    authority.0.set_external_motion(local.0, true);
+                }
+                present(&mut mode, p, authority.as_deref_mut());
                 diag::info!(World, "Skate activation from retained session: {ms}ms");
             }
             Reply::Pose(epoch, p) if epoch == host.epoch && mode.active => {
@@ -422,20 +562,38 @@ fn update(
                     );
                     host.logged_tick = p.tick;
                 }
-                present(&mut mode, p, authority);
+                present(
+                    &mut mode,
+                    p,
+                    if alive {
+                        authority.as_deref_mut()
+                    } else {
+                        None
+                    },
+                );
+                if !alive {
+                    mode.camera = None;
+                }
             }
-            Reply::Error(e) => {
-                stop(&mut host, &mut mode, authority);
+            Reply::Error {
+                message: e,
+                initialized,
+            } => {
+                stop(&mut host, &mut mode, authority.as_deref_mut());
                 host.send = None;
                 host.receive = None;
                 host.ready = false;
                 mode.preloaded = false;
                 mode.preload_pending = false;
-                // The worker is gone; prepare a fresh session for this map
-                // so the player can skate again rather than for the rest of
-                // the match being left without one.
-                host.clip = None;
-                diag::warn!(World, "Skate stopped: {e}; preparing a new session");
+                if initialized {
+                    host.clip = None;
+                    diag::warn!(World, "Skate stopped: {e}; preparing a new session");
+                } else {
+                    diag::warn!(
+                        World,
+                        "Skate preparation failed: {e}; repair data and retry with J"
+                    );
+                }
                 mode.status = e;
                 return;
             }
@@ -444,12 +602,18 @@ fn update(
     }
     if std::mem::take(&mut mode.toggle_requested) && alive {
         if mode.active || host.enter_requested || host.activating {
-            stop(&mut host, &mut mode, authority);
+            stop(&mut host, &mut mode, authority.as_deref_mut());
             return;
         }
         if host.send.is_none() {
-            diag::warn!(World, "Skate session unavailable: {}", mode.status);
-            return;
+            if host.clip.is_some() && std::env::var_os("IW4L_SKATE_ASSETS").is_some() {
+                host.clip = None;
+                mode.preload_pending = true;
+                diag::info!(World, "Skate preparation retry requested");
+            } else {
+                diag::warn!(World, "Skate session unavailable: {}", mode.status);
+                return;
+            }
         }
         host.enter_requested = true;
         mode.entering = true;
@@ -462,6 +626,9 @@ fn update(
         host.epoch = host.epoch.wrapping_add(1);
         host.enter_requested = false;
         host.activating = true;
+        mode.life = meta.map_or(0, |m| m.life_sequence.0);
+        mode.impact = meta.map_or(0, |m| m.skate_damage.impact.sequence);
+        host.dead_until = None;
         if let Some(send) = &host.send {
             let _ = send.send(Job::Activate(
                 host.epoch,
@@ -474,7 +641,20 @@ fn update(
     if !mode.active {
         return;
     }
-    if mode.input_blocked {
+    if let Some(clip) = &clip.0 {
+        let at = mode.root.w_axis.truncate();
+        let hit = clip.sweep_box(
+            (at + Vec3::Z * 12.).to_array(),
+            (at - Vec3::Z * 48.).to_array(),
+            [-2., -2., 0.],
+            [2., 2., 2.],
+            0x10001,
+        );
+        if hit.fraction < 1. {
+            mode.surface = ((hit.surface_flags >> 20) & 31).min(30) as u8;
+        }
+    }
+    if mode.input_blocked && alive {
         if !host.input_suspended {
             if let Some(send) = &host.send {
                 let _ = send.send(Job::Suspend);
@@ -489,12 +669,16 @@ fn update(
             .send(Job::Step(
                 host.epoch,
                 time.delta_secs().min(0.1),
-                input,
+                if alive {
+                    input
+                } else {
+                    InputFrame::from_pad(0, [0; 2], [0; 2], [0; 2], host.pad_packet)
+                },
                 aspect_ratio,
             ))
             .is_err()
         {
-            stop(&mut host, &mut mode, authority);
+            stop(&mut host, &mut mode, authority.as_deref_mut());
         }
     }
 }

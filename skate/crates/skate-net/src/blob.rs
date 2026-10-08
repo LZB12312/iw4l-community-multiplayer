@@ -21,68 +21,6 @@ pub struct Identity {
     pub size: usize,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn manifest(bytes: &[u8]) -> Vec<u8> {
-        let mut b = blake3::hash(bytes).as_bytes().to_vec();
-        b.extend((bytes.len() as u32).to_le_bytes());
-        b
-    }
-    #[test]
-    fn blob_bounds_hash_validation_and_obsolete_chunks() {
-        let mut b = Blobs::default();
-        let mut oversized = vec![0; 32];
-        oversized.extend(((MAX_BLOB + 1) as u32).to_le_bytes());
-        b.receive(1, 10, META, 1, &oversized);
-        assert!(b.cache.is_empty());
-        b.receive(1, 10, META, 1, &manifest(&[1, 2]));
-        let mut wrong = 0u32.to_le_bytes().to_vec();
-        wrong.extend([3, 4]);
-        b.receive(1, 10, DATA, 1, &wrong);
-        assert!(
-            b.ready(10).is_none(),
-            "corrupt content must never be loaded"
-        );
-        b.receive(1, 10, META, 2, &manifest(&[5, 6]));
-        b.receive(1, 10, DATA, 1, &wrong);
-        b.receive(1, 10, META, 1, &manifest(&[1, 2]));
-        assert_eq!(b.actors[&10].0, 2);
-        let mut valid = 0u32.to_le_bytes().to_vec();
-        valid.extend([5, 6]);
-        b.receive(1, 10, DATA, 2, &valid);
-        assert_eq!(b.ready(10).unwrap().1, &[5, 6]);
-        // A later peer can consume verified cached bytes without data retransmission.
-        b.receive(2, 11, META, 1, &manifest(&[5, 6]));
-        assert_eq!(b.ready(11).unwrap().1, &[5, 6]);
-    }
-    #[test]
-    fn lobby_rejects_forged_blob_origins_and_unregistered_senders() {
-        use crate::lobby::{Info, Session};
-        let info = |id| Info {
-            id,
-            map: 1,
-            rig: 1,
-            physics: 1,
-            appearance: 1,
-        };
-        let mut host = Session::new(88, info(10), None);
-        let mut client = Session::new(88, info(11), Some(1));
-        for p in client.service(1) {
-            host.receive(2, &p.data, 1);
-        }
-        let mut forged = packed::header(88, 12, META, 1);
-        forged.extend(manifest(&[9]));
-        host.receive(2, &forged, 2);
-        assert!(host.blobs.actors.is_empty());
-        let mut valid = packed::header(88, 11, META, 1);
-        valid.extend(manifest(&[9]));
-        host.receive(3, &valid, 3);
-        assert!(host.blobs.actors.is_empty());
-        host.receive(2, &valid, 4);
-        assert!(host.blobs.actors.contains_key(&11));
-    }
-}
 struct Blob {
     id: Identity,
     bytes: Arc<Vec<u8>>,

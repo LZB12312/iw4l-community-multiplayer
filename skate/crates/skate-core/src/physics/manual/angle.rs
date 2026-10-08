@@ -1,6 +1,3 @@
-//! Finite scalar Angle::Normalize 8258DB98, from direct TU3 disassembly.
-//! Kept local pending coordinator's shared angle-operation audit.
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AngleError {
     /// Native fctiwz result for nonfinite/overflow input is not reconstructed.

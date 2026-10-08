@@ -8,14 +8,13 @@ use super::{
     runtime::KnownAirRuntime,
 };
 
-const FIXED_STEP: f32 = f32::from_bits(0x3C88_8889); // 0x820849C8, 1/60.
-const HALF: f32 = f32::from_bits(0x3F00_0000); // 0x8209975C.
-const ONE: f32 = f32::from_bits(0x3F80_0000); // 0x8231A844.
-const PERFECT_FLIP_NUMERATOR: f32 = f32::from_bits(0xC0F1_463B); // 0x822F9450.
-const NEGATIVE_TWO_PI: f32 = f32::from_bits(0xC0C9_0FDB); // 0x822F9434.
-const HEADING_LENGTH_SQUARED_MIN: f32 = f32::from_bits(0x3DCC_CCCD); // 0x820641A8.
+const FIXED_STEP: f32 = f32::from_bits(0x3C88_8889);
+const HALF: f32 = f32::from_bits(0x3F00_0000);
+const ONE: f32 = f32::from_bits(0x3F80_0000);
+const PERFECT_FLIP_NUMERATOR: f32 = f32::from_bits(0xC0F1_463B);
+const NEGATIVE_TWO_PI: f32 = f32::from_bits(0xC0C9_0FDB);
+const HEADING_LENGTH_SQUARED_MIN: f32 = f32::from_bits(0x3DCC_CCCD);
 
-/// `PhysState_KnownAir::InitTrajectoryInfo`, TU3 `0x82D35508`.
 pub fn init_trajectory_info(
     state: &mut KnownAirState,
     frame: &KnownAirFrame,
@@ -31,7 +30,6 @@ pub fn init_trajectory_info(
     state.trajectory_apex_96 = apex;
 
     state.collision_position_112 = runtime.selector_contact_position();
-    //82D35580 reads r30+48; r30 is the complete winning result.
     state.collision_time_196 = prediction.collision_time_48;
     state.body_flip_target_speed_204 = if mode.perfect_body_flips_28 {
         PERFECT_FLIP_NUMERATOR / state.collision_time_196
@@ -70,7 +68,6 @@ pub fn init_trajectory_info(
     }
 }
 
-/// Ground transition velocity restoration, TU3 `0x82D35998`.
 pub fn restore_velocity(
     state: &mut KnownAirState,
     frame: &mut KnownAirFrame,
@@ -108,7 +105,6 @@ pub fn restore_velocity(
     frame.forward_speed_2612 = runtime.dot3(restored, forward);
 }
 
-/// `PhysState_KnownAir::UpdateTrajectoryFollow`, TU3 `0x82D36460`.
 pub fn update_trajectory_follow(
     state: &mut KnownAirState,
     frame: &KnownAirFrame,

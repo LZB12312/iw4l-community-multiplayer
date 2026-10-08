@@ -1,4 +1,3 @@
-//! Vertex/edge roots in TU3's triangle feature walk:82ADDB48/82ADA3E0.
 use super::triangle_query::{cross, dot, sub};
 use crate::math::Vector3;
 

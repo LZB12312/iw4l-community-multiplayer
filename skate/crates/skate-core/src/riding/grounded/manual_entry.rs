@@ -1,6 +1,3 @@
-//! Ground's manual entry slice82D376F4..7750 and velocity helper82D37960.
-//! Original-image bytes confirm the complete entry-helper branch/write order.
-//! The game adapter supplies live board bodies and the shared dot calculation.
 use crate::physics::manual::state::{ManualEntryContinuation, ManualState};
 
 #[derive(Clone, Copy, Debug)]
@@ -28,9 +25,6 @@ pub trait ManualGroundBodies {
 /// Three-component projection supplied by the host's shared numerical adapter.
 pub trait ManualGroundProjection {
     type Error;
-    /// Native three-component projection at82D3799C (and six repeated sites).
-    /// W does not contribute. Independent hardware numerical parity of the
-    /// shared dot implementation is separate from this helper's control flow.
     fn normal_speed(
         &mut self,
         ground_normal: [f32; 4],
@@ -57,9 +51,6 @@ pub fn enter_ground<B: ManualGroundBodies, P: ManualGroundProjection>(
     Ok(())
 }
 
-/// Full branch/write order of82D37960, conditional on the required projection.
-/// Despite the recovered name, both signs of normal motion are removed. There
-/// is no clamp, normal-length division, timestep or balance-sign selection.
 pub fn remove_velocity_into_ground<B: ManualGroundBodies, P: ManualGroundProjection>(
     input: ManualGroundInput,
     bodies: &mut B,
@@ -70,7 +61,6 @@ pub fn remove_velocity_into_ground<B: ManualGroundBodies, P: ManualGroundProject
     }
     remove_part(6, input.ground_normal, bodies, projection)?;
 
-    // Native flags are read after the deck write82D379B4..B8.
     let reversed = input.flags_2468 & (1 << 20) != 0;
     let contact26 = input.flags_2472 & (1 << 26) != 0;
     let contact27 = input.flags_2472 & (1 << 27) != 0;
@@ -102,7 +92,6 @@ fn remove_part<B: ManualGroundBodies, P: ManualGroundProjection>(
     let normal_speed = projection.normal_speed(ground_normal, velocity)?;
     let mut remaining = velocity;
     for axis in 0..3 {
-        // Separate multiply then subtract82D379A4..A8, not a fused operation.
         let component = ground_normal[axis] * normal_speed;
         remaining[axis] = velocity[axis] - component;
     }

@@ -10,11 +10,13 @@ mod entity_events;
 mod frontend;
 mod messages;
 mod minecraft;
+mod output;
 mod pcm;
 mod playback;
 mod plugin;
 mod rumble;
 mod shellshock;
+mod skate;
 mod space;
 mod start;
 mod voice;
@@ -32,11 +34,12 @@ pub use clip_store::{ClipPath, ClipPathCost, ClipPrepCost, ClipStore, PREP_BATCH
 pub use emit::{BobCycleTracker, emit_footstep_on_bob_wrap, emit_weapon_fire};
 pub use frontend::FrontendAudio;
 pub use match_set::{AudioReady, AudioSilent};
-pub use minecraft::{McSoundQueue, McSoundRequest};
 pub use messages::{
     AliasCommand, BoundWeaponSound, Footstep, LandSound, PlayAlias, SND_ENT_LOCAL,
     ViewmodelNotetracks, WeaponSound, ent_from_number,
 };
+pub use minecraft::{McSoundQueue, McSoundRequest};
+pub use output::output_device_names;
 pub use pcm::{LivePan, LoopingPcmAudio, PcmAudio, decode_audio_bytes};
 pub use playback::{
     AmbientListener, Channel3d, MissingAliasGaps, SoundBank, SoundPickState,

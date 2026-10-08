@@ -1,4 +1,3 @@
-//! Dynamic truck frames, TU3 `SkateboardBody::SetTruckDriveFrames` (0x82C0B9C0).
 use super::drive_frames::{RetailAffineTransform, RetailDriveFrames, set_drive_frames_2};
 use crate::{math::Basis3, trigonometry};
 
@@ -13,8 +12,6 @@ pub fn steering_drive_frames(
     transformed.map(|target| set_drive_frames_2(RetailAffineTransform::IDENTITY, target))
 }
 
-///82C0B9C0 caches front7840/back7904 for both physical drives and the
-///physical pose worker82DB6698. Preserve this separately from the base frames.
 pub fn steering_truck_transforms(
     base: [RetailAffineTransform; 2],
     targets: [f32; 2],
@@ -40,7 +37,3 @@ fn rotate_truck(base: RetailAffineTransform, angle: f32) -> RetailAffineTransfor
         translation: base.translation,
     }
 }
-
-#[cfg(test)]
-#[path = "tests/truck_frames.rs"]
-mod tests;

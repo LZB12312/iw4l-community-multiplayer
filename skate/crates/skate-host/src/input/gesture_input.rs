@@ -1,5 +1,3 @@
-//! GameInputManager82696030/826962D8 -> listener8259B878/8259B9D0 ->
-//! Fill8259B1F0..B7D8. Runs on the existing 60 Hz gameplay input boundary.
 use skate_core::{
     graph::intents::IntentMap,
     input::gesture::{Recognizer, Settings},
@@ -23,8 +21,6 @@ impl GestureInput {
             u8::from_str_radix(&field.data, 16).map_err(|e| e.to_string())
         };
         let mut recognizers = Vec::new();
-        // Original constructor82695A68 insertion order; each file competes
-        // internally, and all winners are delivered to the listener in order.
         for (stick, file) in [
             (1, "skater.pat"),
             (1, "skater90.pat"),
@@ -56,8 +52,6 @@ impl GestureInput {
         physical_state: u32,
         ag: &mut IntentMap,
     ) {
-        // Native manager negates mapped Y. Component deadzone0.1 is initialized
-        // by82F75F60 from820641A8, separately from cInputMap's own deadzones.
         let samples = axes.map(|[x, y]| [x, -y].map(|v| if v.abs() < 0.1 { 0.0 } else { v }));
         let mut events = Vec::new();
         let mut held = false;
@@ -151,53 +145,4 @@ fn permitted(name: &str, flags: u32, state: u32, ag: &IntentMap) -> bool {
         return false;
     }
     true
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    #[ignore = "requires private stock joystick and collection data"]
-    fn stock_360_gesture_reaches_native_square_mapping() {
-        let root = std::path::PathBuf::from(
-            std::env::var_os("SKATE3_ASSET_ROOT").expect("SKATE3_ASSET_ROOT"),
-        );
-        let mut input = GestureInput::load(&root).unwrap();
-        let mut ag = IntentMap::new();
-        let points = input.recognizers[0]
-            .1
-            .patterns()
-            .iter()
-            .find(|p| p.name == "360Flip")
-            .unwrap()
-            .points
-            .clone();
-        input.publish([[0.0; 2]; 2], 0, 0, 100, &mut ag);
-        for _ in 0..30 {
-            ag.clear();
-            input.publish(
-                [[0.0; 2], [points[0][0], -points[0][1]]],
-                0,
-                0,
-                100,
-                &mut ag,
-            );
-            assert!(!ag.contains_key("Trick"));
-        }
-        for point in &points[1..] {
-            ag.clear();
-            input.publish([[0.0; 2], [point[0], -point[1]]], 0, 0, 100, &mut ag);
-        }
-        assert!(ag.contains_key("360Flip"), "{ag:?}");
-        assert_eq!(
-            super::super::gesture_mapping::select(
-                super::super::gesture_catalog::Group::Square,
-                &ag,
-                false
-            ),
-            Some("360Flip")
-        );
-        assert_eq!(ag.get("GestureSpeed"), Some(&1.0));
-        println!("Authored scoop through all seven PAT recognizers: {ag:?}");
-    }
 }

@@ -1,4 +1,3 @@
-//! TU3 one-truck control82D89F58 and orientation82D40290.
 use super::*;
 
 #[derive(Default)]
@@ -58,7 +57,6 @@ impl Control {
             if hanging_back {
                 target = (target + sign * 0.5).clamp(-1.0, 1.0);
             }
-            //82D8A238/240: round the nudge product, then fused translation.
             let yaw = deadzone(translation)
                 .mul_add(0.85, deadzone(nudge) * 0.79)
                 .clamp(-0.85, 0.85);
@@ -77,7 +75,6 @@ impl Control {
         }
     }
 }
-///82D862B8: signed .25 dead zone, remaining range scaled by4/3.
 fn deadzone(v: f32) -> f32 {
     if v > 0.25 {
         (v - 0.25) * (4.0 / 3.0)
@@ -97,7 +94,6 @@ pub fn rotate(axis: V, value: V, angle: f32) -> V {
     )
 }
 
-///82D40290: yaw around support, orthogonalize, then pitch around deck right.
 pub fn truck_frame(board: [V; 4], normal: V, control: &Control, switched: bool) -> [V; 4] {
     let mut forward = rotate(normal, board[2], control.yaw * -0.68);
     let right = cross(normal, forward);
@@ -114,8 +110,6 @@ pub fn truck_frame(board: [V; 4], normal: V, control: &Control, switched: bool) 
     [right, cross(forward, right), forward, board[3]]
 }
 
-///82D42528/82D42AF8: rotate support by20/42 degrees about the directed rail,
-///then align board-right with the rail. Side is determined by contact offset.
 pub fn tip_frame(board: [V; 4], direction: V, normal: V, point: V, backslash: bool) -> [V; 4] {
     let across = cross(direction, normal);
     let axis = scale(

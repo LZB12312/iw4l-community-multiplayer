@@ -100,7 +100,6 @@ impl Settings {
             effective_lock_distance: None,
             penalty_domain: self.penalty_domain,
         };
-        //82D69D68: retain the last real query for non-acquisition candidates.
         let mut square = 1_000_000.;
         for &index in nearby.iter() {
             let edge = provider.primitives()[index];

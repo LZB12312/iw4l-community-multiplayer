@@ -1,5 +1,3 @@
-//! PhysicsAir200 production lifecycle82D34388/82D346C0/82D346A0.
-//! Uses the live player, board, skeleton and selector; no alternate air solver.
 mod board;
 mod input;
 mod skeleton;
@@ -12,8 +10,6 @@ use skate_core::air::state::{
     calculate_velocity_from_jump, integrate_trajectory_fixed_step, wrap_signed_angle,
 };
 
-///Original initializer82F826B0/822F8B40. This COM trajectory acceleration is
-///distinct from the world's separately supplied rigid-body gravity setting.
 const COM_ACCELERATION: [f32; 4] = [0.0, f32::from_bits(0xc11c_cccd), 0.0, 0.0];
 
 pub(super) fn enter(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
@@ -101,8 +97,6 @@ pub(super) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
                 &mut AirMath,
             );
         } else if skater.air_state.use_centre_of_mass_velocity {
-            //COM helper82D34570 repeats Fill, then offsets start/board and
-            //narrows the cone. Caller clears player_jumped again before Launch.
             let velocity = skater.air_state.centre_of_mass_trajectory.velocity;
             info.start_velocity = std::array::from_fn(|i| {
                 COM_ACCELERATION[i].mul_add(f32::from_bits(0x3c88_8889), velocity[i])
@@ -208,8 +202,6 @@ pub(super) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
     Ok(())
 }
 
-///82D34DD8. The common post-physics coordinator immediately follows this
-///apex latch with Wipeout::CheckForAirWipeout(false), after collision feedback.
 pub(super) fn update_apex(physics: &GamePhysics, state: &mut PhysicsAirState) {
     if !state.reached_apex && physics.board.bodies()[6].rates.linear_velocity.y < 0.0 {
         state.reached_apex = true;

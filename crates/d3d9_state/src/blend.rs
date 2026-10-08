@@ -22,6 +22,10 @@ pub enum BlendFactor {
 
     SrcAlphaSat,
 
+    Constant,
+
+    InvConstant,
+
     Unknown(u32),
 }
 
@@ -39,6 +43,8 @@ impl BlendFactor {
             9 => Self::DestColor,
             10 => Self::InvDestColor,
             11 => Self::SrcAlphaSat,
+            14 => Self::Constant,
+            15 => Self::InvConstant,
             value => Self::Unknown(value),
         }
     }
@@ -56,6 +62,8 @@ impl BlendFactor {
             Self::DestColor => Some(9),
             Self::InvDestColor => Some(10),
             Self::SrcAlphaSat => Some(11),
+            Self::Constant => Some(14),
+            Self::InvConstant => Some(15),
             Self::Unknown(_) => None,
         }
     }

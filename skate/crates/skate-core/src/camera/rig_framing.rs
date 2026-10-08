@@ -1,4 +1,3 @@
-//! Complete TU3 framing82E03560 and subject-driven mode selection82E053E0.
 use super::{AngularRigTracking, Positioner, direction_to_angles};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -12,8 +11,6 @@ pub struct RigFraming {
 }
 
 impl RigFraming {
-    /// The threshold is the native global vector830BD350. Its runtime producer
-    /// must be bound by the caller; mapped-image zeros are not a tuning default.
     pub fn update(
         &mut self,
         dt: f32,
@@ -69,8 +66,6 @@ pub struct RigMode {
     pub elapsed: f32,
 }
 impl RigMode {
-    /// Complete82E053E0. No graph topology or skater-state mapping is inferred
-    /// from the native getter slots. Preserve their conditional call order.
     pub fn update(&mut self, subject: &mut impl RigModeSubject) {
         let next = if subject.flag_568() != 0 {
             0

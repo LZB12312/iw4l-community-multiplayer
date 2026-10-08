@@ -1,4 +1,3 @@
-//! Trajectory and board-orientation publications inside ProcessData82BD8918.
 use super::{
     native_arithmetic::reciprocal_estimate,
     skeleton_animation_record::{AnimationPartTransform, IDENTITY, compose_affine},
@@ -11,13 +10,11 @@ pub struct SkeletonMotion {
     pub next_trajectory: AnimationPartTransform,
     ///Skeleton16320: current trajectory translation/dt, transformed to world.
     pub velocity_world: [f32; 4],
-    ///Skeleton16500, initialized zero by82BD7A6C.
     previous_board_at_y: f32,
 }
 
 impl Default for SkeletonMotion {
     fn default() -> Self {
-        //82BD7260 seeds the three frames from82139A10/20/30 and zero pos.
         Self {
             trajectory: IDENTITY,
             inverse_trajectory: IDENTITY,
@@ -29,13 +26,10 @@ impl Default for SkeletonMotion {
 }
 
 impl SkeletonMotion {
-    ///82BE3538 resets only the board-orientation history, not trajectory.
     pub fn reset_board_orientation_history(&mut self) {
         self.previous_board_at_y = 0.0;
     }
 
-    ///82BD89D0..8BA0. Bone0 is the source trajectory, not the animated foot.
-    ///Preserve the two reciprocal refinements after the shared estimate model.
     pub fn process_trajectory(
         &mut self,
         trajectory_bone: &AnimationPartTransform,
@@ -70,16 +64,12 @@ impl SkeletonMotion {
         });
     }
 
-    ///82BD8CB0..8D2C precedes the landing/board-offset adjustment. Only sets
-    ///the side-on flag; this stage does not clear an already published flag.
     pub fn publish_unadjusted_board(board: &AnimationPartTransform, flags_2472: &mut u32) {
         if board[0][1].abs() > f32::from_bits(0x3f35_c28f) {
             *flags_2472 |= 0x8000;
         }
     }
 
-    ///82BD8E14..8E50 uses board At.y, not height or translation. Returns the
-    ///difference published to Processed2768 and updates its complementary bits.
     pub fn publish_adjusted_board(
         &mut self,
         board: &AnimationPartTransform,

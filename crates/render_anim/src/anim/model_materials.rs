@@ -193,6 +193,16 @@ pub fn prepare_model_materials(
     let started = std::time::Instant::now();
     let mut by_name = HashMap::new();
     let mut refused = Vec::new();
+    if let Some(library) = assets::character::local_library() {
+        let names: Vec<_> = library.material_names().collect();
+        admit_names(
+            names.iter().map(String::as_str),
+            &atlas,
+            &tess.catalog,
+            &mut by_name,
+            &mut refused,
+        );
+    }
     for model in [
         assets::bot_model::local_bot_model(),
         assets::bot_model::local_skate_board(),
@@ -207,6 +217,35 @@ pub fn prepare_model_materials(
             &mut by_name,
             &mut refused,
         );
+    }
+    if let Some(parts) = assets::bot_model::local_characters() {
+        for part in parts {
+            admit_names(
+                part.native.surfaces.iter().map(|s| s.material.as_str()),
+                &atlas,
+                &tess.catalog,
+                &mut by_name,
+                &mut refused,
+            );
+            admit_names(
+                part.xray().surfaces.iter().map(|s| s.material.as_str()),
+                &atlas,
+                &tess.catalog,
+                &mut by_name,
+                &mut refused,
+            );
+        }
+    }
+    if let Some(models) = assets::bot_model::meat_skeleton() {
+        for model in models {
+            admit_names(
+                model.surfaces.iter().map(|s| s.material.as_str()),
+                &atlas,
+                &tess.catalog,
+                &mut by_name,
+                &mut refused,
+            );
+        }
     }
     for name in bodies.0.names() {
         if let Some(entry) = bodies.0.get(name) {
@@ -265,15 +304,9 @@ pub fn prepare_model_materials(
             let Some(entry) = projectiles.0.get_at(index) else {
                 continue;
             };
-            let key =
-                projectiles
-                    .0
-                    .key_at(index)
-                    .cloned()
-                    .unwrap_or(asset_model::ProjectileMeshKey::new(
-                        entry.namespace,
-                        &entry.skel.name,
-                    ));
+            let key = projectiles.0.key_at(index).cloned().unwrap_or(
+                asset_model::ProjectileMeshKey::new(entry.namespace, &entry.skel.name),
+            );
             for surface in 0..entry.material_edges.len() {
                 let Some(authored) = entry.material_index(surface) else {
                     continue;

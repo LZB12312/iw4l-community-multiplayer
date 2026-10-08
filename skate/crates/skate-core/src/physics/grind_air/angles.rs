@@ -10,7 +10,6 @@ pub(super) fn update(
     kind: usize,
     time: f32,
 ) {
-    //82D723D0 stores angleArray[type], NOT the range validator's frame index.
     let heading = state.headings[kind];
     let desired = if heading > 0. {
         targets::DESIRED[kind]
@@ -55,7 +54,6 @@ pub(super) fn update(
     state.angle_delta[0] = (state.angle_delta[0] + error / time)
         .max(-maximum)
         .min(maximum);
-    //82D71BB0 native broadcast subtraction is intentional, not vector rejection.
     let projected_right = unit(input.board[0].map(|v| v - dot(input.board[0], normal)));
     let correction = if dot(projected_right, projected_right) > 0.9 {
         signed_angle(input.board[0], projected_right, input.board[2]) * 0.9

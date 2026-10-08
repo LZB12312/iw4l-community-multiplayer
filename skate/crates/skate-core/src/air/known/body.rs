@@ -9,18 +9,17 @@ use super::{
     trajectory::select,
 };
 
-const DEGREES_TO_RADIANS: f32 = f32::from_bits(0x3C8E_FA35); // 0x8206D110.
-const RADIANS_TO_DEGREES: f32 = f32::from_bits(0x4265_2EE1); // 0x82084620.
-const DIRECTION_EPSILON: f32 = f32::from_bits(0x3A83_126F); // 0x82063A48.
-const PI: f32 = f32::from_bits(0x4049_0FDB); // 0x82060C44.
-const ALIGNMENT_DELAY: f32 = f32::from_bits(0x3D03_126F); // 0x822F91E8.
-const AUTO_SPIN_SCALE: f32 = f32::from_bits(0x3F99_999A); // 0x821659F4.
-const FORTY_FIVE_DEGREES: f32 = f32::from_bits(0x4234_0000); // 0x82099018.
-const HALF: f32 = f32::from_bits(0x3F00_0000); // 0x8209975C.
-const REVERSE_SCALE: f32 = f32::from_bits(0x3BA3_D70A); // 0x82099920.
-const DECELERATION_SCALE: f32 = f32::from_bits(0x3F40_0000); // 0x821814A0.
+const DEGREES_TO_RADIANS: f32 = f32::from_bits(0x3C8E_FA35);
+const RADIANS_TO_DEGREES: f32 = f32::from_bits(0x4265_2EE1);
+const DIRECTION_EPSILON: f32 = f32::from_bits(0x3A83_126F);
+const PI: f32 = f32::from_bits(0x4049_0FDB);
+const ALIGNMENT_DELAY: f32 = f32::from_bits(0x3D03_126F);
+const AUTO_SPIN_SCALE: f32 = f32::from_bits(0x3F99_999A);
+const FORTY_FIVE_DEGREES: f32 = f32::from_bits(0x4234_0000);
+const HALF: f32 = f32::from_bits(0x3F00_0000);
+const REVERSE_SCALE: f32 = f32::from_bits(0x3BA3_D70A);
+const DECELERATION_SCALE: f32 = f32::from_bits(0x3F40_0000);
 
-/// `PhysState_KnownAir::CalculateBodyFlipSpeed`, TU3 `0x82D35F40`.
 pub fn calculate_body_flip_speed(
     state: &mut KnownAirState,
     frame: &KnownAirFrame,
@@ -58,7 +57,6 @@ pub fn calculate_body_flip_speed(
     }
 }
 
-/// `PhysState_KnownAir::CalculateBodySpinSpeed`, TU3 `0x82D360B0`.
 pub fn calculate_body_spin_speed(
     state: &KnownAirState,
     frame: &KnownAirFrame,

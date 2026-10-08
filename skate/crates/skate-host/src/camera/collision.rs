@@ -54,7 +54,6 @@ impl PositionerCollisionProvider for CameraCollision<'_> {
     }
 }
 
-// 82DF3290 initializes both vectors, fraction and surface to zero on a miss.
 fn no_hit() -> FatLineResult {
     FatLineResult {
         position: [0.0; 4],

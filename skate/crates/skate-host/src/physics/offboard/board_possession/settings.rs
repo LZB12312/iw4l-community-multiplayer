@@ -3,7 +3,6 @@ use skate_core::{
     player::offboard::board_possession::lifecycle::Settings, point_graph::PointGraph,
 };
 use skate_data::collections::Collections;
-///091F8 full hash8D3065CED858A7DF, literal822F860C=426FFFFF.
 pub(crate) fn standard_angular_drag(data: &Collections) -> Result<f32, String> {
     Ok(data.float("physicsdeck", "default", "DeckAngularDrag")? * f32::from_bits(0x426fffff))
 }

@@ -1,4 +1,3 @@
-//! Real accelerated trajectory query and ordered completion of82D79948/79B40.
 use super::{Owner, input};
 use crate::physics::{offboard::contact_toolkit::StaticScene, player_input::PlayerInputRuntime};
 use skate_core::player::{
@@ -14,10 +13,6 @@ pub(super) fn execute(
     request: QueryRequest,
     processed: &ProcessedPhysicsInput,
 ) -> Result<QueryResult, String> {
-    //79948 stack54=processed2952; stack5C=0; stack64=null.
-    //8276E280 writes request80/84 from stack54/5C.8276DBE0 forwards
-    //these to82770B40's matching-group and mesh-rejection checks.
-    //Use the accelerated arc provider, NOT Ground's sweep-oriented Scene batch.
     scene
         .trajectory(request, processed.actor_query_2952 as i32, 0)
         .map_err(str::to_owned)

@@ -1,11 +1,6 @@
-//! SetTurning enter 82BB3810 and update 82BB3830 at resolved component boundaries.
-//! This is a reusable node operation; the loaded graph owns its activation.
 use super::turn_remap::TurnRemap;
 use crate::point_graph::PointGraph;
 
-/// One retained native slide record (SpecificMotionGraph3204..3220).
-/// Both SetTurning and authored slide handlers read and mutate this owner.
-/// Reserved bits stay intact; reset82595450..78 only clears the defined bits.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct SlideLatch {
     words: [u32; 5],
@@ -41,18 +36,15 @@ impl SlideLatch {
         let word = &mut self.words[if right { 2 } else { 0 }];
         *word = (dt + f32::from_bits(*word)).to_bits();
     }
-    /// CreateSlide Begin82BB2E88; do not clear start/end/grab/candidate flags.
     pub fn begin_slide(&mut self, fakie: bool) {
         self.words[0] = 0;
         self.words[2] = 0;
         self.words[4] = (self.words[4] & !0x8000_0000) | ((fakie as u32) << 31);
     }
-    /// GrabSlide82BBB848 maps authored side through the captured stance.
     pub fn grab(&mut self, authored_right: bool) {
         let right = authored_right ^ self.captured_fakie();
         self.words[if right { 3 } else { 1 }] |= 0x2000_0000;
     }
-    /// ShouldLeaveSlide82BA7130 uses captured, not current, stance.
     pub fn should_leave(&self, authored_right: bool) -> bool {
         self.end(authored_right ^ self.captured_fakie())
     }
@@ -72,7 +64,6 @@ pub struct State {
     pub mode: u32,
 }
 impl State {
-    /// Native enter and allocator 82BB4138 use the same three initial values.
     pub fn enter(&mut self) {
         self.elapsed = 0.0;
         self.smoothed = 0.0;
@@ -107,7 +98,6 @@ pub struct Physical {
 #[derive(Clone, Copy, Debug)]
 pub struct Intents {
     pub fakie_turn: Option<f32>,
-    /// Native keys 830C067C and 830C05F4, respectively.
     pub mode_0_slide: Option<f32>,
     pub mode_1_slide: Option<f32>,
 }

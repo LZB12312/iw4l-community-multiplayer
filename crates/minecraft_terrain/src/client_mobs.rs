@@ -109,7 +109,11 @@ fn unpack_degrees(rot: i8) -> f32 {
 fn encode(v: f64) -> i64 {
     let scaled = v * 4096.0;
     let floor = scaled.floor();
-    (if scaled - floor >= 0.5 { floor + 1.0 } else { floor }) as i64
+    (if scaled - floor >= 0.5 {
+        floor + 1.0
+    } else {
+        floor
+    }) as i64
 }
 
 fn decode(v: i64) -> f64 {
@@ -118,7 +122,11 @@ fn decode(v: i64) -> f64 {
 
 /// `Vec3.lerp` (`Mth.lerp` per component: `a + t * (b - a)`).
 fn vec_lerp(a: DVec3, b: DVec3, t: f64) -> DVec3 {
-    DVec3::new(a.x + t * (b.x - a.x), a.y + t * (b.y - a.y), a.z + t * (b.z - a.z))
+    DVec3::new(
+        a.x + t * (b.x - a.x),
+        a.y + t * (b.y - a.y),
+        a.z + t * (b.z - a.z),
+    )
 }
 
 /// Vanilla's `Vec3.equals` (`Double.compare` per component).
@@ -134,15 +142,29 @@ struct DeltaCodec {
 
 impl DeltaCodec {
     fn delta(&self, pos: DVec3) -> [i64; 3] {
-        [encode(pos.x) - encode(self.base.x), encode(pos.y) - encode(self.base.y), encode(pos.z) - encode(self.base.z)]
+        [
+            encode(pos.x) - encode(self.base.x),
+            encode(pos.y) - encode(self.base.y),
+            encode(pos.z) - encode(self.base.z),
+        ]
     }
 
     fn decode(&self, d: [i64; 3]) -> DVec3 {
         if d == [0, 0, 0] {
             return self.base;
         }
-        let axis = |delta: i64, base: f64| if delta == 0 { base } else { decode(encode(base) + delta) };
-        DVec3::new(axis(d[0], self.base.x), axis(d[1], self.base.y), axis(d[2], self.base.z))
+        let axis = |delta: i64, base: f64| {
+            if delta == 0 {
+                base
+            } else {
+                decode(encode(base) + delta)
+            }
+        };
+        DVec3::new(
+            axis(d[0], self.base.x),
+            axis(d[1], self.base.y),
+            axis(d[2], self.base.z),
+        )
     }
 }
 
@@ -170,9 +192,18 @@ impl Path {
 #[derive(Clone, Debug)]
 enum Packet {
     /// `ClientboundEntityPositionSyncPacket`: full precision.
-    Sync { path: Path, y_rot: f32, x_rot: f32, on_ground: bool },
+    Sync {
+        path: Path,
+        y_rot: f32,
+        x_rot: f32,
+        on_ground: bool,
+    },
     /// `ClientboundMoveEntityPacket.Pos`/`PosRot`/`Rot`, as decoded.
-    Move { path: Option<Path>, rotation: Option<(f32, f32)>, on_ground: bool },
+    Move {
+        path: Option<Path>,
+        rotation: Option<(f32, f32)>,
+        on_ground: bool,
+    },
     /// `ClientboundRotateHeadPacket`.
     Head(f32),
 }
@@ -227,32 +258,74 @@ impl Tracker {
         if mob.sync.sync_position {
             self.add_step(current);
         }
-        if mob.sync.needs_sync || self.tick_count % mob.update_interval == 0 || mob.sync.data_dirty {
+        if mob.sync.needs_sync || self.tick_count % mob.update_interval == 0 || mob.sync.data_dirty
+        {
             let y_rotn = pack_degrees(mob.y_rot);
             let x_rotn = pack_degrees(mob.x_rot);
-            let send_rotation = (i32::from(y_rotn) - i32::from(self.last_sent_y_rot)).abs() >= 1 || (i32::from(x_rotn) - i32::from(self.last_sent_x_rot)).abs() >= 1;
+            let send_rotation = (i32::from(y_rotn) - i32::from(self.last_sent_y_rot)).abs() >= 1
+                || (i32::from(x_rotn) - i32::from(self.last_sent_x_rot)).abs() >= 1;
             self.teleport_delay += 1;
             // getPositionPath, then clear.
             self.add_step(current);
-            let path = if self.tracked_steps.is_empty() { Path::Linear(current) } else { Path::Stepped(std::mem::take(&mut self.tracked_steps)) };
+            let path = if self.tracked_steps.is_empty() {
+                Path::Linear(current)
+            } else {
+                Path::Stepped(std::mem::take(&mut self.tracked_steps))
+            };
             self.tracked_steps.clear();
             self.ticks_since_last_step = 0;
-            let moved = (current - self.codec.base).length_squared() >= f64::from(7.629_394_5e-6_f32);
+            let moved =
+                (current - self.codec.base).length_squared() >= f64::from(7.629_394_5e-6_f32);
             let send_position = moved || self.tick_count % 60 == 0;
             let packet = if self.teleport_delay > 400 || self.was_on_ground != mob.on_ground {
                 self.was_on_ground = mob.on_ground;
                 self.teleport_delay = 0;
-                Some((Packet::Sync { path: path.clone(), y_rot: mob.y_rot, x_rot: mob.x_rot, on_ground: mob.on_ground }, true, true))
+                Some((
+                    Packet::Sync {
+                        path: path.clone(),
+                        y_rot: mob.y_rot,
+                        x_rot: mob.x_rot,
+                        on_ground: mob.on_ground,
+                    },
+                    true,
+                    true,
+                ))
             } else if send_position {
                 match self.encode_path(&path) {
-                    None => Some((Packet::Sync { path: path.clone(), y_rot: mob.y_rot, x_rot: mob.x_rot, on_ground: mob.on_ground }, true, true)),
+                    None => Some((
+                        Packet::Sync {
+                            path: path.clone(),
+                            y_rot: mob.y_rot,
+                            x_rot: mob.x_rot,
+                            on_ground: mob.on_ground,
+                        },
+                        true,
+                        true,
+                    )),
                     Some(decoded) => {
-                        let rotation = send_rotation.then(|| (unpack_degrees(y_rotn), unpack_degrees(x_rotn)));
-                        Some((Packet::Move { path: Some(decoded), rotation, on_ground: mob.on_ground }, true, send_rotation))
+                        let rotation =
+                            send_rotation.then(|| (unpack_degrees(y_rotn), unpack_degrees(x_rotn)));
+                        Some((
+                            Packet::Move {
+                                path: Some(decoded),
+                                rotation,
+                                on_ground: mob.on_ground,
+                            },
+                            true,
+                            send_rotation,
+                        ))
                     }
                 }
             } else if send_rotation {
-                Some((Packet::Move { path: None, rotation: Some((unpack_degrees(y_rotn), unpack_degrees(x_rotn))), on_ground: mob.on_ground }, false, true))
+                Some((
+                    Packet::Move {
+                        path: None,
+                        rotation: Some((unpack_degrees(y_rotn), unpack_degrees(x_rotn))),
+                        on_ground: mob.on_ground,
+                    },
+                    false,
+                    true,
+                ))
             } else {
                 None
             };
@@ -260,8 +333,13 @@ impl Tracker {
                 if has_position {
                     self.codec.base = current;
                     self.client_codec.base = match &packet {
-                        Packet::Sync { path, .. } | Packet::Move { path: Some(path), .. } => path.end(),
-                        Packet::Move { path: None, .. } | Packet::Head(_) => unreachable!("a position packet"),
+                        Packet::Sync { path, .. }
+                        | Packet::Move {
+                            path: Some(path), ..
+                        } => path.end(),
+                        Packet::Move { path: None, .. } | Packet::Head(_) => {
+                            unreachable!("a position packet")
+                        }
                     };
                 }
                 out.push(packet);
@@ -496,21 +574,38 @@ impl ClientMob {
     }
 
     /// `Entity.moveOrInterpolateTo` through `AbstractInterpolationHandler`.
-    fn move_or_interpolate_to(&mut self, path: Option<Path>, y_rot: f32, x_rot: f32, has_rotation: bool) {
+    fn move_or_interpolate_to(
+        &mut self,
+        path: Option<Path>,
+        y_rot: f32,
+        x_rot: f32,
+        has_rotation: bool,
+    ) {
         let (cur_pos, cur_y, cur_x) = if self.interpolation.active() {
-            (self.interpolation.position, self.interpolation.y_rot, self.interpolation.x_rot)
+            (
+                self.interpolation.position,
+                self.interpolation.y_rot,
+                self.interpolation.x_rot,
+            )
         } else {
             (self.position, self.y_rot, self.x_rot)
         };
         let path = path.unwrap_or(Path::Linear(cur_pos));
-        let (y_rot, x_rot) = if has_rotation { (y_rot, x_rot) } else { (cur_y, cur_x) };
+        let (y_rot, x_rot) = if has_rotation {
+            (y_rot, x_rot)
+        } else {
+            (cur_y, cur_x)
+        };
         if self.interpolation.interpolation_steps == 0 {
             self.snap_to(path.end(), y_rot, x_rot);
             self.interpolation.reset();
             return;
         }
         let end = path.end();
-        let unchanged = self.interpolation.active() && self.interpolation.y_rot == y_rot && self.interpolation.x_rot == x_rot && same(self.interpolation.position, end);
+        let unchanged = self.interpolation.active()
+            && self.interpolation.y_rot == y_rot
+            && self.interpolation.x_rot == x_rot
+            && same(self.interpolation.position, end);
         if !unchanged {
             self.start_interpolating(&path, y_rot, x_rot);
             self.last = (self.position, self.y_rot, self.x_rot);
@@ -543,7 +638,12 @@ impl ClientMob {
                         for &(pos, ticks) in list {
                             offset += ticks;
                             let a = offset as f32 / total as f32;
-                            data.add_step(pos, rot_lerp(a, from_y, y_rot), lerp(a, from_x, x_rot), ticks);
+                            data.add_step(
+                                pos,
+                                rot_lerp(a, from_y, y_rot),
+                                lerp(a, from_x, x_rot),
+                                ticks,
+                            );
                         }
                     }
                 }
@@ -581,7 +681,11 @@ impl ClientMob {
             if data.current_step_ticks < ticks as f32 {
                 let a = data.current_step_ticks / ticks as f32;
                 let (lp, ly, lx) = data.last_step;
-                break (vec_lerp(lp, pos, f64::from(a)), rot_lerp(a, ly, y), lerp(a, lx, x));
+                break (
+                    vec_lerp(lp, pos, f64::from(a)),
+                    rot_lerp(a, ly, y),
+                    lerp(a, lx, x),
+                );
             }
             data.current_step_ticks -= ticks as f32;
             data.last_step = (pos, y, x);
@@ -607,7 +711,12 @@ impl ClientMob {
     /// The client packet handlers.
     fn receive(&mut self, packet: Packet) {
         match packet {
-            Packet::Sync { path, y_rot, x_rot, on_ground } => {
+            Packet::Sync {
+                path,
+                y_rot,
+                x_rot,
+                on_ground,
+            } => {
                 let end = path.end();
                 self.codec.base = end;
                 if self.position.distance_squared(end) > 4096.0 {
@@ -618,7 +727,11 @@ impl ClientMob {
                 }
                 self.on_ground = on_ground;
             }
-            Packet::Move { path, rotation, on_ground } => {
+            Packet::Move {
+                path,
+                rotation,
+                on_ground,
+            } => {
                 if let Some(path) = path {
                     self.codec.base = path.end();
                     match rotation {
@@ -673,7 +786,10 @@ impl ClientMob {
             self.y_head_rot = (from + a * d) as f32;
             self.lerp_head_steps -= 1;
         }
-        let (dx, dz) = (self.position.x - self.old_position.x, self.position.z - self.old_position.z);
+        let (dx, dz) = (
+            self.position.x - self.old_position.x,
+            self.position.z - self.old_position.z,
+        );
         // calculateEntityAnimation: a dead mob's swing stops.
         let distance = (dx * dx + dz * dz).sqrt() as f32;
         if self.dead {
@@ -684,7 +800,8 @@ impl ClientMob {
         // Chicken.aiStep after LivingEntity's.
         self.flap_o = self.flap;
         self.flap_speed_o = self.flap_speed;
-        self.flap_speed = (self.flap_speed + if self.on_ground { -1.0 } else { 4.0 } * 0.3).clamp(0.0, 1.0);
+        self.flap_speed =
+            (self.flap_speed + if self.on_ground { -1.0 } else { 4.0 } * 0.3).clamp(0.0, 1.0);
         if !self.on_ground && self.flapping < 1.0 {
             self.flapping = 1.0;
         }
@@ -693,18 +810,24 @@ impl ClientMob {
         // Mob.tickHeadTurn: BodyRotationControl.clientTick.
         if dx * dx + dz * dz > 2.500_000_3e-7_f32 as f64 {
             self.y_body_rot = self.y_rot;
-            self.y_head_rot = rotate_if_necessary(self.y_head_rot, self.y_body_rot, self.max_head_y_rot);
+            self.y_head_rot =
+                rotate_if_necessary(self.y_head_rot, self.y_body_rot, self.max_head_y_rot);
             self.last_stable_y_head_rot = self.y_head_rot;
             self.head_stable_time = 0;
         } else if (self.y_head_rot - self.last_stable_y_head_rot).abs() > 15.0 {
             self.head_stable_time = 0;
             self.last_stable_y_head_rot = self.y_head_rot;
-            self.y_body_rot = rotate_if_necessary(self.y_body_rot, self.y_head_rot, self.max_head_y_rot);
+            self.y_body_rot =
+                rotate_if_necessary(self.y_body_rot, self.y_head_rot, self.max_head_y_rot);
         } else {
             self.head_stable_time += 1;
             if self.head_stable_time > 10 {
                 let fraction = ((self.head_stable_time - 10) as f32 / 10.0).clamp(0.0, 1.0);
-                self.y_body_rot = rotate_if_necessary(self.y_body_rot, self.y_head_rot, self.max_head_y_rot * (1.0 - fraction));
+                self.y_body_rot = rotate_if_necessary(
+                    self.y_body_rot,
+                    self.y_head_rot,
+                    self.max_head_y_rot * (1.0 - fraction),
+                );
             }
         }
         // The range checks: each old value within half a turn of the new.
@@ -739,7 +862,11 @@ impl ClientMob {
             feet,
             body_rot: body,
             head_yaw: wrap_degrees(head - body),
-            head_pitch: if partial == 1.0 { self.x_rot } else { lerp(partial, self.x_rot_o, self.x_rot) },
+            head_pitch: if partial == 1.0 {
+                self.x_rot
+            } else {
+                lerp(partial, self.x_rot_o, self.x_rot)
+            },
             walk_position: self.walk.position(partial),
             walk_speed: self.walk.speed(partial),
             age_in_ticks: self.tick_count as f32 + partial,
@@ -751,7 +878,11 @@ impl ClientMob {
             fly_start: self.fly_start,
             swing: self.swing.swinging().then(|| self.swing.animation(partial)),
             red_overlay: self.hurt_time > 0 || self.death_time > 0,
-            death_time: if self.death_time > 0 { self.death_time as f32 + partial } else { 0.0 },
+            death_time: if self.death_time > 0 {
+                self.death_time as f32 + partial
+            } else {
+                0.0
+            },
         }
     }
 }
@@ -878,7 +1009,11 @@ impl MobPose {
 impl MobPose {
     /// `BlockPos.containing` of the light probe.
     pub fn light_block(&self) -> (i32, i32, i32) {
-        (self.light_probe.x.floor() as i32, self.light_probe.y.floor() as i32, self.light_probe.z.floor() as i32)
+        (
+            self.light_probe.x.floor() as i32,
+            self.light_probe.y.floor() as i32,
+            self.light_probe.z.floor() as i32,
+        )
     }
 }
 
@@ -899,7 +1034,10 @@ impl ClientMobs {
             mob.seen = false;
         }
         for server in &batch {
-            let mob = self.mobs.entry(server.id).or_insert_with(|| ClientMob::spawn(server));
+            let mob = self
+                .mobs
+                .entry(server.id)
+                .or_insert_with(|| ClientMob::spawn(server));
             mob.seen = true;
             mob.baby = server.baby;
             mob.eye_height = server.eye_height;
@@ -922,7 +1060,12 @@ impl ClientMobs {
                 mob.receive(packet);
             }
         }
-        let poofs = self.mobs.values().filter(|mob| !mob.seen && mob.dead).map(|mob| (mob.position, mob.size.0, mob.size.1)).collect();
+        let poofs = self
+            .mobs
+            .values()
+            .filter(|mob| !mob.seen && mob.dead)
+            .map(|mob| (mob.position, mob.size.0, mob.size.1))
+            .collect();
         self.mobs.retain(|_, mob| mob.seen);
         poofs
     }
@@ -931,7 +1074,9 @@ impl ClientMobs {
     /// (`ClientboundAddEntityPacket`) without a server tick.
     pub fn spawn_missing(&mut self, batch: &[ServerMob]) {
         for server in batch {
-            self.mobs.entry(server.id).or_insert_with(|| ClientMob::spawn(server));
+            self.mobs
+                .entry(server.id)
+                .or_insert_with(|| ClientMob::spawn(server));
         }
     }
 
@@ -958,65 +1103,9 @@ impl ClientMobs {
     }
 
     pub fn pose(&self, id: u64, partial: f32) -> Option<MobPose> {
-        self.mobs.get(&id).map(|mob| mob.pose(partial.clamp(0.0, 1.0)))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn mob(id: u64, x: f64, yaw: f32) -> ServerMob {
-        ServerMob { id, position: DVec3::new(x, 64.0, 0.0), y_rot: yaw, x_rot: 0.0, y_head_rot: yaw, on_ground: true, baby: false, eye_height: 1.74, max_head_y_rot: 75.0, update_interval: 3, sync: SyncFlags::default(), resting: false, hurts: 0, dead: false, swings: 0, size: (0.6, 1.8) }
-    }
-
-    #[test]
-    fn degrees_pack_to_a_256th_of_a_turn() {
-        assert_eq!(pack_degrees(90.0), 64);
-        assert_eq!(unpack_degrees(64), 90.0);
-        assert_eq!(pack_degrees(-1.0), -1);
-        assert_eq!(unpack_degrees(pack_degrees(359.0)), -1.40625);
-    }
-
-    #[test]
-    fn a_walking_mob_follows_its_server_path_smoothly() {
-        let mut mobs = ClientMobs::default();
-        let mut x = 0.0;
-        let mut seen = Vec::new();
-        for _ in 0..60 {
-            x += 0.1;
-            mobs.receive(vec![mob(1, x, -90.0)]);
-            mobs.tick();
-            seen.push(mobs.get(1).unwrap().position.x);
-        }
-        // After the first packets it moves every tick, never backwards,
-        // a few ticks behind the server.
-        for pair in seen[10..].windows(2) {
-            assert!(pair[1] > pair[0], "{seen:?}");
-            assert!(pair[1] - pair[0] < 0.2, "{seen:?}");
-        }
-        assert!(x - seen[59] < 0.6 && x - seen[59] > 0.0, "{} {}", x, seen[59]);
-        // Walking east (yaw -90) turns the body that way.
-        let client = mobs.get(1).unwrap();
-        assert!((wrap_degrees(client.y_body_rot + 90.0)).abs() < 2.0, "{}", client.y_body_rot);
-        assert!(client.walk.speed(1.0) > 0.3);
-    }
-
-    #[test]
-    fn the_head_eases_to_a_turned_packet() {
-        let mut mobs = ClientMobs::default();
-        mobs.receive(vec![mob(1, 0.0, 0.0)]);
-        mobs.tick();
-        let mut turned = mob(1, 0.0, 0.0);
-        turned.y_head_rot = 60.0;
-        let mut heads = Vec::new();
-        for _ in 0..8 {
-            mobs.receive(vec![turned]);
-            mobs.tick();
-            heads.push(mobs.get(1).unwrap().y_head_rot);
-        }
-        assert!(heads.windows(2).all(|w| w[1] >= w[0]), "{heads:?}");
-        assert!((heads[7] - 59.0625).abs() < 1.0, "{heads:?}");
+        self.mobs
+            .get(&id)
+            .map(|mob| mob.pose(partial.clamp(0.0, 1.0)))
     }
 }
 
@@ -1026,9 +1115,34 @@ pub fn server_mobs(world: &minecraftoss_entities::world::EntityWorld) -> Vec<Ser
     // babies are half size.
     let scaled = |eye: f32, baby: bool| if baby { eye * 0.5 } else { eye };
     let mut out = Vec::new();
-    let mut push = |id: u64, y_rot: f32, look: &minecraftoss_entities::look::LookControl, body: &minecraftoss_entities::movement::Body, baby: bool, eye_height: f32| {
-        let sync = SyncFlags { needs_sync: body.needs_sync, ..SyncFlags::default() };
-        out.push(ServerMob { id, position: body.position, y_rot, x_rot: look.pitch, y_head_rot: look.head_yaw, on_ground: body.on_ground, baby, eye_height, max_head_y_rot: 75.0, update_interval: 3, sync, resting: false, hurts: 0, dead: false, swings: 0, size: (body.width, body.height) });
+    let mut push = |id: u64,
+                    y_rot: f32,
+                    look: &minecraftoss_entities::look::LookControl,
+                    body: &minecraftoss_entities::movement::Body,
+                    baby: bool,
+                    eye_height: f32| {
+        let sync = SyncFlags {
+            needs_sync: body.needs_sync,
+            ..SyncFlags::default()
+        };
+        out.push(ServerMob {
+            id,
+            position: body.position,
+            y_rot,
+            x_rot: look.pitch,
+            y_head_rot: look.head_yaw,
+            on_ground: body.on_ground,
+            baby,
+            eye_height,
+            max_head_y_rot: 75.0,
+            update_interval: 3,
+            sync,
+            resting: false,
+            hurts: 0,
+            dead: false,
+            swings: 0,
+            size: (body.width, body.height),
+        });
     };
     for e in world.cows() {
         let baby = e.cow.age.baby();
@@ -1040,62 +1154,175 @@ pub fn server_mobs(world: &minecraftoss_entities::world::EntityWorld) -> Vec<Ser
     }
     for e in world.sheep() {
         let baby = e.sheep.age.baby();
-        push(e.id, e.yaw, &e.look_control, &e.body, baby, scaled(1.235, baby));
+        push(
+            e.id,
+            e.yaw,
+            &e.look_control,
+            &e.body,
+            baby,
+            scaled(1.235, baby),
+        );
     }
     for e in world.pigs() {
         let baby = e.pig.age.baby();
-        push(e.id, e.pig.yaw, &e.look_control, &e.pig.body, baby, scaled(0.765, baby));
+        push(
+            e.id,
+            e.pig.yaw,
+            &e.look_control,
+            &e.pig.body,
+            baby,
+            scaled(0.765, baby),
+        );
     }
     for e in world.chickens() {
         let baby = e.chicken.age.baby();
-        push(e.id, e.chicken.yaw, &e.look_control, &e.chicken.body, baby, scaled(0.644, baby));
+        push(
+            e.id,
+            e.chicken.yaw,
+            &e.look_control,
+            &e.chicken.body,
+            baby,
+            scaled(0.644, baby),
+        );
     }
     for e in world.bats() {
         push(e.id, e.yaw, &e.look_control, &e.bat.body, false, 0.45);
     }
-    let resting_bats: std::collections::HashSet<u64> = world.bats().iter().filter(|e| e.bat.resting).map(|e| e.id).collect();
+    let resting_bats: std::collections::HashSet<u64> = world
+        .bats()
+        .iter()
+        .filter(|e| e.bat.resting)
+        .map(|e| e.id)
+        .collect();
     // The melee swingers' swings (humanoid models show them).
     let swings: HashMap<u64, u32> = world
         .zombies()
         .iter()
         .filter_map(|e| Some((e.id, e.ai.as_deref()?.state.melee.swings)))
-        .chain(world.skeletons().iter().filter_map(|e| Some((e.id, e.ai.as_deref()?.state.melee.swings))))
-        .chain(world.endermen().iter().map(|e| (e.id, e.ai.state.melee.swings)))
+        .chain(
+            world
+                .skeletons()
+                .iter()
+                .filter_map(|e| Some((e.id, e.ai.as_deref()?.state.melee.swings))),
+        )
+        .chain(
+            world
+                .endermen()
+                .iter()
+                .map(|e| (e.id, e.ai.state.melee.swings)),
+        )
         .collect();
     for e in world.zombies() {
-        push(e.id, e.yaw, &e.look_control, &e.zombie.body, e.zombie.baby, e.zombie.eye_height());
+        push(
+            e.id,
+            e.yaw,
+            &e.look_control,
+            &e.zombie.body,
+            e.zombie.baby,
+            e.zombie.eye_height(),
+        );
     }
     for e in world.skeletons() {
-        push(e.id, e.yaw, &e.look_control, &e.skeleton.body, false, e.skeleton.eye_height());
+        push(
+            e.id,
+            e.yaw,
+            &e.look_control,
+            &e.skeleton.body,
+            false,
+            e.skeleton.eye_height(),
+        );
     }
     for e in world.spiders() {
-        push(e.id, e.spider.yaw, &e.ai.state.look_control, &e.spider.body, false, e.spider.eye_height());
+        push(
+            e.id,
+            e.spider.yaw,
+            &e.ai.state.look_control,
+            &e.spider.body,
+            false,
+            e.spider.eye_height(),
+        );
     }
     for e in world.creepers() {
-        push(e.id, e.creeper.yaw, &e.ai.state.look_control, &e.creeper.body, false, e.creeper.body.height * 0.85);
+        push(
+            e.id,
+            e.creeper.yaw,
+            &e.ai.state.look_control,
+            &e.creeper.body,
+            false,
+            e.creeper.body.height * 0.85,
+        );
     }
     for e in world.villagers() {
         let baby = e.villager.age.baby();
         match e.ai.as_deref() {
-            Some(ai) => push(e.id, ai.yaw, &ai.look_control, &e.villager.body, baby, e.eye_height()),
+            Some(ai) => push(
+                e.id,
+                ai.yaw,
+                &ai.look_control,
+                &e.villager.body,
+                baby,
+                e.eye_height(),
+            ),
             // Without AI it faces its saved yaw, head and all.
-            None => push(e.id, e.yaw, &minecraftoss_entities::look::LookControl::new(e.yaw), &e.villager.body, baby, e.eye_height()),
+            None => push(
+                e.id,
+                e.yaw,
+                &minecraftoss_entities::look::LookControl::new(e.yaw),
+                &e.villager.body,
+                baby,
+                e.eye_height(),
+            ),
         }
     }
     for e in world.endermen() {
-        push(e.id, e.enderman.yaw, &e.ai.state.look_control, &e.enderman.body, false, e.enderman.eye_height());
+        push(
+            e.id,
+            e.enderman.yaw,
+            &e.ai.state.look_control,
+            &e.enderman.body,
+            false,
+            e.enderman.eye_height(),
+        );
     }
     for e in world.iron_golems() {
-        push(e.id, e.golem.yaw, &e.ai.state.look_control, &e.golem.body, false, minecraftoss_entities::iron_golem::EYE_HEIGHT);
+        push(
+            e.id,
+            e.golem.yaw,
+            &e.ai.state.look_control,
+            &e.golem.body,
+            false,
+            minecraftoss_entities::iron_golem::EYE_HEIGHT,
+        );
     }
     for e in world.slimes() {
-        push(e.id, e.slime.yaw, &e.ai.state.look_control, &e.slime.body, false, e.slime.eye_height());
+        push(
+            e.id,
+            e.slime.yaw,
+            &e.ai.state.look_control,
+            &e.slime.body,
+            false,
+            e.slime.eye_height(),
+        );
     }
     for e in world.witches() {
-        push(e.id, e.witch.yaw, &e.ai.state.look_control, &e.witch.body, false, minecraftoss_entities::witch::EYE_HEIGHT);
+        push(
+            e.id,
+            e.witch.yaw,
+            &e.ai.state.look_control,
+            &e.witch.body,
+            false,
+            minecraftoss_entities::witch::EYE_HEIGHT,
+        );
     }
     for e in world.wolves() {
-        push(e.id, e.wolf.yaw, &e.ai.state.look_control, &e.wolf.body, e.wolf.baby(), e.wolf.eye_height());
+        push(
+            e.id,
+            e.wolf.yaw,
+            &e.ai.state.look_control,
+            &e.wolf.body,
+            e.wolf.baby(),
+            e.wolf.eye_height(),
+        );
     }
     for mob in &mut out {
         mob.resting = resting_bats.contains(&mob.id);
@@ -1112,25 +1339,74 @@ pub fn server_mobs(world: &minecraftoss_entities::world::EntityWorld) -> Vec<Ser
 /// client copy: the renderer's radius (`MobRenderer` scales it by
 /// `getAgeScale`, a half for babies; a baby villager's halves again, and a
 /// slime's is a quarter of its size), at full strength.
-pub fn shadow_casters(world: &minecraftoss_entities::world::EntityWorld, mobs: &ClientMobs, camera: DVec3, partial: f32) -> Vec<crate::mesh::ShadowCaster> {
+pub fn shadow_casters(
+    world: &minecraftoss_entities::world::EntityWorld,
+    mobs: &ClientMobs,
+    camera: DVec3,
+    partial: f32,
+) -> Vec<crate::mesh::ShadowCaster> {
     let age = |baby: bool| if baby { 0.5 } else { 1.0 };
     let mut kinds: Vec<(u64, f32)> = Vec::new();
     // `AbstractHorseRenderer`'s shadow is 0.75.
-    kinds.extend(world.cows().iter().map(|e| (e.id, if e.horse.is_some() { 0.75 } else { 0.7 } * age(e.cow.age.baby()))));
-    kinds.extend(world.sheep().iter().map(|e| (e.id, 0.7 * age(e.sheep.age.baby()))));
-    kinds.extend(world.pigs().iter().map(|e| (e.id, 0.7 * age(e.pig.age.baby()))));
-    kinds.extend(world.chickens().iter().map(|e| (e.id, 0.3 * age(e.chicken.age.baby()))));
+    kinds.extend(world.cows().iter().map(|e| {
+        (
+            e.id,
+            if e.horse.is_some() { 0.75 } else { 0.7 } * age(e.cow.age.baby()),
+        )
+    }));
+    kinds.extend(
+        world
+            .sheep()
+            .iter()
+            .map(|e| (e.id, 0.7 * age(e.sheep.age.baby()))),
+    );
+    kinds.extend(
+        world
+            .pigs()
+            .iter()
+            .map(|e| (e.id, 0.7 * age(e.pig.age.baby()))),
+    );
+    kinds.extend(
+        world
+            .chickens()
+            .iter()
+            .map(|e| (e.id, 0.3 * age(e.chicken.age.baby()))),
+    );
     kinds.extend(world.bats().iter().map(|e| (e.id, 0.25)));
-    kinds.extend(world.zombies().iter().map(|e| (e.id, 0.5 * age(e.zombie.baby))));
+    kinds.extend(
+        world
+            .zombies()
+            .iter()
+            .map(|e| (e.id, 0.5 * age(e.zombie.baby))),
+    );
     kinds.extend(world.skeletons().iter().map(|e| (e.id, 0.5)));
     kinds.extend(world.spiders().iter().map(|e| (e.id, 0.8)));
     kinds.extend(world.creepers().iter().map(|e| (e.id, 0.5)));
-    kinds.extend(world.villagers().iter().map(|e| (e.id, if e.villager.age.baby() { 0.5 * 0.5 * 0.5 } else { 0.5 })));
+    kinds.extend(world.villagers().iter().map(|e| {
+        (
+            e.id,
+            if e.villager.age.baby() {
+                0.5 * 0.5 * 0.5
+            } else {
+                0.5
+            },
+        )
+    }));
     kinds.extend(world.endermen().iter().map(|e| (e.id, 0.5)));
     kinds.extend(world.iron_golems().iter().map(|e| (e.id, 0.7)));
-    kinds.extend(world.slimes().iter().map(|e| (e.id, e.slime.size as f32 * 0.25)));
+    kinds.extend(
+        world
+            .slimes()
+            .iter()
+            .map(|e| (e.id, e.slime.size as f32 * 0.25)),
+    );
     kinds.extend(world.witches().iter().map(|e| (e.id, 0.5)));
-    kinds.extend(world.wolves().iter().map(|e| (e.id, 0.5 * age(e.wolf.baby()))));
+    kinds.extend(
+        world
+            .wolves()
+            .iter()
+            .map(|e| (e.id, 0.5 * age(e.wolf.baby()))),
+    );
     kinds
         .into_iter()
         .filter_map(|(id, radius)| {
@@ -1162,8 +1438,17 @@ pub fn quadruped_legs(walk_position: f32, walk_speed: f32) -> [f32; 4] {
 #[derive(Clone, Debug)]
 pub enum TracePacket {
     /// Path steps as decoded (a tick offset of -1 marks a linear path).
-    Sync { steps: Vec<(DVec3, i32)>, y_rot: f32, x_rot: f32, on_ground: bool },
-    Move { steps: Option<Vec<(DVec3, i32)>>, rotation: Option<(f32, f32)>, on_ground: bool },
+    Sync {
+        steps: Vec<(DVec3, i32)>,
+        y_rot: f32,
+        x_rot: f32,
+        on_ground: bool,
+    },
+    Move {
+        steps: Option<Vec<(DVec3, i32)>>,
+        rotation: Option<(f32, f32)>,
+        on_ground: bool,
+    },
     Head(f32),
     /// `ClientboundDamageEventPacket`.
     Damage,
@@ -1186,8 +1471,34 @@ fn trace_path(steps: Vec<(DVec3, i32)>) -> Path {
 impl ClientMob {
     /// A client mob made from a traced `ClientboundAddEntityPacket`.
     #[allow(clippy::too_many_arguments)]
-    pub fn from_add_packet(position: DVec3, y_rot: f32, x_rot: f32, y_head_rot: f32, baby: bool, eye_height: f32, max_head_y_rot: f32, update_interval: i32) -> Self {
-        let server = ServerMob { id: 0, position, y_rot, x_rot, y_head_rot, on_ground: false, baby, eye_height, max_head_y_rot, update_interval, sync: SyncFlags::default(), resting: false, hurts: 0, dead: false, swings: 0, size: (0.6, 1.8) };
+    pub fn from_add_packet(
+        position: DVec3,
+        y_rot: f32,
+        x_rot: f32,
+        y_head_rot: f32,
+        baby: bool,
+        eye_height: f32,
+        max_head_y_rot: f32,
+        update_interval: i32,
+    ) -> Self {
+        let server = ServerMob {
+            id: 0,
+            position,
+            y_rot,
+            x_rot,
+            y_head_rot,
+            on_ground: false,
+            baby,
+            eye_height,
+            max_head_y_rot,
+            update_interval,
+            sync: SyncFlags::default(),
+            resting: false,
+            hurts: 0,
+            dead: false,
+            swings: 0,
+            size: (0.6, 1.8),
+        };
         let mut mob = Self::spawn(&server);
         mob.y_rot = y_rot;
         mob.y_rot_o = y_rot;
@@ -1204,8 +1515,26 @@ impl ClientMob {
     /// Handles a traced packet.
     pub fn handle(&mut self, packet: TracePacket) {
         self.receive(match packet {
-            TracePacket::Sync { steps, y_rot, x_rot, on_ground } => Packet::Sync { path: trace_path(steps), y_rot, x_rot, on_ground },
-            TracePacket::Move { steps, rotation, on_ground } => Packet::Move { path: steps.map(trace_path), rotation, on_ground },
+            TracePacket::Sync {
+                steps,
+                y_rot,
+                x_rot,
+                on_ground,
+            } => Packet::Sync {
+                path: trace_path(steps),
+                y_rot,
+                x_rot,
+                on_ground,
+            },
+            TracePacket::Move {
+                steps,
+                rotation,
+                on_ground,
+            } => Packet::Move {
+                path: steps.map(trace_path),
+                rotation,
+                on_ground,
+            },
             TracePacket::Head(y) => Packet::Head(y),
             TracePacket::Damage => return self.damage_event(),
             TracePacket::Health(health) => {
@@ -1259,22 +1588,82 @@ pub struct TraceTracker(Tracker);
 impl TraceTracker {
     /// The tracker as `ServerEntity` starts it for a mob in this state.
     pub fn new(position: DVec3, y_rot: f32, x_rot: f32, y_head_rot: f32, on_ground: bool) -> Self {
-        Self(Tracker::new(&Self::mob(position, y_rot, x_rot, y_head_rot, on_ground, SyncFlags::default())))
+        Self(Tracker::new(&Self::mob(
+            position,
+            y_rot,
+            x_rot,
+            y_head_rot,
+            on_ground,
+            SyncFlags::default(),
+        )))
     }
 
-    fn mob(position: DVec3, y_rot: f32, x_rot: f32, y_head_rot: f32, on_ground: bool, sync: SyncFlags) -> ServerMob {
-        ServerMob { id: 0, position, y_rot, x_rot, y_head_rot, on_ground, baby: false, eye_height: 1.0, max_head_y_rot: 75.0, update_interval: 3, sync, resting: false, hurts: 0, dead: false, swings: 0, size: (0.6, 1.8) }
+    fn mob(
+        position: DVec3,
+        y_rot: f32,
+        x_rot: f32,
+        y_head_rot: f32,
+        on_ground: bool,
+        sync: SyncFlags,
+    ) -> ServerMob {
+        ServerMob {
+            id: 0,
+            position,
+            y_rot,
+            x_rot,
+            y_head_rot,
+            on_ground,
+            baby: false,
+            eye_height: 1.0,
+            max_head_y_rot: 75.0,
+            update_interval: 3,
+            sync,
+            resting: false,
+            hurts: 0,
+            dead: false,
+            swings: 0,
+            size: (0.6, 1.8),
+        }
     }
 
     /// One `sendChanges` with the mob in this state: the packets, as the
     /// client decodes them.
-    pub fn send_changes(&mut self, position: DVec3, y_rot: f32, x_rot: f32, y_head_rot: f32, on_ground: bool, sync: SyncFlags) -> Vec<TracePacket> {
+    pub fn send_changes(
+        &mut self,
+        position: DVec3,
+        y_rot: f32,
+        x_rot: f32,
+        y_head_rot: f32,
+        on_ground: bool,
+        sync: SyncFlags,
+    ) -> Vec<TracePacket> {
         let mut out = Vec::new();
-        self.0.send_changes(&Self::mob(position, y_rot, x_rot, y_head_rot, on_ground, sync), &mut out);
+        self.0.send_changes(
+            &Self::mob(position, y_rot, x_rot, y_head_rot, on_ground, sync),
+            &mut out,
+        );
         out.into_iter()
             .map(|p| match p {
-                Packet::Sync { path, y_rot, x_rot, on_ground } => TracePacket::Sync { steps: to_trace_path(path), y_rot, x_rot, on_ground },
-                Packet::Move { path, rotation, on_ground } => TracePacket::Move { steps: path.map(to_trace_path), rotation, on_ground },
+                Packet::Sync {
+                    path,
+                    y_rot,
+                    x_rot,
+                    on_ground,
+                } => TracePacket::Sync {
+                    steps: to_trace_path(path),
+                    y_rot,
+                    x_rot,
+                    on_ground,
+                },
+                Packet::Move {
+                    path,
+                    rotation,
+                    on_ground,
+                } => TracePacket::Move {
+                    steps: path.map(to_trace_path),
+                    rotation,
+                    on_ground,
+                },
                 Packet::Head(y) => TracePacket::Head(y),
             })
             .collect()

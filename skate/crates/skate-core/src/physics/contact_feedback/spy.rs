@@ -1,7 +1,3 @@
-/// Complete TU3 82AE1608. Compacts eligible256-byte compiled contact rows into
-///112-byte spies at the same buffer start. `spy_count` increments from its input
-///value; it does not choose the write offset and is not reset by this routine.
-/// `body_center` resolves the exact body pointer to its packed COM/ID vector.
 pub fn spy_contact_jacobians(
     storage: &mut [u32],
     contact_count: u32,

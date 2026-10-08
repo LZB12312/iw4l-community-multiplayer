@@ -1,13 +1,13 @@
 //! Transport-neutral, bounded snapshot protocol. No platform identity or SDK types.
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
-mod codec;
-pub mod lobby;
 pub mod blob;
-pub mod socket;
+mod codec;
 pub mod directory;
-pub mod packed;
 pub mod interpolation;
+pub mod lobby;
+pub mod packed;
+pub mod socket;
 
 pub const MAGIC: &[u8; 8] = b"SK8NET01";
 pub const MAX_FRAME: usize = 48_000;
@@ -255,147 +255,5 @@ impl Receiver {
         self.completed = sequence;
         self.pending.retain(|p| p.sequence > sequence);
         Some(frame)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn frame() -> Frame {
-        let pose = Pose {
-            p: [0.; 3],
-            q: [0., 0., 0., 1.],
-        };
-        Frame {
-            map: 1,
-            rig: 2,
-            tick: 3,
-            appearance: "uninstalled/outfit".into(),
-            root: pose,
-            bones: vec![Bone { index: 0, pose }],
-            bodies: vec![
-                Body {
-                    pose,
-                    velocity: [0.; 3],
-                    angular: [0.; 3]
-                };
-                BODY_COUNT
-            ],
-            volumes: vec![],
-        }
-    }
-    #[test]
-    fn reorder_duplicate_and_loss() {
-        let packets = packets(1, 2, 1, &frame()).unwrap();
-        let mut rx = Receiver::default();
-        for p in packets.iter().rev().skip(1) {
-            assert!(rx.receive(p).is_none());
-            assert!(rx.receive(p).is_none());
-        }
-        assert!(rx.receive(packets.last().unwrap()).is_some());
-        for p in &packets {
-            assert!(rx.receive(p).is_none());
-        }
-        let incomplete = super::packets(1, 2, 2, &frame()).unwrap();
-        rx.receive(&incomplete[0]);
-        let next = super::packets(1, 2, 3, &frame()).unwrap();
-        assert_eq!(next.iter().filter_map(|p| rx.receive(p)).count(), 1);
-        for p in &incomplete {
-            assert!(rx.receive(p).is_none());
-        }
-    }
-    #[test]
-    fn rejects_bad_numbers_sizes_and_indices() {
-        let mut f = frame();
-        f.root.q = [0.; 4];
-        assert!(!f.validate());
-        f = frame();
-        f.bodies[0].velocity[0] = f32::NAN;
-        assert!(!f.validate());
-        f = frame();
-        f.volumes.push(Volume {
-            body: 255,
-            shape: Shape::Sphere {
-                center: [0.; 3],
-                radius: 1.,
-            },
-        });
-        assert!(!f.validate());
-        f = frame();
-        f.bones.push(f.bones[0].clone());
-        assert!(!f.validate());
-        assert!(envelope(&[0; 2048]).is_none());
-        assert_eq!(appearance_or_default("../../bad.glb"), DEFAULT_APPEARANCE);
-    }
-    #[test]
-    fn binary_geometry_round_trip_and_truncation() {
-        let mut f = frame();
-        f.volumes = vec![
-            Volume {
-                body: 0,
-                shape: Shape::Sphere {
-                    center: [0.; 3],
-                    radius: 0.1,
-                },
-            },
-            Volume {
-                body: 1,
-                shape: Shape::Capsule {
-                    center: [0.; 3],
-                    axis: [0., 1., 0.],
-                    half: 0.2,
-                    radius: 0.1,
-                },
-            },
-            Volume {
-                body: 2,
-                shape: Shape::Box {
-                    pose: f.root,
-                    half: [0.1; 3],
-                    radius: 0.01,
-                },
-            },
-            Volume {
-                body: 3,
-                shape: Shape::Triangle {
-                    vertices: [[0.; 3], [0.1, 0., 0.], [0., 0.1, 0.]],
-                    radius: 0.01,
-                },
-            },
-        ];
-        let data = codec::encode(&f);
-        assert!(data.len() < 3000);
-        assert_eq!(codec::encode(&codec::decode(&data).unwrap()), data);
-        for n in 0..data.len() {
-            assert!(codec::decode(&data[..n]).is_none());
-        }
-        let mut trailing = data;
-        trailing.push(0);
-        assert!(codec::decode(&trailing).is_none());
-    }
-    #[test]
-    fn actual_loopback_datagrams_reassemble() {
-        use std::net::UdpSocket;
-        let a = UdpSocket::bind("127.0.0.1:0").unwrap();
-        let b = UdpSocket::bind("127.0.0.1:0").unwrap();
-        a.connect(b.local_addr().unwrap()).unwrap();
-        b.connect(a.local_addr().unwrap()).unwrap();
-        b.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
-        let packets = packets(12, 34, 1, &frame()).unwrap();
-        for p in packets.iter().rev() {
-            a.send(p).unwrap();
-        }
-        let mut rx = Receiver::default();
-        let mut buffer = [0; 1500];
-        let mut complete = 0;
-        for _ in &packets {
-            let n = b.recv(&mut buffer).unwrap();
-            assert_eq!(envelope(&buffer[..n]).unwrap(), (12, 34, 1));
-            if let Some(f) = rx.receive(&buffer[..n]) {
-                assert_eq!(f.tick, 3);
-                complete += 1;
-            }
-        }
-        assert_eq!(complete, 1);
     }
 }

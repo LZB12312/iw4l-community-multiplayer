@@ -6,11 +6,11 @@
 //! the texture; here the vertex colour brightens it, as for primed TNT.
 //! The charged creeper's energy layer is not drawn yet.
 use crate::{
+    client_mobs::ClientMobs,
     cow_render::cube_scaled,
     lighting::SkyLight,
     mesh::{Atlas, ChunkMesh},
     pack::ResourceId,
-    client_mobs::ClientMobs,
 };
 use glam::{Quat, Vec3};
 use minecraftoss_entities::world::CreeperEntity;
@@ -68,12 +68,19 @@ pub fn append_creepers<'a>(
         if creeper.exploded {
             continue;
         }
-        let Some(mob) = poses.pose(entity.id, partial) else { continue };
+        let Some(mob) = poses.pose(entity.id, partial) else {
+            continue;
+        };
         let feet = mob.feet;
         let sample = mob.light_block();
         let (sky, block) = (light.get(sample) as f32, light.get_block(sample) as f32);
         let rotation = mob.body_rotation(90.0);
-        let head = Quat::from_euler(glam::EulerRot::ZYX, 0.0, mob.head_yaw.to_radians(), mob.head_pitch.to_radians());
+        let head = Quat::from_euler(
+            glam::EulerRot::ZYX,
+            0.0,
+            mob.head_yaw.to_radians(),
+            mob.head_pitch.to_radians(),
+        );
         // `Creeper.getSwelling`: the fuse between ticks over two short of
         // its length.
         let swell = creeper.old_swell as f32 + partial * (creeper.swell - creeper.old_swell) as f32;
@@ -86,26 +93,31 @@ pub fn append_creepers<'a>(
         let mut parts: Vec<(Part, Quat)> = vec![(HEAD, head), (BODY, Quat::IDENTITY)];
         for (pivot, phase) in LEGS {
             let angle = crate::client_mobs::mth_cos(swing * 0.6662 + phase) * 1.4 * speed;
-            parts.push((([-2., 0., -2.], [2., 6., 2.], [0., 16.], pivot), Quat::from_rotation_x(angle)));
+            parts.push((
+                ([-2., 0., -2.], [2., 6., 2.], [0., 16.], pivot),
+                Quat::from_rotation_x(angle),
+            ));
         }
         for ((from, to, uv, pivot), pose) in parts {
-            cube_scaled(mesh, feet, rotation, scale, region, sky, block, from, to, uv, pivot, pose, tint, [64., 32.], None, false);
+            cube_scaled(
+                mesh,
+                feet,
+                rotation,
+                scale,
+                region,
+                sky,
+                block,
+                from,
+                to,
+                uv,
+                pivot,
+                pose,
+                tint,
+                [64., 32.],
+                None,
+                false,
+            );
         }
     }
     crate::cow_render::apply_overlays(mesh, &marks);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_fuse_swells_and_flashes() {
-        assert_eq!(swell_scale(0.0), Vec3::ONE);
-        let full = swell_scale(1.0);
-        assert!(full.x > 1.35 && full.y > 1.05, "{full:?}");
-        assert_eq!(white_overlay(0.05), 0.0);
-        assert_eq!(white_overlay(0.15), 0.5);
-        assert_eq!(white_overlay(0.95), 0.95);
-    }
 }

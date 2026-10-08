@@ -1,4 +1,3 @@
-//! Original82BD5A00: select the angular interval of active contact planes.
 use super::{SkeletonCollisionFeedback, collision_feedback::V, collision_vector::*};
 use crate::{
     math::Vector3,
@@ -39,8 +38,6 @@ impl SkeletonCollisionFeedback {
         }
         let angle = (maximum + minimum) * 0.5;
         let magnitude = if found { cos(angle) } else { 0.0 };
-        //82BD35B8 rotates identity around the supplied axis before applying
-        //the projected error. Preserve its product/FMA and standalone trig.
         let c = cos(angle);
         let s = sin(angle);
         let [x, y, z, _] = axis;

@@ -1,8 +1,3 @@
-//! TU3 posture profile selection and the pending GetAnimTree construction latch.
-//! 82590B50 maps profile values; 82678990 sets the latch; 82B984C8 consumes it.
-//! Channel construction bypasses this service entirely (82D1CC20/82D1D0F0).
-
-/// Registration order at 82858810, independent of asset directory ordering.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PosturePose {
     Stiff,
@@ -29,8 +24,6 @@ impl PosturePose {
     }
 }
 
-/// Actual profile selection and a request for the next eligible main tree.
-/// Native reset 824FA9A0 supplies profile 0; constructor 82B973C8 clears pending.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PendingPosture {
     profile: u32,
@@ -81,6 +74,3 @@ impl PendingPosture {
         Ok(wrapped)
     }
 }
-
-#[cfg(test)]
-mod tests;

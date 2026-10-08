@@ -83,6 +83,9 @@ impl InputReceipt {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ClientMatchState {
+    pub appearance: crate::CharacterAppearance,
+    pub skate: Option<crate::SkatePose>,
+    pub skate_damage: crate::presentation::SkateDamage,
     pub shield: Option<crate::ShieldAttachment>,
     pub weapon_lock: crate::WeaponLock,
     pub lifecycle: ClientLifecycle,
@@ -206,6 +209,9 @@ impl ClientMatchState {
 
     pub(crate) fn to_snapshot_meta(&self) -> ClientSnapshotMeta {
         ClientSnapshotMeta {
+            appearance: self.appearance.clone(),
+            skate: self.skate.clone(),
+            skate_damage: self.skate_damage,
             shield: self.shield,
             shield_collision: None,
             controls: self.controls,
@@ -262,6 +268,9 @@ impl ClientMatchState {
     }
 
     pub(crate) fn adopt_snapshot_meta(&mut self, meta: &ClientSnapshotMeta) {
+        self.appearance = meta.appearance.clone();
+        self.skate = meta.skate.clone();
+        self.skate_damage = meta.skate_damage;
         self.controls = meta.controls;
         self.shield = meta.shield;
         self.weapon_lock = meta.weapon_lock;

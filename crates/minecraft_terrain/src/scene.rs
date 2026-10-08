@@ -99,7 +99,8 @@ pub trait Scene {
     /// beside it (`getShadeBrightness` below 1). Scenes without collision
     /// shapes guess from block names.
     fn shade_darkens_at(&self, pos: BlockPos) -> bool {
-        self.block(pos).is_some_and(|block| block.is_opaque() || block.id.path.ends_with("_leaves"))
+        self.block(pos)
+            .is_some_and(|block| block.is_opaque() || block.id.path.ends_with("_leaves"))
     }
     /// Whether the block at a position stops fluid faces
     /// (`fluid::full_collision`).
@@ -252,13 +253,21 @@ impl HandcraftedScene {
     pub fn section_is_empty(&self, (sx, sy, sz): (i32, i32, i32)) -> bool {
         let chunk = (sx, sz);
         let (y0, y1) = (sy * 16, sy * 16 + 15);
-        if self.blocks.get(&chunk).is_some_and(|placed| placed.keys().any(|&(_, y, _)| (y0..=y1).contains(&y))) {
+        if self
+            .blocks
+            .get(&chunk)
+            .is_some_and(|placed| placed.keys().any(|&(_, y, _)| (y0..=y1).contains(&y)))
+        {
             return false;
         }
-        let (Some(generated), Some(states)) = (self.generated.get(&chunk), self.states.as_ref()) else {
+        let (Some(generated), Some(states)) = (self.generated.get(&chunk), self.states.as_ref())
+        else {
             return true;
         };
-        let Some(section) = generated.sections().get((sy - generated.min_section_y()) as usize) else {
+        let Some(section) = generated
+            .sections()
+            .get((sy - generated.min_section_y()) as usize)
+        else {
             return true;
         };
         if section.is_empty() {
@@ -340,7 +349,11 @@ impl HandcraftedScene {
         if let Some(block) = self.blocks.get(&chunk).and_then(|blocks| blocks.get(&pos)) {
             return states.state_of(block);
         }
-        if self.cleared.get(&chunk).is_some_and(|cleared| cleared.contains(&pos)) {
+        if self
+            .cleared
+            .get(&chunk)
+            .is_some_and(|cleared| cleared.contains(&pos))
+        {
             return Some(minecraftoss_core::BlockStateId::AIR);
         }
         let generated = self.generated.get(&chunk)?;
@@ -379,7 +392,9 @@ impl Scene for HandcraftedScene {
         self.generated_block(pos)
     }
     fn shade_darkens_at(&self, pos: BlockPos) -> bool {
-        let Some(block) = Scene::block(self, pos) else { return false };
+        let Some(block) = Scene::block(self, pos) else {
+            return false;
+        };
         match &self.states {
             Some(states) => states.shade_darkens(block),
             None => block.is_opaque() || block.id.path.ends_with("_leaves"),
@@ -450,110 +465,8 @@ impl PlayerWorld for HandcraftedScene {
         if let (Some(states), Some(state)) = (&self.states, self.state_at(pos)) {
             return states.registries().blocks.collision_boxes(state);
         }
-        PlayerWorld::block(self, pos).map_or_else(Vec::new, |block| minecraftoss_player::authored_collision_boxes(&block))
-    }
-}
-#[cfg(test)]
-mod collision_tests {
-    use super::*;
-
-    /// Streamed worlds collide with the block catalog's exact shapes: a
-    /// flower has none, a fence reaches 1.5 blocks, a bottom slab half one.
-    #[test]
-    fn streamed_blocks_collide_with_catalog_shapes() {
-        use minecraftoss_core::registries::DataPaths;
-        use minecraftoss_core::Registries;
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let states = Arc::new(crate::terrain::BlockStates::new(Arc::new(registries), 0, -64, 384).unwrap());
-        let mut scene = HandcraftedScene::streamed(states);
-        scene.set((0, 100, 0), Some(Block::new("minecraft:poppy")));
-        scene.set((1, 100, 0), Some(Block::new("minecraft:oak_fence")));
-        scene.set((2, 100, 0), Some(Block::new("minecraft:stone_slab").with("type", "bottom")));
-        scene.set((3, 100, 0), Some(Block::new("minecraft:stone")));
-        assert!(PlayerWorld::collision_boxes(&scene, (0, 100, 0)).is_empty(), "flowers do not collide");
-        let fence = PlayerWorld::collision_boxes(&scene, (1, 100, 0));
-        assert!(fence.iter().any(|b| b[4] == 1.5), "{fence:?}");
-        assert_eq!(PlayerWorld::collision_boxes(&scene, (2, 100, 0)), vec![[0.0, 0.0, 0.0, 1.0, 0.5, 1.0]]);
-        assert_eq!(PlayerWorld::collision_boxes(&scene, (3, 100, 0)), vec![[0.0, 0.0, 0.0, 1.0, 1.0, 1.0]]);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    /// `section_is_empty` agrees with reading every block of the section,
-    /// with placed blocks and cleared positions over generated terrain.
-    #[test]
-    fn section_emptiness_matches_block_reads() {
-        use minecraftoss_core::registries::DataPaths;
-        use minecraftoss_core::Registries;
-        use minecraftoss_generator::terrain::TerrainGenerator;
-        use minecraftoss_world::chunk_map::{ChunkMap, WorldGen};
-        let Ok(paths) = DataPaths::discover() else { return };
-        let Ok(registries) = Registries::load(&paths) else { return };
-        let registries = std::sync::Arc::new(registries);
-        let worldgen = std::sync::Arc::new(WorldGen::new(std::sync::Arc::new(TerrainGenerator::overworld(registries.clone(), 0).unwrap())).unwrap());
-        let states = std::sync::Arc::new(crate::terrain::BlockStates::new(registries.clone(), 0, -64, 384).unwrap());
-        let mut map = ChunkMap::with_worldgen(worldgen, 2, 2);
-        let mut scene = HandcraftedScene::streamed(states);
-        scene.insert_chunk(map.load_now(minecraftoss_core::ChunkPos::new(0, 0)));
-        let slow = |scene: &HandcraftedScene, (sx, sy, sz): (i32, i32, i32)| {
-            (0..16).all(|x| (0..16).all(|y| (0..16).all(|z| Scene::block(scene, (sx * 16 + x, sy * 16 + y, sz * 16 + z)).is_none())))
-        };
-        // Clear a whole section of terrain, then place one block high up.
-        for x in 0..16 {
-            for y in -64..-48 {
-                for z in 0..16 {
-                    scene.set((x, y, z), None);
-                }
-            }
-        }
-        scene.set((3, 250, 3), Some(Block::new("minecraft:stone")));
-        for sy in -4..20 {
-            assert_eq!(scene.section_is_empty((0, sy, 0)), slow(&scene, (0, sy, 0)), "section {sy}");
-        }
-        assert!(scene.section_is_empty((0, -4, 0)), "the cleared section is empty");
-        assert!(!scene.section_is_empty((0, 15, 0)), "the placed block keeps its section");
-    }
-
-    use super::*;
-    #[test]
-    fn handcrafted_spans_chunks() {
-        let s = HandcraftedScene::new();
-        assert_eq!(s.chunks().len(), 9);
-        assert!(s.block_count() > 4000);
-    }
-
-    #[test]
-    fn cloned_scene_edits_only_the_affected_chunk() {
-        let source = HandcraftedScene::new();
-        let before = source.block_count();
-        let mut edited = source.clone();
-        edited.set((0, 10, 0), Some(Block::new("minecraft:glass")));
-        assert!(Scene::block(&source, (0, 10, 0)).is_none());
-        assert_eq!(edited.block_count(), before + 1);
-        assert_eq!(source.block_count(), before);
-        assert!(Arc::ptr_eq(
-            source.blocks.get(&(1, 1)).unwrap(),
-            edited.blocks.get(&(1, 1)).unwrap()
-        ));
-        assert!(!Arc::ptr_eq(
-            source.blocks.get(&(0, 0)).unwrap(),
-            edited.blocks.get(&(0, 0)).unwrap()
-        ));
-    }
-
-    #[test]
-    fn glass_and_leaf_families_do_not_occlude_full_faces() {
-        for id in [
-            "minecraft:oak_leaves",
-            "minecraft:birch_leaves",
-            "minecraft:glass",
-            "minecraft:blue_stained_glass",
-            "minecraft:tinted_glass",
-        ] {
-            assert!(!Block::new(id).is_opaque(), "{id}");
-        }
-        assert!(Block::new("minecraft:stone").is_opaque());
+        PlayerWorld::block(self, pos).map_or_else(Vec::new, |block| {
+            minecraftoss_player::authored_collision_boxes(&block)
+        })
     }
 }

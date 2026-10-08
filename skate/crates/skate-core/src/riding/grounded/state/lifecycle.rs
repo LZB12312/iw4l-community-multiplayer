@@ -1,5 +1,3 @@
-//! Ground Enter `82D37538` and Exit `82D37B20` lifecycle order.
-
 use crate::{
     physics::{
         force_queue::{BoardForceQueue, QueuedPointForce},
@@ -61,11 +59,8 @@ pub trait GroundEnterServices {
     fn initialize_ground_skeleton(&mut self) -> Result<(), Self::Error>;
     fn set_collision_state_82d911a8(&mut self, state: u32) -> Result<(), Self::Error>;
     fn reset_ground_external_objects(&mut self) -> Result<(), Self::Error>;
-    /// Full `82D375D0..82D376CC` board transform/velocity projection and target
-    /// speed initialization, preserving native VMX arithmetic.
     fn initialize_board_speed_82d375d0(&mut self) -> Result<(), Self::Error>;
     fn enter_from_air_82bf2f18(&mut self) -> Result<(), Self::Error>;
-    /// Full tag-19 producer `82D377AC..82D378A8`.
     fn landing_on_deck_force(&mut self) -> Result<QueuedPointForce, Self::Error>;
     fn set_controller_mode_one(&mut self) -> Result<(), Self::Error>;
 }
@@ -201,7 +196,6 @@ pub trait GroundExitServices {
     type Error;
 
     fn set_default_wheel_materials(&mut self) -> Result<(), Self::Error>;
-    /// Full `82D37BAC..82D37C30` jump-velocity clamp and board velocity write.
     fn restore_animated_board_velocity(&mut self, vector_2688: [f32; 4])
     -> Result<(), Self::Error>;
 }

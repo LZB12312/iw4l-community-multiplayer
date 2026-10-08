@@ -61,6 +61,7 @@ impl Plugin for NetPlugin {
                 ));
         }
         if self.role.runs_client() {
+            crate::presentation::register(app);
             configure_client_sets(app);
             app.init_resource::<crate::client::input::LookState>()
                 .init_resource::<crate::client::input::ClientActionInput>();

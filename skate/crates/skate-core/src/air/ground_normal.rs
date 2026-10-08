@@ -1,4 +1,3 @@
-//! TU3 Reckoning::UpdateGroundNormal 82D8E0F8, including filter 82D7A018.
 use crate::physics::reciprocal_sqrt::estimate;
 
 /// Native reckoning +1280..1376: control, position, previous input, filtered
@@ -10,8 +9,6 @@ pub struct GroundNormalFilter {
 }
 
 impl GroundNormalFilter {
-    /// TU3 constructor82D8DA68 initializes current/last target to the seed,
-    /// and all three accumulated difference vectors to zero.
     pub fn initialized(control: [f32; 4], initial: [f32; 4]) -> Self {
         let mut words = [0; 24];
         words[..4].copy_from_slice(&control.map(f32::to_bits));
@@ -20,8 +17,6 @@ impl GroundNormalFilter {
         Self { words }
     }
 
-    /// The up-vector filters publish the final corrected up vector only after
-    /// both filter updates and acceleration/damping in82D8C8F0.
     pub fn publish_current(&mut self, current: [f32; 4]) {
         self.words[4..8].copy_from_slice(&current.map(f32::to_bits));
     }
@@ -56,7 +51,6 @@ impl GroundNormalFilter {
         normal
     }
 
-    // Full vector filter 82D7A018, with publication order before normalization.
     pub(crate) fn filter(&mut self, input: [f32; 4]) -> [f32; 4] {
         let previous = self.words.map(f32::from_bits);
         let blend = previous[3];

@@ -1,4 +1,3 @@
-//! Complete Wipeout300 update order82D3B9C8, on the game body/pose owners.
 use super::*;
 use crate::physics::{GamePhysics, SkaterRuntime, skeleton_input_runtime::SkeletonOwners};
 use skate_core::{

@@ -6,7 +6,6 @@ use skate_data::collections::Collections;
 pub(crate) struct Settings {
     pub query: air_selector::Settings,
     pub blend: PointGraph<8>,
-    ///82C209E4: physics_grinds+636, not measured board geometry.
     pub deck_center_to_truck: f32,
 }
 impl Settings {

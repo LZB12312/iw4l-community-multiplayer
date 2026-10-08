@@ -3,8 +3,6 @@
 use skate_core::graph::conditions::{ActionCondition, Comparison, NumericCondition};
 use skate_data::state_graph::attributes::Attributes;
 
-///Original82BA3A78: first cached record, sequence filter, then numeric scalar
-///comparison only for kinds0/2. Shared by the ActionGraph and MotionGraph.
 pub(crate) fn animation_attribute(
     attributes: &[skate_core::animation::output::attributes::AnimationAttribute],
     name: skate_core::animation::output::attributes::AttributeName,
@@ -18,7 +16,6 @@ pub(crate) fn animation_attribute(
                 || a.payload.0[0].is_some_and(|word| numeric.matches(f32::from_bits(word))))
     })
 }
-///Original82BA45D0/82BA4658 rejects an inactive containing state's time.
 pub(crate) fn state_time(
     frame: &skate_core::graph::controller::Frame,
     target: Option<usize>,
@@ -69,9 +66,6 @@ pub(super) fn parse(attributes: &Attributes<'_>) -> Result<Option<ActionConditio
 
 pub(crate) fn numeric(attributes: &Attributes<'_>) -> NumericCondition {
     use Comparison as C;
-    // TU382C126F0. The long spelling takes precedence over all short forms;
-    // unrecognized long spellings retain the constructor's Equals default.
-    //82AE89B0 confirms case-sensitive comparison.
     let (comparison, field) = if let Some(value) = attributes.text("comparison") {
         (
             match value {
@@ -137,12 +131,10 @@ pub(super) fn bind_current_states(
         else {
             continue;
         };
-        // Node::GetParentState82C11B88 climbs through expressions/transitions
-        // to the containing state; it is not the graph's current leaf.
         let mut element = element_parents[graph.binding.operations[operation].element];
         while let Some(id) = element {
             if let Some(state) = graph.binding.states.iter().position(|s| s.element == id) {
-                *target = graph.binding.find_state(state, name, true); //82C13728
+                *target = graph.binding.find_state(state, name, true);
                 break;
             }
             element = element_parents[id];

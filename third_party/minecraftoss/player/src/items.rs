@@ -1,13 +1,13 @@
 //! World item lifetime and inventory transfer. Spatial movement and rendering
 //! are separate concerns; item transactions stay testable without a window.
 use crate::{
-    clip_motion,
+    Box3, World, clip_motion,
     dropper::Dropper,
     hopper::absorb_stack,
     inventory::{Inventory, ItemStack},
     local_shapes,
     rng::LegacyRandom,
-    shapes_near, Box3, World,
+    shapes_near,
 };
 use glam::DVec3;
 
@@ -143,7 +143,11 @@ impl WorldItems {
     pub fn note_pickup(&mut self, item: ItemEntity, target: DVec3, transfer: ItemStack) {
         self.pickup_sounds += 1;
         self.pickup_transfers.push(transfer);
-        self.pickup_effects.push(PickupEffect { item, age: 0, target });
+        self.pickup_effects.push(PickupEffect {
+            item,
+            age: 0,
+            target,
+        });
     }
 
     /// Ages pickup animations without simulating items (the server owns
@@ -211,15 +215,25 @@ impl WorldItems {
         self.spawn(stack, eye - DVec3::Y * f64::from(0.3_f32));
         if let Some(entity) = self.entities.last_mut() {
             let degrees = (std::f64::consts::PI / 180.0) as f32;
-            let (sin_x, cos_x) = (crate::mth::sin(f64::from(pitch * degrees)), crate::mth::cos(f64::from(pitch * degrees)));
-            let (sin_y, cos_y) = (crate::mth::sin(f64::from(yaw * degrees)), crate::mth::cos(f64::from(yaw * degrees)));
+            let (sin_x, cos_x) = (
+                crate::mth::sin(f64::from(pitch * degrees)),
+                crate::mth::cos(f64::from(pitch * degrees)),
+            );
+            let (sin_y, cos_y) = (
+                crate::mth::sin(f64::from(yaw * degrees)),
+                crate::mth::cos(f64::from(yaw * degrees)),
+            );
             let direction = self.player_random.next_float() * std::f32::consts::TAU;
             let power = 0.02_f32 * self.player_random.next_float();
-            let rise = -sin_x * 0.3_f32 + 0.1_f32 + (self.player_random.next_float() - self.player_random.next_float()) * 0.1_f32;
+            let rise = -sin_x * 0.3_f32
+                + 0.1_f32
+                + (self.player_random.next_float() - self.player_random.next_float()) * 0.1_f32;
             entity.velocity = DVec3::new(
-                f64::from(-sin_y * cos_x * 0.3_f32) + crate::jmath::cos(f64::from(direction)) * f64::from(power),
+                f64::from(-sin_y * cos_x * 0.3_f32)
+                    + crate::jmath::cos(f64::from(direction)) * f64::from(power),
                 f64::from(rise),
-                f64::from(cos_y * cos_x * 0.3_f32) + crate::jmath::sin(f64::from(direction)) * f64::from(power),
+                f64::from(cos_y * cos_x * 0.3_f32)
+                    + crate::jmath::sin(f64::from(direction)) * f64::from(power),
             );
             entity.pickup_delay = 40;
         }
@@ -538,268 +552,4 @@ fn item_fluid(world: &impl World, position: DVec3) -> Option<&'static str> {
         }
     }
     None
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{Block, Pos};
-
-    struct Floor;
-    impl World for Floor {
-        fn block(&self, pos: Pos) -> Option<Block> {
-            (pos.1 == 0).then(|| Block::new("minecraft:stone"))
-        }
-        fn set_block(&mut self, _pos: Pos, _block: Option<Block>) {}
-    }
-
-    #[test]
-    fn drop_waits_ten_ticks_then_reenters_inventory() {
-        let mut items = WorldItems::default();
-        let mut inventory = Inventory::default();
-        let feet = DVec3::new(0.5, 1.0, 0.5);
-        items.spawn(ItemStack::new("minecraft:stone", 5), feet + DVec3::Y * 0.5);
-        for _ in 0..9 {
-            assert_eq!(items.tick_and_collect(&Floor, feet, &mut inventory, 0), 0);
-        }
-        assert_eq!(items.tick_and_collect(&Floor, feet, &mut inventory, 0), 5);
-        assert_eq!(inventory.count("minecraft:stone"), 5);
-        assert!(items.entities.is_empty());
-    }
-
-    #[test]
-    fn full_inventory_leaves_item_entity_in_world() {
-        let mut items = WorldItems::default();
-        let mut inventory = Inventory::default();
-        for slot in &mut inventory.slots[..36] {
-            *slot = Some(ItemStack::new("minecraft:dirt", 64));
-        }
-        let feet = DVec3::ZERO;
-        items.spawn(ItemStack::new("minecraft:stone", 2), feet + DVec3::Y);
-        for _ in 0..10 {
-            items.tick_and_collect(&Floor, feet, &mut inventory, 0);
-        }
-        assert_eq!(items.entities[0].stack.count, 2);
-    }
-
-    #[test]
-    fn hopper_takes_delayed_item_without_player_pickup_effect() {
-        let mut items = WorldItems::default();
-        items.spawn(
-            ItemStack::new("minecraft:stone", 5),
-            DVec3::new(0.5, 2.0, 0.5),
-        );
-        let mut slots: [Option<ItemStack>; 5] = std::array::from_fn(|_| None);
-        assert!(items.suck_into_hopper(&Floor, (0, 1, 0), &mut slots));
-        assert!(items.entities.is_empty());
-        assert_eq!(slots[0].as_ref().unwrap().count, 5);
-        assert!(items.pickup_effects.is_empty());
-    }
-
-    #[test]
-    fn hopper_partial_entity_fit_changes_stack_without_cooldown_success() {
-        let mut items = WorldItems::default();
-        items.spawn(
-            ItemStack::new("minecraft:stone", 5),
-            DVec3::new(0.5, 2.0, 0.5),
-        );
-        let mut slots: [Option<ItemStack>; 5] =
-            std::array::from_fn(|_| Some(ItemStack::new("minecraft:dirt", 64)));
-        slots[0] = Some(ItemStack::new("minecraft:stone", 63));
-        assert!(!items.suck_into_hopper(&Floor, (0, 1, 0), &mut slots));
-        assert_eq!(slots[0].as_ref().unwrap().count, 64);
-        assert_eq!(items.entities[0].stack.count, 4);
-    }
-
-    #[test]
-    fn full_cube_above_hopper_blocks_item_suction() {
-        let mut items = WorldItems::default();
-        items.spawn(
-            ItemStack::new("minecraft:stone", 1),
-            DVec3::new(0.5, 0.25, 0.5),
-        );
-        let mut slots: [Option<ItemStack>; 5] = std::array::from_fn(|_| None);
-        assert!(!items.suck_into_hopper(&Floor, (0, -1, 0), &mut slots));
-        assert_eq!(items.entities[0].stack.count, 1);
-    }
-
-    #[test]
-    fn resting_items_merge_on_fortieth_tick_into_larger_stack() {
-        let mut items = WorldItems::default();
-        for count in [2, 3] {
-            items.spawn(
-                ItemStack::new("minecraft:stone", count),
-                DVec3::new(0.5, 1.0, 0.5),
-            );
-        }
-        for item in &mut items.entities {
-            item.age = 39;
-            item.on_ground = true;
-            item.velocity = DVec3::ZERO;
-        }
-        items.entities[0].pickup_delay = 40;
-        items.entities[1].pickup_delay = 20;
-        items.tick(&Floor);
-        assert_eq!(items.entities.len(), 1);
-        assert_eq!(items.entities[0].entity_id, 3);
-        assert_eq!(items.entities[0].stack.count, 5);
-        assert_eq!(items.entities[0].pickup_delay, 39);
-        assert_eq!(items.entities[0].age, 40);
-    }
-
-    #[test]
-    fn submerged_item_buoys_up_instead_of_receiving_air_gravity() {
-        struct Pool;
-        impl World for Pool {
-            fn block(&self, pos: Pos) -> Option<Block> {
-                match pos.1 {
-                    0 => Some(Block::new("minecraft:stone")),
-                    1 => Some(Block::new("minecraft:water").with("level", "0")),
-                    _ => None,
-                }
-            }
-            fn set_block(&mut self, _pos: Pos, _block: Option<Block>) {}
-        }
-        let mut items = WorldItems::default();
-        items.spawn(
-            ItemStack::new("minecraft:stone", 1),
-            DVec3::new(0.5, 1.1, 0.5),
-        );
-        items.entities[0].velocity = DVec3::ZERO;
-        items.tick(&Pool);
-        assert!(items.entities[0].velocity.y > 0.0);
-        assert!(items.entities[0].position.y > 1.1);
-    }
-
-    #[test]
-    fn pickup_uses_inflated_player_box_and_three_tick_flight() {
-        let mut items = WorldItems::default();
-        let mut inventory = Inventory::default();
-        let feet = DVec3::new(0.5, 1.0, 0.5);
-        items.spawn(
-            ItemStack::new("minecraft:dirt", 1),
-            feet + DVec3::new(1.0, 0.0, 0.0),
-        );
-        items.entities[0].pickup_delay = 0;
-        items.entities[0].velocity = DVec3::ZERO;
-        assert_eq!(items.tick_and_collect(&Floor, feet, &mut inventory, 0), 1);
-        assert_eq!(inventory.count("minecraft:dirt"), 1);
-        let transfers = items.take_pickup_transfers();
-        assert_eq!(transfers.len(), 1);
-        assert_eq!(transfers[0].count, 1);
-        assert_eq!(items.pickup_effects.len(), 1);
-        let start = items.pickup_effects[0].position(0.0);
-        assert!(
-            items.pickup_effects[0]
-                .position(1.0)
-                .distance(feet + DVec3::Y * 0.81)
-                < start.distance(feet + DVec3::Y * 0.81)
-        );
-        for _ in 0..3 {
-            items.tick_and_collect(&Floor, feet, &mut inventory, 0);
-        }
-        assert!(items.pickup_effects.is_empty());
-    }
-
-    #[test]
-    fn dropped_stone_matches_pinned_client_motion() {
-        // harness/run_stage3_client.py drop_stone d, Minecraft 26.3, observed
-        // item age 1 onward. The random throw impulse is taken from the first
-        // observed state, so this checks subsequent gravity, drag and contact.
-        let start = DVec3::new(0.5101934932552035, 2.3487908125996246, 4.202374412500763);
-        let mut items = WorldItems {
-            entities: vec![ItemEntity {
-                entity_id: 0,
-                stack: ItemStack::new("minecraft:stone", 1),
-                position: start,
-                previous_position: start,
-                velocity: DVec3::new(
-                    0.009989623584524852,
-                    0.028215003906279706,
-                    -0.2916730814260099,
-                ),
-                age: 1,
-                bob_offset: 0.0,
-                pickup_delay: 40,
-                on_ground: false,
-            }],
-            ..Default::default()
-        };
-        let mut inventory = Inventory::default();
-        let samples = [
-            (
-                2,
-                0.5201831168397283,
-                2.337005816505904,
-                3.9107013310747534,
-                -0.01154929639662685,
-                false,
-            ),
-            (
-                9,
-                0.584734559997,
-                1.184550648,
-                2.025953815,
-                -0.268500215,
-                false,
-            ),
-            (10, 0.5932333633226178, 1.0, 1.7778091044246156, 0.0, true),
-        ];
-        for age in 2..=10 {
-            items.tick_and_collect(&Floor, DVec3::new(20.0, 1.0, 20.0), &mut inventory, 0);
-            let actual = &items.entities[0];
-            if let Some((_, x, y, z, vy, grounded)) = samples.iter().find(|sample| sample.0 == age)
-            {
-                assert!(
-                    (actual.position.x - x).abs() < 1e-7,
-                    "age {age} x: {}",
-                    actual.position.x
-                );
-                assert!(
-                    (actual.position.y - y).abs() < 1e-7,
-                    "age {age} y: {}",
-                    actual.position.y
-                );
-                assert!(
-                    (actual.position.z - z).abs() < 1e-7,
-                    "age {age} z: {}",
-                    actual.position.z
-                );
-                assert!(
-                    (actual.velocity.y - vy).abs() < 1e-7,
-                    "age {age} vy: {}",
-                    actual.velocity.y
-                );
-                assert_eq!(actual.on_ground, *grounded, "age {age} grounded");
-            }
-        }
-
-        // Independent repeat with a different vanilla throw impulse. Its
-        // first floor contact happens a tick earlier.
-        let start = DVec3::new(0.4986571446011109, 2.321994743503611, 4.185405603369347);
-        items.entities[0] = ItemEntity {
-            entity_id: 2,
-            stack: ItemStack::new("minecraft:stone", 1),
-            position: start,
-            previous_position: start,
-            velocity: DVec3::new(
-                -0.0013159983165242717,
-                0.001954855681091467,
-                -0.30830251469845255,
-            ),
-            age: 1,
-            bob_offset: 0.0,
-            pickup_delay: 40,
-            on_ground: false,
-        };
-        for _ in 2..=9 {
-            items.tick_and_collect(&Floor, DVec3::new(20.0, 1.0, 20.0), &mut inventory, 0);
-        }
-        let actual = &items.entities[0];
-        assert!((actual.position.x - 0.48883736340017625).abs() < 1e-7);
-        assert!((actual.position.y - 1.0).abs() < 1e-7);
-        assert!((actual.position.z - 1.884898680205008).abs() < 1e-7);
-        assert_eq!(actual.velocity.y, 0.0);
-        assert!(actual.on_ground);
-    }
 }

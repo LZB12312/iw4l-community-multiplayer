@@ -59,7 +59,6 @@ pub(crate) struct Effects<'a> {
     /// Wheels, trucks, deck, from their original standard-material settings.
     pub standard_materials: [RetailContactMaterial; 3],
     pub released_material: RetailContactMaterial,
-    ///091F8: actual8D3065CED858A7DF field multiplied by822F860C.
     pub standard_angular_drag: f32,
     pub processed_dt_2604: f32,
 }

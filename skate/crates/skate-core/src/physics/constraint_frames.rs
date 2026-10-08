@@ -1,6 +1,3 @@
-//! Original TU3 constraint-frame arithmetic shared by joint and drive builders.
-//! 82AE0DB0 constructs quaternion-component rows directly from bilinear products.
-//! The builders compose frames and construct bases without normalizing inputs.
 use super::{
     native_arithmetic,
     rigid_body::{RetailPackedWorldInverseInertia, RetailQuaternion},
@@ -13,9 +10,6 @@ pub(crate) struct QuaternionRows {
     pub relative: RetailQuaternion,
 }
 
-/// 82AE0DB0..0F88. Keep each rounded product and the original addition order;
-/// rotating a relative quaternion's axes is only algebraically equivalent for
-/// exact unit quaternions and has different finite-precision behavior.
 pub(crate) fn quaternion_rows(a: RetailQuaternion, b: RetailQuaternion) -> QuaternionRows {
     let xx = a.x * b.x;
     let xy = a.x * b.y;
@@ -60,7 +54,6 @@ pub(crate) fn quaternion_rows(a: RetailQuaternion, b: RetailQuaternion) -> Quate
     }
 }
 
-/// Original quaternion multiplication at 82AE3C10..3C60 / 82AE1B94..1C4C.
 pub(crate) fn compose(a: RetailQuaternion, b: RetailQuaternion) -> RetailQuaternion {
     let cross = cross(Vector3::new(a.x, a.y, a.z), Vector3::new(b.x, b.y, b.z));
     RetailQuaternion {
@@ -71,10 +64,6 @@ pub(crate) fn compose(a: RetailQuaternion, b: RetailQuaternion) -> RetailQuatern
     }
 }
 
-/// Independently verified at Drive Build 82AE1CC4..1D90: sqrt(2) scaling,
-/// 0.5 - component squared, paired residuals, and masks 822FB8A0/B0/C0.
-/// This does not depend on Joint Build's unresolved RQD-gather shuffle at
-/// 82AE3D98; it accepts an already known quaternion.
 pub(crate) fn basis(q: RetailQuaternion) -> Basis3 {
     let root_two = f32::from_bits(0x3fb5_04f3);
     let x = q.x * root_two;
@@ -156,7 +145,6 @@ pub(crate) fn reciprocal_sqrt(value: f32) -> f32 {
     r
 }
 
-/// Drive 82AE2430..2490: X product, then the Y and Z fused additions.
 pub(crate) fn multiply_inertia(t: RetailPackedWorldInverseInertia, v: Vector3) -> Vector3 {
     inertia_tail(
         t,
@@ -165,7 +153,6 @@ pub(crate) fn multiply_inertia(t: RetailPackedWorldInverseInertia, v: Vector3) -
     )
 }
 
-/// Joint 82AE470C..4758 starts the same contraction with a fused +zero.
 pub(crate) fn multiply_inertia_from_zero(
     t: RetailPackedWorldInverseInertia,
     v: Vector3,

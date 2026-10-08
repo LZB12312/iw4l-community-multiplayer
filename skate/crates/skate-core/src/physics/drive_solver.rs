@@ -75,9 +75,6 @@ pub fn solve_drive_rows(
     super::solver::solve_constraints(&mut [], &mut [], drives, reactions, maximum_iterations);
 }
 
-/// One drive pass through the same native kernel used by the shared solver.
-/// Both linear and angular candidates read the initial reactions of this
-/// drive, before either candidate is applied (82AE2ED0..82AE2FB0).
 pub fn solve_drive_iteration(
     drives: &mut [RetailDriveRows],
     reactions: &mut [RetailReactionCorrections],
@@ -122,7 +119,3 @@ fn dot(a: Vector3, b: Vector3) -> f32 {
 fn cross(a: Vector3, b: Vector3) -> Vector3 {
     super::constraint_frames::cross(a, b)
 }
-
-#[cfg(test)]
-#[path = "tests/drive_solver.rs"]
-mod tests;

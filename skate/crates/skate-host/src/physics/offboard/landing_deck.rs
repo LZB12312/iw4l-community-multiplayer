@@ -1,5 +1,3 @@
-//! Offboard host for original LandingOnDeckManager82D78B28..82D79E30.
-//! One retained manager and real scene-query completion; no physical-state facade.
 mod input;
 mod output;
 mod query;
@@ -39,12 +37,10 @@ impl Owner {
         })
     }
 
-    ///82D78B28 deliberately retains proposed trajectory AND pending completion.
     pub(crate) fn reset(&mut self) {
         self.manager.reset();
     }
 
-    ///82D78D30. Query failure propagates without committing the speculative state.
     pub(crate) fn assist(
         &mut self,
         scene: &StaticScene<'_>,
@@ -73,8 +69,6 @@ impl Owner {
         Ok(())
     }
 
-    ///82D794A0: returns EVERY numeric output. A returned query has already run;
-    ///the caller must not submit UpdateOutput.query a second time.
     pub(crate) fn update(
         &mut self,
         scene: &StaticScene<'_>,
@@ -94,9 +88,6 @@ impl Owner {
         Ok(output)
     }
 
-    ///82D792D0. mapped_position_12608 is the PRE-adjustment mapped board
-    ///translation copied by82BD8CB0..8D14, not animation_board after offsets.
-    ///The shared pose producer supplies that retained value explicitly.
     pub(crate) fn calculate_accurate_ik_offset(
         &mut self,
         input: &PlayerInputRuntime,

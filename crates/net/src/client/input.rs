@@ -105,6 +105,7 @@ impl Default for ClientActionInput {
 impl ClientActionInput {
     pub fn consume_edges(&mut self) {
         self.client.kb.clear_was_pressed();
+        self.client.offhand_hold_cancel = false;
     }
 }
 
@@ -150,7 +151,6 @@ pub fn build_usercmd(input: &mut ClientActionInput, look: &LookState, server_tim
     let frame = input.frame_msec.max(1);
     let (bits, axes) = sample_move(&mut input.client, now, frame);
     let bits = if input.client.offhand_hold_cancel {
-        input.client.offhand_hold_cancel = false;
         bits | buttons::OFFHAND_HOLD_CANCEL
     } else {
         bits

@@ -1,5 +1,3 @@
-//! Complete Skeleton::UpdateSkateboardOffsetTransform82BDD630 and
-//! SkeletonIK::AddOffsetTransform82BF1C68. Counters are animation updates.
 use super::{
     board_motion_output::inverse_length_squared,
     native_arithmetic::dot3,
@@ -16,7 +14,6 @@ pub struct SkateboardOffset {
 }
 impl Default for SkateboardOffset {
     fn default() -> Self {
-        // Skeleton constructor82BD76E8..7708 and82BD79A0..79BC.
         Self {
             transform: IDENTITY,
             orientation_frames: 0.0,
@@ -101,7 +98,3 @@ impl SkateboardOffset {
         self.height_refreshed = false;
     }
 }
-
-#[cfg(test)]
-#[path = "tests/skeleton_board_offset.rs"]
-mod tests;

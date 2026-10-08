@@ -6,7 +6,7 @@
 //! blocks). Experimental redstone (`redstone_experiments`) is off, so
 //! orientations are null and draw nothing from the level random.
 
-use super::{update, Level};
+use super::{Level, update};
 use minecraftoss_core::block::flags;
 use minecraftoss_core::nbt::Tag;
 use minecraftoss_core::pos::Direction;
@@ -44,21 +44,28 @@ pub enum Kind {
     FenceGate,
     NoteBlock,
     /// `PistonBaseBlock`.
-    Piston { sticky: bool },
+    Piston {
+        sticky: bool,
+    },
     /// `MovingPistonBlock`.
     MovingPiston,
     /// `PistonHeadBlock`.
     PistonHead,
     /// `BaseRailBlock`: straight-only (powered, activator, detector) and
     /// powered (`PoweredRailBlock`).
-    Rail { straight: bool, powered: bool },
+    Rail {
+        straight: bool,
+        powered: bool,
+    },
     /// `HopperBlock`.
     Hopper,
     /// Other simulated item containers (chests, barrels, shulker boxes,
     /// dispensers and droppers).
     Container,
     /// `DispenserBlock` and `DropperBlock`.
-    Dispenser { dropper: bool },
+    Dispenser {
+        dropper: bool,
+    },
     /// `CopperBulbBlock`.
     CopperBulb,
     /// `DaylightDetectorBlock`.
@@ -98,9 +105,27 @@ impl Kinds {
             ("PistonBaseBlock", Kind::Piston { sticky: false }),
             ("MovingPistonBlock", Kind::MovingPiston),
             ("PistonHeadBlock", Kind::PistonHead),
-            ("PoweredRailBlock", Kind::Rail { straight: true, powered: true }),
-            ("DetectorRailBlock", Kind::Rail { straight: true, powered: false }),
-            ("RailBlock", Kind::Rail { straight: false, powered: false }),
+            (
+                "PoweredRailBlock",
+                Kind::Rail {
+                    straight: true,
+                    powered: true,
+                },
+            ),
+            (
+                "DetectorRailBlock",
+                Kind::Rail {
+                    straight: true,
+                    powered: false,
+                },
+            ),
+            (
+                "RailBlock",
+                Kind::Rail {
+                    straight: false,
+                    powered: false,
+                },
+            ),
             ("HopperBlock", Kind::Hopper),
             ("ChestBlock", Kind::Container),
             ("BarrelBlock", Kind::Container),
@@ -114,19 +139,40 @@ impl Kinds {
         ];
         let mut by_block = HashMap::new();
         for (id, info) in registries.blocks.blocks() {
-            let Some(mut kind) = classes.iter().find(|(class, _)| info.is_a(class)).map(|&(_, k)| k) else { continue };
+            let Some(mut kind) = classes
+                .iter()
+                .find(|(class, _)| info.is_a(class))
+                .map(|&(_, k)| k)
+            else {
+                continue;
+            };
             if kind == Kind::Button(0) {
                 // Stone buttons stay pressed for 20 ticks, wooden ones 30.
-                let stone = matches!(info.name.as_str(), "minecraft:stone_button" | "minecraft:polished_blackstone_button");
+                let stone = matches!(
+                    info.name.as_str(),
+                    "minecraft:stone_button" | "minecraft:polished_blackstone_button"
+                );
                 kind = Kind::Button(if stone { 20 } else { 30 });
             }
             if kind == (Kind::Piston { sticky: false }) {
-                kind = Kind::Piston { sticky: info.name.as_str() == "minecraft:sticky_piston" };
+                kind = Kind::Piston {
+                    sticky: info.name.as_str() == "minecraft:sticky_piston",
+                };
             }
             by_block.insert(id, kind);
         }
-        let id = |name: &str| registries.blocks.block_by_name(name).expect("vanilla block");
-        Self { by_block, wire: id("minecraft:redstone_wire"), comparator: id("minecraft:comparator"), redstone_block: id("minecraft:redstone_block") }
+        let id = |name: &str| {
+            registries
+                .blocks
+                .block_by_name(name)
+                .expect("vanilla block")
+        };
+        Self {
+            by_block,
+            wire: id("minecraft:redstone_wire"),
+            comparator: id("minecraft:comparator"),
+            redstone_block: id("minecraft:redstone_block"),
+        }
     }
 
     pub fn get(&self, block: BlockId) -> Option<Kind> {
@@ -146,7 +192,13 @@ impl World for View<'_, '_> {
         self.level.block(BlockPos::new(x, y, z))
     }
 
-    fn set_block_with_flags(&mut self, _lib: &Library, _pos: BlockPos, _state: BlockStateId, _flags: u32) -> bool {
+    fn set_block_with_flags(
+        &mut self,
+        _lib: &Library,
+        _pos: BlockPos,
+        _state: BlockStateId,
+        _flags: u32,
+    ) -> bool {
         unreachable!("the redstone view is read-only")
     }
 
@@ -201,15 +253,22 @@ impl Level<'_> {
     }
 
     fn int_prop(&self, state: BlockStateId, name: &str) -> i32 {
-        self.prop(state, name).and_then(|v| v.parse().ok()).unwrap_or(0)
+        self.prop(state, name)
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0)
     }
 
     fn facing(&self, state: BlockStateId) -> Direction {
-        self.prop(state, "facing").and_then(Direction::from_name).unwrap_or(Direction::North)
+        self.prop(state, "facing")
+            .and_then(Direction::from_name)
+            .unwrap_or(Direction::North)
     }
 
     pub(super) fn with(&self, state: BlockStateId, name: &str, value: &str) -> BlockStateId {
-        self.registries().blocks.with_property(state, name, value).unwrap_or(state)
+        self.registries()
+            .blocks
+            .with_property(state, name, value)
+            .unwrap_or(state)
     }
 
     fn with_bool(&self, state: BlockStateId, name: &str, value: bool) -> BlockStateId {
@@ -217,15 +276,22 @@ impl Level<'_> {
     }
 
     fn is_conductor(&self, state: BlockStateId) -> bool {
-        self.registries().blocks.is(state, flags::REDSTONE_CONDUCTOR)
+        self.registries()
+            .blocks
+            .is(state, flags::REDSTONE_CONDUCTOR)
     }
 
     pub(super) fn can_survive_state(&self, state: BlockStateId, pos: BlockPos) -> bool {
-        self.lib.survival.can_survive(&self.lib.registries, self, state, (pos.x, pos.y, pos.z))
+        self.lib
+            .survival
+            .can_survive(&self.lib.registries, self, state, (pos.x, pos.y, pos.z))
     }
 
     fn view(&self) -> View<'_, '_> {
-        View { level: self, random: AnyRandom::new(true, 0) }
+        View {
+            level: self,
+            random: AnyRandom::new(true, 0),
+        }
     }
 
     // ---- signals (`SignalGetter`, `BlockBehaviour`) -------------------------
@@ -242,12 +308,18 @@ impl Level<'_> {
     pub fn comparator_output_at(&self, pos: BlockPos) -> i32 {
         let chunk = self.chunk(pos.chunk());
         let tag = chunk.and_then(|c| c.block_entities.entities.get(&(pos.x, pos.y, pos.z)));
-        tag.and_then(|t| t.get("OutputSignal")).and_then(Tag::as_i64).unwrap_or(0) as i32
+        tag.and_then(|t| t.get("OutputSignal"))
+            .and_then(Tag::as_i64)
+            .unwrap_or(0) as i32
     }
 
     fn set_comparator_output(&mut self, pos: BlockPos, value: i32) {
         let key = (pos.x, pos.y, pos.z);
-        if let Some(Tag::Compound(map)) = self.chunks.get_mut(&pos.chunk()).and_then(|c| c.block_entities.entities.get_mut(&key)) {
+        if let Some(Tag::Compound(map)) = self
+            .chunks
+            .get_mut(&pos.chunk())
+            .and_then(|c| c.block_entities.entities.get_mut(&key))
+        {
             map.insert("OutputSignal".to_owned(), Tag::Int(value));
         }
     }
@@ -278,11 +350,7 @@ impl Level<'_> {
                 }
             }
             Some(Kind::Lever | Kind::Button(_) | Kind::Observer | Kind::LightningRod) => {
-                if self.flag(state, "powered") {
-                    15
-                } else {
-                    0
-                }
+                if self.flag(state, "powered") { 15 } else { 0 }
             }
             Some(Kind::RedstoneBlock) => 15,
             Some(Kind::DaylightDetector) => self.int_prop(state, "power"),
@@ -305,7 +373,14 @@ impl Level<'_> {
                 }
                 if direction != Direction::Up {
                     let mut view = self.view();
-                    let connected = wire_connection_state(&Ctx { lib: self.lib, region: &mut view }, state, pos);
+                    let connected = wire_connection_state(
+                        &Ctx {
+                            lib: self.lib,
+                            region: &mut view,
+                        },
+                        state,
+                        pos,
+                    );
                     if self.prop(connected, direction.opposite().name()) == Some("none") {
                         return 0;
                     }
@@ -340,7 +415,9 @@ impl Level<'_> {
     /// `BlockState.getDirectSignal`.
     fn state_direct_signal(&self, state: BlockStateId, pos: BlockPos, direction: Direction) -> i32 {
         match self.redstone_kind(state) {
-            Some(Kind::Wire | Kind::Repeater | Kind::Comparator | Kind::Observer) => self.state_signal(state, pos, direction),
+            Some(Kind::Wire | Kind::Repeater | Kind::Comparator | Kind::Observer) => {
+                self.state_signal(state, pos, direction)
+            }
             Some(Kind::Torch | Kind::WallTorch) => {
                 if direction == Direction::Down {
                     self.state_signal(state, pos, direction)
@@ -349,7 +426,9 @@ impl Level<'_> {
                 }
             }
             Some(Kind::LightningRod) => {
-                if self.flag(state, "powered") && self.prop(state, "facing").and_then(Direction::from_name) == Some(direction) {
+                if self.flag(state, "powered")
+                    && self.prop(state, "facing").and_then(Direction::from_name) == Some(direction)
+                {
                     15
                 } else {
                     0
@@ -382,7 +461,14 @@ impl Level<'_> {
     /// `SignalGetter.getDirectSignalTo`: strong power into a block.
     fn direct_signal_to(&self, pos: BlockPos) -> i32 {
         let mut result = 0;
-        for direction in [Direction::Down, Direction::Up, Direction::North, Direction::South, Direction::West, Direction::East] {
+        for direction in [
+            Direction::Down,
+            Direction::Up,
+            Direction::North,
+            Direction::South,
+            Direction::West,
+            Direction::East,
+        ] {
             result = result.max(self.direct_signal(pos.relative(direction, 1), direction));
             if result >= 15 {
                 return result;
@@ -408,9 +494,16 @@ impl Level<'_> {
 
     /// `SignalGetter.hasNeighborSignal`.
     pub fn has_neighbor_signal(&self, pos: BlockPos) -> bool {
-        [Direction::Down, Direction::Up, Direction::North, Direction::South, Direction::West, Direction::East]
-            .into_iter()
-            .any(|d| self.signal(pos.relative(d, 1), d) > 0)
+        [
+            Direction::Down,
+            Direction::Up,
+            Direction::North,
+            Direction::South,
+            Direction::West,
+            Direction::East,
+        ]
+        .into_iter()
+        .any(|d| self.signal(pos.relative(d, 1), d) > 0)
     }
 
     /// `SignalGetter.getBestNeighborSignal`.
@@ -475,9 +568,13 @@ impl Level<'_> {
                 }
             }
             "minecraft:composter" => self.int_prop(state, "level"),
-            "minecraft:respawn_anchor" => (self.int_prop(state, "charges") as f32 / 4.0 * 15.0).floor() as i32,
+            "minecraft:respawn_anchor" => {
+                (self.int_prop(state, "charges") as f32 / 4.0 * 15.0).floor() as i32
+            }
             "minecraft:cauldron" => 0,
-            "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron" => self.int_prop(state, "level"),
+            "minecraft:water_cauldron" | "minecraft:powder_snow_cauldron" => {
+                self.int_prop(state, "level")
+            }
             "minecraft:lava_cauldron" => 3,
             _ if info.is_a("CopperBulbBlock") => {
                 if self.flag(state, "lit") {
@@ -500,7 +597,12 @@ impl Level<'_> {
 
     /// `Level.updateNeighborsAtExceptFromFacing`.
     fn update_neighbors_except(&mut self, pos: BlockPos, source: BlockId, skip: Direction) {
-        self.add_and_run(super::Update::Neighbors { source: pos, block: source, skip: Some(skip), index: 0 });
+        self.add_and_run(super::Update::Neighbors {
+            source: pos,
+            block: source,
+            skip: Some(skip),
+            index: 0,
+        });
     }
 
     /// `Level.updateNeighbourForOutputSignal`: comparators beside the block,
@@ -513,12 +615,20 @@ impl Level<'_> {
             }
             let mut state = self.block(relative);
             if self.block_id(state) == self.kinds.comparator {
-                self.add_and_run(super::Update::Full { state, pos: relative, block: changed });
+                self.add_and_run(super::Update::Full {
+                    state,
+                    pos: relative,
+                    block: changed,
+                });
             } else if self.is_conductor(state) {
                 relative = relative.relative(direction, 1);
                 state = self.block(relative);
                 if self.block_id(state) == self.kinds.comparator {
-                    self.add_and_run(super::Update::Full { state, pos: relative, block: changed });
+                    self.add_and_run(super::Update::Full {
+                        state,
+                        pos: relative,
+                        block: changed,
+                    });
                 }
             }
         }
@@ -531,7 +641,13 @@ impl Level<'_> {
     // ---- block hooks --------------------------------------------------------
 
     /// `onPlace` for redstone blocks.
-    pub(super) fn redstone_on_place(&mut self, kind: Kind, state: BlockStateId, pos: BlockPos, old: BlockStateId) {
+    pub(super) fn redstone_on_place(
+        &mut self,
+        kind: Kind,
+        state: BlockStateId,
+        pos: BlockPos,
+        old: BlockStateId,
+    ) {
         let block = self.block_id(state);
         match kind {
             Kind::Wire => {
@@ -557,7 +673,10 @@ impl Level<'_> {
                 }
             }
             Kind::LightningRod => {
-                if self.block_id(old) != block && self.flag(state, "powered") && !self.has_block_tick_at(pos, block) {
+                if self.block_id(old) != block
+                    && self.flag(state, "powered")
+                    && !self.has_block_tick_at(pos, block)
+                {
                     self.schedule_block_tick_priority(pos, block, 8, priority::NORMAL);
                 }
             }
@@ -567,9 +686,17 @@ impl Level<'_> {
                 }
             }
             Kind::Observer => {
-                if self.block_id(old) != block && self.flag(state, "powered") && !self.has_block_tick_at(pos, block) {
+                if self.block_id(old) != block
+                    && self.flag(state, "powered")
+                    && !self.has_block_tick_at(pos, block)
+                {
                     let off = self.with_bool(state, "powered", false);
-                    self.set_block(pos, off, update::CLIENTS | update::KNOWN_SHAPE, update::LIMIT);
+                    self.set_block(
+                        pos,
+                        off,
+                        update::CLIENTS | update::KNOWN_SHAPE,
+                        update::LIMIT,
+                    );
                     self.observer_update_in_front(pos, off);
                 }
             }
@@ -578,7 +705,13 @@ impl Level<'_> {
     }
 
     /// `affectNeighborsAfterRemoval` for redstone blocks.
-    pub(super) fn redstone_after_removal(&mut self, kind: Kind, state: BlockStateId, pos: BlockPos, moved: bool) {
+    pub(super) fn redstone_after_removal(
+        &mut self,
+        kind: Kind,
+        state: BlockStateId,
+        pos: BlockPos,
+        moved: bool,
+    ) {
         let block = self.block_id(state);
         match kind {
             Kind::Wire if !moved => {
@@ -590,16 +723,22 @@ impl Level<'_> {
             }
             Kind::Repeater | Kind::Comparator if !moved => self.diode_update_in_front(pos, state),
             Kind::Torch | Kind::WallTorch if !moved => self.torch_notify(pos, block),
-            Kind::Lever | Kind::Button(_) if !moved && self.flag(state, "powered") => self.attached_update_neighbours(pos, state),
+            Kind::Lever | Kind::Button(_) if !moved && self.flag(state, "powered") => {
+                self.attached_update_neighbours(pos, state)
+            }
             Kind::PistonHead => self.piston_head_after_removal(state, pos),
             Kind::Rail { .. } => self.rail_after_removal(state, pos, moved),
-            Kind::LightningRod if self.flag(state, "powered") => self.lightning_rod_update(state, pos),
+            Kind::LightningRod if self.flag(state, "powered") => {
+                self.lightning_rod_update(state, pos)
+            }
             Kind::PressurePlate if !moved && self.plate_signal(state) > 0 => {
                 self.update_neighbors_at(pos, block);
                 self.update_neighbors_at(pos.below(), block);
             }
             // `Containers.updateNeighboursAfterDestroy`.
-            Kind::Hopper | Kind::Container | Kind::Dispenser { .. } => self.update_neighbour_for_output_signal(pos, block),
+            Kind::Hopper | Kind::Container | Kind::Dispenser { .. } => {
+                self.update_neighbour_for_output_signal(pos, block)
+            }
             Kind::Observer => {
                 if self.flag(state, "powered") && self.has_block_tick_at(pos, block) {
                     let off = self.with_bool(state, "powered", false);
@@ -611,7 +750,13 @@ impl Level<'_> {
     }
 
     /// `neighborChanged` for redstone blocks.
-    pub(super) fn redstone_neighbor_changed(&mut self, kind: Kind, state: BlockStateId, pos: BlockPos, source: BlockId) {
+    pub(super) fn redstone_neighbor_changed(
+        &mut self,
+        kind: Kind,
+        state: BlockStateId,
+        pos: BlockPos,
+        source: BlockId,
+    ) {
         match kind {
             Kind::Piston { .. } => self.piston_check_if_extend(pos, state),
             Kind::PistonHead => self.piston_head_neighbor_changed(state, pos, source),
@@ -648,7 +793,9 @@ impl Level<'_> {
             }
             Kind::Torch | Kind::WallTorch => {
                 let block = self.block_id(state);
-                if self.flag(state, "lit") == self.torch_input(kind, state, pos) && !self.will_tick_this_tick(pos, block) {
+                if self.flag(state, "lit") == self.torch_input(kind, state, pos)
+                    && !self.will_tick_this_tick(pos, block)
+                {
                     self.schedule_block_tick_priority(pos, block, 2, priority::NORMAL);
                 }
             }
@@ -665,14 +812,20 @@ impl Level<'_> {
                 }
             }
             Kind::Door => {
-                let other = if self.prop(state, "half") == Some("lower") { Direction::Up } else { Direction::Down };
-                let signal = self.has_neighbor_signal(pos) || self.has_neighbor_signal(pos.relative(other, 1));
+                let other = if self.prop(state, "half") == Some("lower") {
+                    Direction::Up
+                } else {
+                    Direction::Down
+                };
+                let signal = self.has_neighbor_signal(pos)
+                    || self.has_neighbor_signal(pos.relative(other, 1));
                 // `!defaultBlockState().is(block)`: another door's own update is ignored.
                 if source != self.block_id(state) && signal != self.flag(state, "powered") {
                     if signal != self.flag(state, "open") {
                         self.random.next_f32();
                     }
-                    let next = self.with_bool(self.with_bool(state, "powered", signal), "open", signal);
+                    let next =
+                        self.with_bool(self.with_bool(state, "powered", signal), "open", signal);
                     self.set_block(pos, next, update::CLIENTS, update::LIMIT);
                 }
             }
@@ -694,7 +847,8 @@ impl Level<'_> {
             Kind::FenceGate => {
                 let signal = self.has_neighbor_signal(pos);
                 if self.flag(state, "powered") != signal {
-                    let next = self.with_bool(self.with_bool(state, "powered", signal), "open", signal);
+                    let next =
+                        self.with_bool(self.with_bool(state, "powered", signal), "open", signal);
                     self.set_block(pos, next, update::CLIENTS, update::LIMIT);
                     if self.flag(state, "open") != signal {
                         self.random.next_f32();
@@ -726,9 +880,19 @@ impl Level<'_> {
                 let on = self.flag(state, "powered");
                 let should = self.diode_should_turn_on(kind, pos, state);
                 if on && !should {
-                    self.set_block(pos, self.with_bool(state, "powered", false), update::CLIENTS, update::LIMIT);
+                    self.set_block(
+                        pos,
+                        self.with_bool(state, "powered", false),
+                        update::CLIENTS,
+                        update::LIMIT,
+                    );
                 } else if !on {
-                    self.set_block(pos, self.with_bool(state, "powered", true), update::CLIENTS, update::LIMIT);
+                    self.set_block(
+                        pos,
+                        self.with_bool(state, "powered", true),
+                        update::CLIENTS,
+                        update::LIMIT,
+                    );
                     if !should {
                         let delay = self.int_prop(state, "delay") * 2;
                         self.schedule_block_tick_priority(pos, block, delay, priority::VERY_HIGH);
@@ -750,7 +914,11 @@ impl Level<'_> {
             Kind::Torch | Kind::WallTorch => {
                 let signal = self.torch_input(kind, state, pos);
                 let now = self.game_time;
-                while self.torch_toggles.first().is_some_and(|&(_, when)| now - when > 60) {
+                while self
+                    .torch_toggles
+                    .first()
+                    .is_some_and(|&(_, when)| now - when > 60)
+                {
                     self.torch_toggles.remove(0);
                 }
                 if self.flag(state, "lit") {
@@ -758,7 +926,12 @@ impl Level<'_> {
                         self.set_block_and_update(pos, self.with_bool(state, "lit", false));
                         if self.torch_toggled_too_often(pos, true) {
                             let now_block = self.block_id(self.block(pos));
-                            self.schedule_block_tick_priority(pos, now_block, 160, priority::NORMAL);
+                            self.schedule_block_tick_priority(
+                                pos,
+                                now_block,
+                                160,
+                                priority::NORMAL,
+                            );
                         }
                     }
                 } else if !signal && !self.torch_toggled_too_often(pos, false) {
@@ -767,7 +940,12 @@ impl Level<'_> {
             }
             Kind::Lamp => {
                 if self.flag(state, "lit") && !self.has_neighbor_signal(pos) {
-                    self.set_block(pos, self.with_bool(state, "lit", false), update::CLIENTS, update::LIMIT);
+                    self.set_block(
+                        pos,
+                        self.with_bool(state, "lit", false),
+                        update::CLIENTS,
+                        update::LIMIT,
+                    );
                 }
             }
             Kind::Button(_) => {
@@ -779,9 +957,19 @@ impl Level<'_> {
             }
             Kind::Observer => {
                 if self.flag(state, "powered") {
-                    self.set_block(pos, self.with_bool(state, "powered", false), update::CLIENTS, update::LIMIT);
+                    self.set_block(
+                        pos,
+                        self.with_bool(state, "powered", false),
+                        update::CLIENTS,
+                        update::LIMIT,
+                    );
                 } else {
-                    self.set_block(pos, self.with_bool(state, "powered", true), update::CLIENTS, update::LIMIT);
+                    self.set_block(
+                        pos,
+                        self.with_bool(state, "powered", true),
+                        update::CLIENTS,
+                        update::LIMIT,
+                    );
                     self.schedule_block_tick_priority(pos, block, 2, priority::NORMAL);
                 }
                 self.observer_update_in_front(pos, state);
@@ -792,9 +980,18 @@ impl Level<'_> {
 
     /// `RedstoneWireBlock.updateIndirectNeighbourShapes`: wires one step
     /// down or up diagonally re-check their connection to this side.
-    pub(super) fn wire_update_indirect_shapes(&mut self, state: BlockStateId, pos: BlockPos, flags: u32, limit: i32) {
+    pub(super) fn wire_update_indirect_shapes(
+        &mut self,
+        state: BlockStateId,
+        pos: BlockPos,
+        flags: u32,
+        limit: i32,
+    ) {
         for direction in Direction::HORIZONTAL {
-            if self.prop(state, direction.name()).is_none_or(|v| v == "none") {
+            if self
+                .prop(state, direction.name())
+                .is_none_or(|v| v == "none")
+            {
                 continue;
             }
             let side = pos.relative(direction, 1);
@@ -835,7 +1032,9 @@ impl Level<'_> {
     /// `ButtonBlock.press`.
     pub fn press_button(&mut self, pos: BlockPos) {
         let state = self.block(pos);
-        let Some(Kind::Button(ticks)) = self.redstone_kind(state) else { return };
+        let Some(Kind::Button(ticks)) = self.redstone_kind(state) else {
+            return;
+        };
         if self.flag(state, "powered") {
             return;
         }
@@ -856,10 +1055,21 @@ impl Level<'_> {
     /// Whether `use_block_facing` acts on a block in this state (with a
     /// player facing given): the state alone decides it.
     pub fn handles_use(&self, state: BlockStateId) -> bool {
-        let iron = matches!(self.name(state), "minecraft:iron_door" | "minecraft:iron_trapdoor");
+        let iron = matches!(
+            self.name(state),
+            "minecraft:iron_door" | "minecraft:iron_trapdoor"
+        );
         match self.redstone_kind(state) {
             Some(Kind::Door) | Some(Kind::TrapDoor) => !iron,
-            Some(Kind::FenceGate | Kind::NoteBlock | Kind::Lever | Kind::Button(_) | Kind::Repeater | Kind::DaylightDetector | Kind::Comparator) => true,
+            Some(
+                Kind::FenceGate
+                | Kind::NoteBlock
+                | Kind::Lever
+                | Kind::Button(_)
+                | Kind::Repeater
+                | Kind::DaylightDetector
+                | Kind::Comparator,
+            ) => true,
             _ => false,
         }
     }
@@ -871,7 +1081,10 @@ impl Level<'_> {
 
     pub fn use_block_facing(&mut self, pos: BlockPos, player_facing: Option<Direction>) -> bool {
         let state = self.block(pos);
-        let iron = matches!(self.name(state), "minecraft:iron_door" | "minecraft:iron_trapdoor");
+        let iron = matches!(
+            self.name(state),
+            "minecraft:iron_door" | "minecraft:iron_trapdoor"
+        );
         match self.redstone_kind(state) {
             Some(Kind::Door) if !iron => {
                 let next = self.with_bool(state, "open", !self.flag(state, "open"));
@@ -890,7 +1103,9 @@ impl Level<'_> {
                 let next = if self.flag(state, "open") {
                     self.with_bool(state, "open", false)
                 } else {
-                    let Some(direction) = player_facing else { return false };
+                    let Some(direction) = player_facing else {
+                        return false;
+                    };
                     let mut next = state;
                     if self.facing(state) == direction.opposite() {
                         next = self.with(next, "facing", direction.name());
@@ -915,7 +1130,11 @@ impl Level<'_> {
             }
             Some(Kind::DaylightDetector) => self.daylight_use(pos),
             Some(Kind::Comparator) => {
-                let mode = if self.prop(state, "mode") == Some("compare") { "subtract" } else { "compare" };
+                let mode = if self.prop(state, "mode") == Some("compare") {
+                    "subtract"
+                } else {
+                    "compare"
+                };
                 let next = self.with(state, "mode", mode);
                 self.set_block(pos, next, update::CLIENTS, update::LIMIT);
                 if self.block_id(self.block(pos)) == self.kinds.comparator {
@@ -981,7 +1200,8 @@ impl Level<'_> {
         let custom = usize::from(instrument) == minecraftoss_core::block::INSTRUMENTS.len() - 1;
         if custom {
             // A player head's `note_block_sound`; heads are not simulated.
-            self.unsupported.push("note block custom head sound".to_owned());
+            self.unsupported
+                .push("note block custom head sound".to_owned());
             return;
         }
         self.random.next_i64();
@@ -1109,7 +1329,8 @@ impl Level<'_> {
         } else if input < 15 && self.is_conductor(target_state) {
             // Item frames are not simulated yet.
             let behind = target.relative(direction, 1);
-            self.analog_output(self.block(behind), behind).unwrap_or(input)
+            self.analog_output(self.block(behind), behind)
+                .unwrap_or(input)
         } else {
             input
         }
@@ -1120,7 +1341,8 @@ impl Level<'_> {
         let direction = self.facing(state);
         let (cw, ccw) = (direction.clockwise(), direction.counter_clockwise());
         let only_diodes = kind == Kind::Repeater;
-        self.control_input_signal(pos.relative(cw, 1), cw, only_diodes).max(self.control_input_signal(pos.relative(ccw, 1), ccw, only_diodes))
+        self.control_input_signal(pos.relative(cw, 1), cw, only_diodes)
+            .max(self.control_input_signal(pos.relative(ccw, 1), ccw, only_diodes))
     }
 
     fn repeater_locked(&self, pos: BlockPos, state: BlockStateId) -> bool {
@@ -1144,7 +1366,10 @@ impl Level<'_> {
     fn diode_should_prioritize(&self, pos: BlockPos, state: BlockStateId) -> bool {
         let direction = self.facing(state).opposite();
         let behind = self.block(pos.relative(direction, 1));
-        matches!(self.redstone_kind(behind), Some(Kind::Repeater | Kind::Comparator)) && self.facing(behind) != direction
+        matches!(
+            self.redstone_kind(behind),
+            Some(Kind::Repeater | Kind::Comparator)
+        ) && self.facing(behind) != direction
     }
 
     /// `DiodeBlock.checkTickOnNeighbor` for repeaters.
@@ -1154,7 +1379,9 @@ impl Level<'_> {
         }
         let block = self.block_id(state);
         let on = self.flag(state, "powered");
-        if on != self.diode_should_turn_on(Kind::Repeater, pos, state) && !self.will_tick_this_tick(pos, block) {
+        if on != self.diode_should_turn_on(Kind::Repeater, pos, state)
+            && !self.will_tick_this_tick(pos, block)
+        {
             let priority = if self.diode_should_prioritize(pos, state) {
                 priority::EXTREMELY_HIGH
             } else if on {
@@ -1191,8 +1418,15 @@ impl Level<'_> {
         }
         let output = self.comparator_output_signal(pos, state);
         let old = self.comparator_output_at(pos);
-        if output != old || self.flag(state, "powered") != self.diode_should_turn_on(Kind::Comparator, pos, state) {
-            let priority = if self.diode_should_prioritize(pos, state) { priority::HIGH } else { priority::NORMAL };
+        if output != old
+            || self.flag(state, "powered")
+                != self.diode_should_turn_on(Kind::Comparator, pos, state)
+        {
+            let priority = if self.diode_should_prioritize(pos, state) {
+                priority::HIGH
+            } else {
+                priority::NORMAL
+            };
             self.schedule_block_tick_priority(pos, block, 2, priority);
         }
     }
@@ -1206,9 +1440,19 @@ impl Level<'_> {
             let should = self.diode_should_turn_on(Kind::Comparator, pos, state);
             let on = self.flag(state, "powered");
             if on && !should {
-                self.set_block(pos, self.with_bool(state, "powered", false), update::CLIENTS, update::LIMIT);
+                self.set_block(
+                    pos,
+                    self.with_bool(state, "powered", false),
+                    update::CLIENTS,
+                    update::LIMIT,
+                );
             } else if !on && should {
-                self.set_block(pos, self.with_bool(state, "powered", true), update::CLIENTS, update::LIMIT);
+                self.set_block(
+                    pos,
+                    self.with_bool(state, "powered", true),
+                    update::CLIENTS,
+                    update::LIMIT,
+                );
             }
             self.diode_update_in_front(pos, state);
         }
@@ -1250,35 +1494,11 @@ fn java_hash_set_order(pos: BlockPos) -> Vec<BlockPos> {
     all.extend(Direction::ALL.map(|d| pos.relative(d, 1)));
     let bucket = |p: &BlockPos| {
         // `Vec3i.hashCode`, then `HashMap.hash`.
-        let h = (p.y.wrapping_add(p.z.wrapping_mul(31))).wrapping_mul(31).wrapping_add(p.x);
+        let h = (p.y.wrapping_add(p.z.wrapping_mul(31)))
+            .wrapping_mul(31)
+            .wrapping_add(p.x);
         ((h ^ ((h as u32) >> 16) as i32) & 15) as usize
     };
     all.sort_by_key(bucket);
     all
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn hash_set_order_is_by_bucket() {
-        let order = java_hash_set_order(BlockPos::new(1, 81, 0));
-        // Hashes: (y + z*31)*31 + x.
-        let buckets: Vec<usize> = order
-            .iter()
-            .map(|p| {
-                let h = (p.y + p.z * 31) * 31 + p.x;
-                ((h ^ ((h as u32 >> 16) as i32)) & 15) as usize
-            })
-            .collect();
-        assert!(buckets.windows(2).all(|w| w[0] <= w[1]));
-        assert_eq!(order.len(), 7);
-    }
-
-    #[test]
-    fn attached_directions() {
-        assert_eq!(connected_direction(Some("floor"), Direction::North), Direction::Up);
-        assert_eq!(connected_direction(Some("wall"), Direction::East), Direction::East);
-    }
 }

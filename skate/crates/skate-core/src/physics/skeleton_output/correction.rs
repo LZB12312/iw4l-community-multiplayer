@@ -1,4 +1,3 @@
-//! PostWipeoutCheck82BD83E0's error correction before wobble and physical IK.
 use crate::physics::{
     native_arithmetic::{dot3, vector_min},
     skeleton_body::SkeletonBody,
@@ -6,14 +5,10 @@ use crate::physics::{
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CorrectionState {
-    ///Skeleton16224, initialized zero at82BD7918.
     pub board_prediction_error: [f32; 4],
-    ///Skeleton16388, initialized false at82BD7998 and set by Ground::Update.
     pub pending: bool,
 }
 impl CorrectionState {
-    ///UpdatePostPhysics82BD8194..81B0, before collision and error feedback:
-    ///actual board GetPartTransform translation minus predicted16112.
     pub fn observe_board(&mut self, actual: [f32; 4], predicted: [f32; 4]) {
         self.board_prediction_error = core::array::from_fn(|i| actual[i] - predicted[i]);
     }
@@ -49,7 +44,6 @@ pub fn apply(
     flags_2476: u32,
 ) {
     if wipeout && flags_2476 & (1 << 30) != 0 {
-        //82BE2AB0 moves live parts0..23 only when correction length²<1.
         if 1.0 > dot3(error, error) {
             for part in 0..24 {
                 let mut frame = body.record.pose[part];
@@ -67,8 +61,6 @@ pub fn apply(
             let tangent = error[i] - ground_normal[i] * distance;
             ground_normal[i].mul_add(allowed, tangent)
         });
-        //82BEC2C0 starts at record part1 and translates through23. It leaves
-        //the observed board, solver states, COM and velocity history alone.
         for part in 1..24 {
             for lane in 0..4 {
                 body.record.pose[part][3][lane] += offset[lane];

@@ -1,4 +1,3 @@
-//! Animated portion of CalculateInitialPartTransforms82BEDF08.
 use super::status::{LimbStatus, Mode};
 use crate::physics::skeleton_animation_record::{
     AnimationPartTransform as Transform, IDENTITY, compose_affine,
@@ -33,7 +32,6 @@ pub struct LimbFrames {
 }
 impl Default for LimbFrames {
     fn default() -> Self {
-        //82BED780 initializes every retained affine frame to identity.
         Self {
             target: IDENTITY,
             world: IDENTITY,
@@ -79,9 +77,6 @@ pub fn prepare_animation_target(
     }
 }
 
-///82BEDF5C..DFEC and E1B4..E260: rigid inverse, transpose XYZ and zero W;
-/// translation uses negative position with Z multiply, Y FMA, then X FMA.
-/// This deliberately does not introduce a general scale/shear inverse.
 pub fn inverse_rigid(source: &Transform) -> Transform {
     let mut result = IDENTITY;
     for axis in 0..3 {

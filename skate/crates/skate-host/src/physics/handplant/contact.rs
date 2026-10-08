@@ -1,4 +1,3 @@
-//! PositionSelector82D63D40, velocity window82D64420 and edge clipping82D651E0.
 use super::{GRAVITY, Settings, UP, V, math::*};
 use skate_core::animation::foot_ik::transforms::inverse_rigid;
 use skate_core::{
@@ -21,7 +20,6 @@ pub(super) fn select(
     hint: i32,
     edges: &[Primitive],
 ) -> Option<Candidate> {
-    //82D61D88: ascending, above minimum speed, slope over45deg and |Ny|<=.95.
     if !(length(velocity) > settings.minimum_speed
         && velocity[1] > 0.0
         && normal[1].abs() <= 0.95
@@ -80,7 +78,6 @@ pub(super) fn select(
     } else {
         [d, c, a, b]
     };
-    //82C1EAD8 preserves world order and caps the broadphase result at40.
     let mut candidates = Vec::new();
     for edge in edges
         .iter()
@@ -97,9 +94,8 @@ pub(super) fn select(
         let end = point(&inverse, edge.end);
         if normalize(sub(end, start))[0].abs() <= 0.71 {
             continue;
-        } //82D64218
+        }
         let mut segment = [start, end];
-        //82D657D0/658A0 retains -depth<localZ<0.
         if !clip_depth(&mut segment, -settings.depth, true) || !clip_depth(&mut segment, 0.0, false)
         {
             continue;
@@ -137,7 +133,6 @@ pub(super) fn select(
     let best = best?;
     let mut connected = vec![false; candidates.len()];
     connected[best] = true;
-    //82D65BD8: extend both ends across neighbours within .05m and30degrees.
     for reverse in [false, true] {
         let mut ends = candidates[best].1;
         if reverse {
@@ -208,7 +203,6 @@ pub(super) fn select(
         side: if velocity[0] > 0.0 { 1 } else { 2 },
     })
 }
-//82D658A0 excludes coplanar segments and avoids dividing near-parallel Z.
 fn clip_depth(segment: &mut [V; 2], value: f32, above: bool) -> bool {
     let sign = if above { 1.0 } else { -1.0 };
     let a = (segment[0][2] - value) * sign;

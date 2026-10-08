@@ -1,7 +1,3 @@
-//! Independently derived from original82D310F8 and82473B98.
-//! Ordinary PC reciprocal/sqrt seeds retain original refinements; they are not
-//! claimed to reproduce Xenon estimate instructions bit for bit.
-
 type Vector = [f32; 3];
 const HALF_PI: f32 = f32::from_bits(0x3fc9_0fdb);
 const PI: f32 = f32::from_bits(0x4049_0fdb);
@@ -81,7 +77,6 @@ fn reciprocal_two(d: f32) -> f32 {
     if first.is_nan() { seed } else { second }
 }
 
-///82473B98: range reduction, rational polynomial, strict thresholds and signs.
 pub(super) fn rational_atan(original: f32) -> f32 {
     let absolute = original.abs();
     let invert = absolute > 1.0;

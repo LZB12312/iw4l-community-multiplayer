@@ -18,7 +18,6 @@ impl PlayerInputRuntime {
             .toolkit
             .as_ref()
             .ok_or("Grind output requires the completed physical input toolkit")?;
-        // Common ProcessOutput82DB703C copies selector9653 unconditionally.
         self.physical.air.flag_443 = u8::from(selector.grind_locked_to_middle());
         self.physical
             .skeleton

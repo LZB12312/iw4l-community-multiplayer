@@ -1,5 +1,3 @@
-//! Original TU3 angle limiter82BD3E78 and Air heading rotation82D8DFD4.
-//! Basic arithmetic runs on the host; this is not bit-exact Xenon emulation.
 use crate::{
     math::Vector3,
     physics::{
@@ -53,8 +51,6 @@ fn cross(a: V, b: V) -> V {
     ]
 }
 
-///82BD3E78. Retains the source's original (not normalized) endpoint operands
-/// and final target magnitude. The parallel-axis branch returns target as-is.
 pub fn limit_angle(target: V, from: V, maximum: f32) -> V {
     let normalized_from = normalize_safe(from, [0.0; 4]);
     let normalized_target = normalize_safe(target, [0.0; 4]);
@@ -81,8 +77,6 @@ pub fn limit_angle(target: V, from: V, maximum: f32) -> V {
     rotated.map(|v| v * magnitude)
 }
 
-///82D8DFD4..E0B0: Rodrigues columns followed by X/Y/Z ordered FMAs.
-///The native permutation repeats each column's X into its W lane.
 pub(super) fn rotate_heading(heading: V, up: V, angle: f32) -> V {
     let [x, y, z, _] = up;
     let (s, c) = trigonometry::sin_cos(angle);

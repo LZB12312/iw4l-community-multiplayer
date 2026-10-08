@@ -199,8 +199,6 @@ impl AnimationFrames {
             .ok_or_else(|| format!("Required reference-pose record{source_offset:#x} is absent"))
     }
 
-    /// SetDBContent82D1B45C assigns into the selected database's name map,
-    /// replacing earlier same-name records in that bank.
     pub fn named_pose(&self, name: &str) -> Result<&ReferencePose, String> {
         self.named_pose_in(0, name)
     }

@@ -14,7 +14,6 @@ pub(super) fn shift(t: &mut Trajectory, time: f32) {
     t.velocity = t.velocity_at(time);
     t.position = p;
 }
-///82D609E0: velocity correction only, bounded at the caller's maximum.
 pub(super) fn adjust(t: &mut Trajectory, frame: i32, delta: Vector, maximum: f32) {
     if frame <= 0 {
         return;

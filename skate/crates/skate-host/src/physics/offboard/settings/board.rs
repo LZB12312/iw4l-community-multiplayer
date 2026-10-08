@@ -1,6 +1,3 @@
-//! Ground ctor82D305D8 passes state36 to82B97060, whose full64 class/key
-//! are492026E0F096F283/D7EDBD362D7D2152 (physics_state_offboard/default).
-//!82B6CC78 stores the returned collection layout at wrapper4 = state40.
 use skate_core::player::offboard::ground_sync::BoardSettings;
 use skate_data::collections::Collections;
 pub(super) fn load(data: &Collections) -> Result<BoardSettings, String> {

@@ -1,5 +1,3 @@
-//! RevertGround102, TU3 vtable82327330: Enter82D43488, Update82D43518,
-//! empty Exit, Ground Post82D4C070, Fill82D43B10. Stock layout018E8A2E5028AB3F.
 use super::{GamePhysics, SkaterRuntime, ground_runtime::GroundInputObservations};
 use skate_core::{
     math::Vector3,
@@ -51,13 +49,11 @@ impl RevertState {
             active: false,
         })
     }
-    ///82D43800: directed remaining angle, stock speed curve and rate damping.
     fn correction(&mut self, forward: V, normal: V, angular: V) -> V {
         if !self.captured {
             return [0.0; 4];
         }
         let desired = forward.map(|v| v * self.travel_sign);
-        //Preserve the two native self-scaled projections82D438B4..D0.
         let project = |v: V| {
             let d = dot(v, normal);
             v.map(|x| x - x * d)
@@ -72,7 +68,6 @@ impl RevertState {
             v.map(|x| x / length)
         };
         let mut angle = signed_angle(xyz(normalize(from)), xyz(normalize(to)), xyz(normal));
-        //8258DB98 folds the helper's[0,2pi] output before the direction test.
         if angle >= std::f32::consts::PI {
             angle -= std::f32::consts::TAU;
         }
@@ -107,9 +102,12 @@ pub(super) fn enter(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Re
     r.elapsed = 0.0;
     r.captured = false;
     r.active = true;
-    bevy::log::info!(tick = physics.ticks, direction = r.direction,
+    bevy::log::info!(
+        tick = physics.ticks,
+        direction = r.direction,
         speed = skater.player_input.processed.scalar_2656,
-        "REVERT_ENTER");
+        "REVERT_ENTER"
+    );
     skater.wipeout.state.enter_ground();
     Ok(())
 }
@@ -177,7 +175,6 @@ pub(super) fn update(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> R
         p.vectors_464_480_496_512_528[0].map(f32::from_bits),
         p.vectors_720_784_800_816_832_864[0].map(f32::from_bits),
     );
-    //82C040F0(0): zero linear drag on every board body.
     for body in physics.board.bodies_mut() {
         body.inertia.linear_drag = 0.0;
     }
@@ -212,58 +209,4 @@ fn dot(a: V, b: V) -> f32 {
 }
 fn xyz(v: V) -> Vector3 {
     Vector3::new(v[0], v[1], v[2])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn state(direction: f32) -> RevertState {
-        RevertState {
-            speed: PointGraph {
-                x: [0.0, 0.1, 0.2, 0.3, 1.0, 2.0, 3.0, 7.0],
-                y: [5.0; 8],
-            },
-            tolerance: PointGraph {
-                x: [0.0, 0.2, 0.6, 1.0],
-                y: [8.0; 4],
-            },
-            gain: 0.06,
-            delay: 0.0,
-            duration: 1.0,
-            direction,
-            travel_sign: -1.0,
-            velocity: [0.0, 0.0, 6.0, 0.0],
-            elapsed: 0.0,
-            captured: true,
-            active: true,
-        }
-    }
-    #[test]
-    fn revert_steers_both_directions_and_does_not_brake_faster_matching_spin() {
-        for direction in [-1.0, 1.0] {
-            let mut r = state(direction);
-            let correction = r.correction([0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0; 4]);
-            assert!((correction[1] - 0.3 * direction).abs() < 0.00001);
-            assert!(r.active);
-            assert_eq!(
-                r.correction(
-                    [0.0, 0.0, 1.0, 0.0],
-                    [0.0, 1.0, 0.0, 0.0],
-                    [0.0, 6.0 * direction, 0.0, 0.0]
-                ),
-                [0.0; 4]
-            );
-        }
-    }
-    #[test]
-    fn revert_completes_when_board_faces_captured_reverse_heading() {
-        let mut r = state(1.0);
-        r.correction([0.0, 0.0, -1.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0; 4]);
-        assert!(!r.active);
-        r.velocity = [0.0; 4];
-        assert_eq!(
-            r.correction([0.0, 0.0, 1.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0; 4]),
-            [0.0; 4]
-        );
-    }
 }

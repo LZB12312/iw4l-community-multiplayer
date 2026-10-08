@@ -1,5 +1,4 @@
-//! Complete original Ground checks82D8F9E0 and all its nonexternal leaves.
-use super::{common, Frame, Mode, Requests, Settings};
+use super::{Frame, Mode, Requests, Settings, common};
 use crate::{
     physics::native_arithmetic::{dot3, vector_max, vector_min},
     trigonometry,
@@ -115,8 +114,6 @@ pub fn check(state: &mut Requests, s: &Settings, mode: &Mode, f: &Frame) {
     common::leaning(state, s, f);
 }
 
-///GroundAnimation82D8F918. These additional checks run even when the shared
-///ground check returns during its cooldown. Caller82D34140 supplies scale1.
 pub fn check_animation(state: &mut Requests, s: &Settings, mode: &Mode, f: &Frame, scale: f32) {
     check(state, s, mode, f);
     if super::common::force(f, s.air.max_contact, s.air.max_arm_contact) {
@@ -127,7 +124,6 @@ pub fn check_animation(state: &mut Requests, s: &Settings, mode: &Mode, f: &Fram
     }
 }
 
-///82D8FDC0, FootPlant postphysics checks. HandPlant calls check_air(false).
 pub fn check_plant(state: &mut Requests, s: &Settings, f: &Frame) {
     state.mode = 3;
     if f.maximum_pose_error > s.ground.max_squash {

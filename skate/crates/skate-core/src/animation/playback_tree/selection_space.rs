@@ -1,6 +1,3 @@
-//! Type11's authored metric and first-update selection: 82D26CC0/82D26FF8.
-//! Native construction clears transition/reselect bits. No exposed operation
-//! on this tree enables them; ordinary playback therefore latches one child.
 use super::super::{output::attributes::AttributeName, playback_parameters::SettableAttribute};
 use super::PlaybackTree;
 
@@ -95,7 +92,6 @@ impl SelectionSpace {
             }
             let chosen = selected
                 .ok_or_else(|| "SelectionSpace has no finite native minimum".to_string())?;
-            //82D26EE4..F88 resolves the first child record with the chosen name.
             self.selected = self
                 .candidates
                 .iter()
@@ -114,8 +110,6 @@ impl SelectionSpace {
     }
 }
 
-/// Original 82D26FF8 uses two accumulators and FMA for pairs, then a separate
-/// multiply/multiply/add for an odd tail. Do not reorder into a generic sum.
 pub fn distance(parameters: &[Parameter], values: &[f32], candidate: &[f32]) -> f32 {
     let mut even = 0.0f32;
     let mut odd = 0.0f32;

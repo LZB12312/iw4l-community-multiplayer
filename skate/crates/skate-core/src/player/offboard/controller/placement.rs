@@ -1,4 +1,3 @@
-//! Original82D7B7A0, called with real GroundEnter frame/velocity/body position.
 use super::state::ZERO;
 use super::{Frame, State, Vector};
 #[derive(Clone, Copy, Debug)]

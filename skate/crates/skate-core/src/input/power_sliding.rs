@@ -1,5 +1,3 @@
-//! Complete PowerSliding update82BB28E8 at resolved graph/component boundaries.
-//! Registration82F89300; factory82BC9060; vtable82320328.
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Copy, Debug)]
@@ -26,19 +24,14 @@ pub struct Input {
     pub speed: f32,
     pub right_slide: Option<f32>,
     pub left_slide: Option<f32>,
-    /// Results of82454FD8 for keys830BE528 and830C0818.
     pub right_query: bool,
     pub left_query: bool,
-    /// MotionGraph interface virtual224,82595930.
     pub graph_scalar: f32,
 }
 fn bit(word: &mut u32, mask: u32, value: bool) {
     *word = (*word & !mask) | if value { mask } else { 0 };
 }
 
-/// 82595930 arithmetic.
-/// Inputs are PhysOut4->vector80,
-/// PhysOut32->basis row32 and PhysOut4->byte273. None means absent Physical.
 pub fn alignment(input: Option<([f32; 4], [f32; 4], u8)>) -> f32 {
     let Some((velocity, basis, flipped)) = input else {
         return 1.0;

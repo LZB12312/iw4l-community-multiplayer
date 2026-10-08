@@ -1,4 +1,3 @@
-//! Original physical pose errors82BEBEA8 and normal collision response82BE2438.
 use super::{
     ExtraTargetPositions, SkeletonCollisionFeedback, SkeletonPhysicalRecord, collision_feedback::V,
     collision_vector::*,
@@ -18,20 +17,17 @@ pub struct SkeletonPoseErrors {
 pub struct SkeletonNormalError {
     /// Skeleton16272: physical error constrained by actual contact planes.
     pub impulse: V,
-    /// Normal82BE2438 clears Skeleton16288 and16304.
     pub extra: [V; 2],
     /// Skeleton16384, length before contact-plane filtering.
     pub maximum_error: f32,
 }
 impl SkeletonPoseErrors {
-    ///82BEBBB0 clears only target histories. The next82BEBEA8 replaces errors.
     pub fn reset_history(&mut self) {
         self.targets = [[0.0; 4]; 3];
     }
     pub fn set_targets(&mut self, positions: ExtraTargetPositions) {
         self.targets = [positions.com, positions.lifted_com, positions.following_com];
     }
-    ///82BEBEA8. These are actual part-frame errors, not COM or force proxies.
     pub fn update(
         &mut self,
         physical: &SkeletonPhysicalRecord,
@@ -49,8 +45,6 @@ impl SkeletonPoseErrors {
             self.extra[i] = sub(physical.pose[24 + i][3], self.targets[1 + i]);
         }
     }
-    ///82BE2438. Strict comparison and the first raw-pair tie behavior differ
-    /// from the filtered-pair tie; preserve both selection sequences.
     pub fn normal_response(
         &self,
         collision: &SkeletonCollisionFeedback,
@@ -71,8 +65,6 @@ impl SkeletonPoseErrors {
             maximum_error: self.maximum_error(),
         }
     }
-    ///82BD9FB0 partial-ragdoll branch copies the two extra errors directly,
-    /// then82BE2310 computes the same raw eight-part maximum length.
     pub fn partial_response(&self) -> SkeletonNormalError {
         SkeletonNormalError {
             impulse: self.extra[0],

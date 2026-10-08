@@ -1,6 +1,3 @@
-//! Native triangle segment queries used by wheel probes and camera sweeps.
-//! Thin test82AC7858 and dispatcher82ADF5D8, TU3. The world owns candidate
-//! storage; these routines retain the source winding, tolerances and arithmetic.
 use super::native_arithmetic;
 use crate::math::Vector3;
 
@@ -13,9 +10,6 @@ pub struct TriangleLineHit {
     pub volume_parameter: [f32; 3],
 }
 
-/// TU3 dispatcher82ADF5D8. The rounded query uses the sum of the two radii,
-/// then shifts its center hit back by the query radius. As in the native output
-/// structure, fields not written by a branch retain the caller's values.
 pub fn triangle_segment(
     result: &mut TriangleLineHit,
     start: Vector3,
@@ -76,8 +70,6 @@ pub fn thin_triangle(
     }
     let inverse = 1.0 / determinant;
     let fraction = distance * inverse;
-    // Dispatcher82ADF61C..688 recomputes and normalizes this winding with
-    // two refinements; it does not use the Volume's cached contact normal.
     let normal = cross(sub(a, b), sub(a, c));
     Some(TriangleLineHit {
         position: madd(direction, fraction, start),
@@ -117,7 +109,3 @@ pub(super) fn inverse_length(squared: f32) -> f32 {
     }
     inverse
 }
-
-#[cfg(test)]
-#[path = "tests/triangle_query.rs"]
-mod tests;

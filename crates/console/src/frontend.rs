@@ -11,6 +11,7 @@ const PACK_SLOTS: usize = 16;
 
 #[derive(Default)]
 pub(crate) struct FrontendState {
+    quick_play: Option<(u64, std::time::Instant)>,
     public: bool,
     map_pack: usize,
     map_page: usize,
@@ -58,6 +59,8 @@ pub(crate) fn register(registry: &mut ConsoleRegistry) {
         "seta",
         "setfromdvar",
         "ui_create_lobby",
+        "ui_quick_play",
+        "ui_quick_play_cancel",
         "ui_leave_lobby",
         "ui_start_match",
         "ui_lobby_privacy",
@@ -72,6 +75,7 @@ pub(crate) fn register(registry: &mut ConsoleRegistry) {
         "ui_password_cancel",
         "ui_password_join",
         "ui_browser_refresh",
+        "ui_browser_open",
         "ui_browser_page",
         "ui_join_lobby",
         "ui_join_lobby_selected",
@@ -160,6 +164,26 @@ pub(crate) fn route(
         }
         let result = (|| -> Result<(), String> {
             match command.name.as_str() {
+                "ui_quick_play" => {
+                    if party.in_lobby {
+                        return Err("Leave the current lobby before using Quick Play".into());
+                    }
+                    let browser = services
+                        .browser
+                        .as_ref()
+                        .ok_or("Matchmaking is still connecting")?;
+                    state.quick_play = Some((
+                        browser.snapshot().completed_refreshes,
+                        std::time::Instant::now(),
+                    ));
+                    services.submit(net::MasterMenuAction::Refresh)?;
+                    dvars.set("ui_quick_play_status", "Looking for an open lobby...");
+                    menus.write(UiMenuRequest::Open("quick_play".into()));
+                }
+                "ui_quick_play_cancel" => {
+                    state.quick_play = None;
+                    menus.write(UiMenuRequest::Close("quick_play".into()));
+                }
                 "set" | "seta" => {
                     if let [name, values @ ..] = command.args.as_slice() {
                         if values.is_empty() {
@@ -364,7 +388,10 @@ pub(crate) fn route(
                     state.password_joining = true;
                     dvars.set("ui_password_pending", "1");
                 }
-                "ui_browser_refresh" => {
+                "ui_browser_refresh" | "ui_browser_open" => {
+                    if command.name == "ui_browser_open" {
+                        menus.write(UiMenuRequest::Open("find_lobbies".into()));
+                    }
                     browser_page_changed = true;
                     services.submit(net::MasterMenuAction::Refresh)?;
                     state.browser_page = 0;
@@ -480,6 +507,71 @@ pub(crate) fn route(
     }
     if services.bridge.is_none() && !state.password_joining {
         dvars.set("ui_password_pending", "0");
+    }
+    if let Some((seen, started)) = state.quick_play {
+        if started.elapsed().as_secs() >= 15 {
+            state.quick_play = None;
+            dvars.set(
+                "ui_quick_play_status",
+                "Matchmaking timed out. Check the server address and retry.",
+            );
+        } else if let Some(snapshot) = services.browser.as_ref().map(|b| b.snapshot())
+            && snapshot.completed_refreshes != seen
+            && !snapshot.loading
+        {
+            state.quick_play = None;
+            let result = if let Some(error) = snapshot.error {
+                Err(error)
+            } else {
+                let advert = snapshot
+                    .adverts
+                    .into_iter()
+                    .filter(|a| {
+                        !a.locked
+                            && !a.in_match
+                            && !a.password_protected
+                            && a.players < a.max_players
+                            && a.missing.is_empty()
+                    })
+                    .max_by_key(|a| a.players);
+                if let Some(advert) = advert {
+                    services
+                        .submit(net::MasterMenuAction::Join {
+                            password: String::new(),
+                            advert_id: advert.id,
+                            map: advert.map,
+                            mode: advert.mode,
+                        })
+                        .map(|()| {
+                            party.is_host = false;
+                        })
+                } else {
+                    selected_game(&dvars, &maps)
+                        .and_then(|(map, mode)| {
+                            services.submit(net::MasterMenuAction::Host {
+                                password: String::new(),
+                                map,
+                                mode: mode.token().into(),
+                            })
+                        })
+                        .map(|()| {
+                            party.is_host = true;
+                        })
+                }
+            };
+            match result {
+                Ok(()) => {
+                    state.public = true;
+                    party.active = true;
+                    party.in_lobby = true;
+                    menus.write(UiMenuRequest::Close("quick_play".into()));
+                    menus.write(UiMenuRequest::Open("game_lobby".into()));
+                }
+                Err(error) => {
+                    dvars.set("ui_quick_play_status", error);
+                }
+            }
+        }
     }
     if state.password_joining
         && let Some(bridge) = services.bridge.as_ref()

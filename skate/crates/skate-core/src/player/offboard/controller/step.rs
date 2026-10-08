@@ -1,4 +1,3 @@
-//!82D7C818 ordering. Every shared writeback precedes its next reader.
 use super::super::{
     cadence, contact_correction, ground_branch, ground_motion, movement_intent, movement_velocity,
     position_output, slide, surface_frame,

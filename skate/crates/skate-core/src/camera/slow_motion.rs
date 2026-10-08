@@ -1,5 +1,3 @@
-//! SlowMotionController TU382BB1DD8/82BB1EE0/82BB20A8. The host owns
-//! message delivery; this retains the curve, latching and timestep calculation.
 use crate::point_graph::PointGraph;
 
 #[derive(Clone, Copy, Debug)]
@@ -38,7 +36,6 @@ impl SlowMotionController {
         settings: SlowMotionSettings,
     ) -> SimulationRateRequest {
         self.elapsed += dt;
-        //82BB1FC8 uses ble (not GT), which also takes the unordered case.
         let progress = if !(air_duration > 0.0) {
             if !self.latched_prediction {
                 self.time_before_prediction += dt;

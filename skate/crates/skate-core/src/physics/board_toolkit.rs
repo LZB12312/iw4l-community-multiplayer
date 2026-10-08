@@ -1,5 +1,3 @@
-//! Skateboard::PrepareBoardToolkit82C013F0, TU3. Derived physical axes and
-//! filtered normal are calculated from the same live deck used by the solver.
 use super::{
     board::BodyId, board_motion_output::inverse_length_squared, board_runtime::BoardRuntime,
     force_queue::total_body_mass, native_arithmetic::dot3,
@@ -72,8 +70,6 @@ impl BoardToolkit {
         for axis in [0, 2] {
             effective[axis] = deck[axis].map(|v| v * control_sign);
         }
-        //82C0149C..150C transposes XYZ, clears all W lanes, and composes the
-        //negative translation in Z,Y,X fused order. Native inverse W is zero.
         let mut inverse_effective = [[0.0; 4]; 4];
         for axis in 0..3 {
             for lane in 0..3 {

@@ -13,9 +13,6 @@ pub type Joint = Constraint<96>;
 pub type Drive = Constraint<96>;
 pub type Reaction = [u32; 16];
 
-/// Complete contact → joint → drive loops of HorusPipeline (82AE27D0).
-/// Contact position corrections remain distinct from velocity-producing
-/// reactions; all families see preceding writes during the same iteration.
 pub fn solve(
     contacts: &mut [Contact],
     joints: &mut [Joint],

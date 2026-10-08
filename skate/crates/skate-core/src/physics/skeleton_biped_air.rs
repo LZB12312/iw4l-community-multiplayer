@@ -1,12 +1,8 @@
-//! Biped Skeleton82BDDD70: COM-constrained animation root, not a body teleport.
-//! Original S3 SHA431b8eba...0395a; ordinary PC arithmetic, not Xenon parity.
 use super::{
     skeleton_animation_record::{AnimationPartTransform as Frame, compose_affine},
     skeleton_root::{SkeletonRootFrames, orthonormalize},
 };
 
-///82BDDDC8..DF54. The frame's translation is replaced by the trajectory COM
-///minus the rotated LOCAL animation COM10960. Mapped board12624 is independent.
 pub fn prepare(
     roots: &mut SkeletonRootFrames,
     mut frame: Frame,

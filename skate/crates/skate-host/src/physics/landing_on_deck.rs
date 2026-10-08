@@ -1,4 +1,3 @@
-//! State503 lifecycle from original TU3 82D4D418..82D4E100.
 mod publication;
 mod skeleton;
 use super::{GamePhysics, SkaterRuntime};
@@ -172,7 +171,6 @@ pub(crate) fn advance(physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> 
     );
     Ok(())
 }
-///82D4DF08: synchronize actual query completion before rejection/collision tests.
 pub(crate) fn post(skater: &mut SkaterRuntime, frame: Frame) -> Result<(), String> {
     skater.landing_deck.post_physics(&skater.player_input)?;
     if !skater.landing_deck.fill().can_land_316 {
@@ -185,7 +183,6 @@ pub(crate) fn post(skater: &mut SkaterRuntime, frame: Frame) -> Result<(), Strin
         .wipeout
         .check_air_collision(&skater.player_input.processed, &frame)
 }
-///82D4D830 resets only the shared manager; outgoing state data is not another trajectory.
 pub(crate) fn exit(_physics: &mut GamePhysics, skater: &mut SkaterRuntime) -> Result<(), String> {
     skater.landing_deck.reset();
     Ok(())

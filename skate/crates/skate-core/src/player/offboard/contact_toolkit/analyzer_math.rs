@@ -1,4 +1,3 @@
-//! Geometric helpers82E0A060/82E0A258/82D85C48 and tangent8252D980.
 use super::{Vector, ZERO, cross, dot, length, scale, sub};
 pub(super) fn madd(a: Vector, s: f32, b: Vector) -> Vector {
     std::array::from_fn(|i| a[i].mul_add(s, b[i]))
@@ -62,8 +61,6 @@ pub(super) fn tangent(x: f32) -> f32 {
     let turns = (x * c(0x3f22f983)).round_ties_even();
     let r = (-turns).mul_add(c(0x2e85a309), (-turns).mul_add(c(0x3fc90fdb), x));
     let q = r * r;
-    // IDA's VMX operand display is A,B,C: vmaddfp computes A*C+B.
-    // 8252DA20..38: denominator degree four, numerator correction degree two.
     let den = q.mul_add(
         q.mul_add(
             q.mul_add(q.mul_add(c(0x3505bba8), c(0xb9a37b25)), c(0x3cd23cf5)),

@@ -1,5 +1,3 @@
-//! Original SkeletonDrives82BEA670/82BEB488: two channels per physical bone
-//! and four independent static targets, all solved in the same island.
 use super::{
     ANIMATION_PART_COUNT, BoneDriveDynamics, BoneDriveSettings, PART_COUNT, SkeletonTargets,
     TARGET_COUNT, bone_drive_frames, prepare_bone_drive_frames,
@@ -20,8 +18,6 @@ pub struct SkeletonDriveSettings {
     pub bone: BoneDriveSettings,
     pub enabled: bool,
     pub strength: [f32; 2],
-    /// InitAttribData82BE7860 applies CollisionDriveScalar to each part's
-    /// LOCAL and LOCAL_ROOT collision strengths before use in Update.
     pub collision_strength: [[f32; 2]; ANIMATION_PART_COUNT],
 }
 pub struct BoneDrives {
@@ -71,7 +67,6 @@ impl SkeletonDrives {
                     bone_drive_frames(&initial_bones[part], &inverses[part], &inverses[p])
                 });
                 let mut dynamics = BoneDriveDynamics::default();
-                // Init82BED180: LOCAL mode2 followed by LOCAL_ROOT mode0.
                 dynamics.mode = 2;
                 dynamics.enable(0, 1.0, settings.bone);
                 dynamics.mode = 0;
@@ -98,8 +93,6 @@ impl SkeletonDrives {
         })
     }
 
-    ///82BEB488 consumes the24 IK-adjusted frames in animation coordinates.
-    /// Collision weight comes from the actual SkeletonCollision state owner.
     pub fn update(
         &mut self,
         pose: &[AnimationPartTransform; ANIMATION_PART_COUNT],
@@ -123,7 +116,6 @@ impl SkeletonDrives {
                 bone.dynamics.mode = 3;
                 std::array::from_fn(|channel| {
                     let c = settings.collision_strength[part][channel];
-                    //82BEB6F0/F4 are fmadds, followed by scalar fmuls.
                     (1.0 - c).mul_add(collision_weight, c) * settings.strength[channel]
                 })
             } else {

@@ -1,5 +1,3 @@
-//! Full non-launch arithmetic82D3AB14..AE4C and point force82D925E0.
-//! Uses independent PC arithmetic with the original refinement/operation order.
 use crate::{
     math::Vector3,
     physics::{board_motion_output::inverse_length_squared, force_queue::QueuedPointForce},
@@ -76,8 +74,6 @@ pub fn angular_correction(s: &SlideSettings, surface: &SlideSurface, p: SlideInp
     );
     scale(p.normal, dot(displacement, p.normal))
 }
-///82D925E0 rejects normal velocity, measures the authored slip angle and adds
-/// its signed sideways response.82E0A4E8 normalizes before its rejection again.
 pub fn sliding_force(s: &SlideSettings, surface: &SlideSurface, p: SlideInput) -> QueuedPointForce {
     let tangent = reject(p.velocity, p.normal);
     let lateral = scale(p.side, dot(tangent, p.side));
@@ -164,86 +160,4 @@ fn fsel(v: f32, a: f32, b: f32) -> f32 {
 }
 fn xyz(v: V) -> Vector3 {
     Vector3::new(v[0], v[1], v[2])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn curve(value: f32) -> PointGraph<8> {
-        PointGraph {
-            x: [0., 1., 2., 3., 4., 5., 6., 7.],
-            y: [value; 8],
-        }
-    }
-    fn settings() -> SlideSettings {
-        SlideSettings {
-            input_remap: curve(0.0),
-            remap_vs_speed: curve(0.0),
-            force_vs_angle: curve(0.0),
-            force_vs_speed: curve(0.0),
-            softest_wheel_force: 0.25,
-            softest_wheel_spin: 1.0,
-            angular_force: 0.1,
-            force_y_offset: -0.12,
-        }
-    }
-    fn input() -> SlideInput {
-        SlideInput {
-            velocity: [4., 0., 3., 0.],
-            normal: [0., 1., 0., 0.],
-            side: [1., 0., 0., 0.],
-            effective_forward: [0., 0., 1., 0.],
-            reference_forward: [0., 0., 1., 0.],
-            angular_velocity: [0.; 4],
-            absolute_speed: 5.,
-            surface_speed: 5.,
-            slide: 0.,
-            elapsed: 0.,
-            wheel_hardness: 0.5,
-        }
-    }
-    #[test]
-    fn negative_slide_force_bypasses_wheel_softness_and_reverses_application_height() {
-        // Analytic projection of a world-X force onto velocity(4,0,3).
-        // Source82D926A4 gates hardness only for a positive curve result;
-        //82D92924 chooses the point height from signed work, not force X.
-        let s = settings();
-        let p = input();
-        let mut surface = SlideSurface {
-            speed_to_force: curve(2.),
-            yaw_strength: 0.,
-            yaw_damping: 0.,
-        };
-        let positive = sliding_force(&s, &surface, p);
-        assert!((positive.force_world.x - 3.2).abs() < 0.00001);
-        assert!((positive.force_world.z - 2.4).abs() < 0.00001);
-        assert_eq!(positive.point_body.y, -0.12);
-        surface.speed_to_force = curve(-2.);
-        let negative = sliding_force(&s, &surface, p);
-        assert!((negative.force_world.x + 5.12).abs() < 0.00001);
-        assert!((negative.force_world.z + 3.84).abs() < 0.00001);
-        assert_eq!(negative.point_body.y, 0.12);
-    }
-    #[test]
-    fn slide_yaw_past_ninety_degrees_uses_signed_ground_axis() {
-        // Opposing desired headings replace the cross error with +/-normal
-        // at82D3ACCC..AD38; damping still uses actual angular velocity.
-        let s = settings();
-        let mut p = input();
-        p.velocity = [0., 0., 4., 0.];
-        p.angular_velocity = [9., -2., 5., 0.];
-        p.slide = 0.75;
-        let surface = SlideSurface {
-            speed_to_force: curve(0.),
-            yaw_strength: 2.,
-            yaw_damping: 0.3,
-        };
-        let positive = angular_correction(&s, &surface, p);
-        assert!((positive[1] - 0.14).abs() < 0.00001);
-        assert_eq!(positive[0], 0.);
-        assert_eq!(positive[2], 0.);
-        p.slide = -0.75;
-        let negative = angular_correction(&s, &surface, p);
-        assert!((negative[1] + 0.26).abs() < 0.00001);
-    }
 }

@@ -66,8 +66,6 @@ impl RidingOperation {
     pub fn parse(a: &Attributes<'_>) -> Option<Self> {
         Some(match a.text("name")? {
             "CreateAttribute" => {
-                //82BAE918: the always branch returns before reading set and
-                //writes Update twice, leaving End's initialized zero intact.
                 let (values, set) = if let Some(value) = a.get("always") {
                     let value = f32::from_bits(value.float_bits);
                     ([Some(value), Some(value), Some(0.0)], false)
@@ -104,9 +102,9 @@ impl RidingOperation {
             "UpdateTimeSinceTeleport" => Self::TimeSinceTeleport,
             "UpdateTimeSinceKickturn" => Self::TimeSinceKickturn,
             "UpdateManualOutTimer" => Self::ManualOutTimer,
-            "SetManualOutTimer" => Self::SetManualOutTimer(f32::from_bits(
-                a.float_bits("length", 0x3e29_fbe7), //factory82BCA0FC
-            )),
+            "SetManualOutTimer" => {
+                Self::SetManualOutTimer(f32::from_bits(a.float_bits("length", 0x3e29_fbe7)))
+            }
             _ => return None,
         })
     }
@@ -118,19 +116,12 @@ pub struct RidingState {
     pub time_since_kickturn: f32,
     pub manual_out_timer: f32,
 
-    ///Specific MotionGraph CA4 bit23, getter8258FB68/setter8258FB78.
-    ///Constructor8258F5B8 clears it; Reset82595480 preserves it.
     pub dark: bool,
-    /// Specific MotionGraph+3156, GetLastGoodLandingVelocity8258F7C8.
     pub last_good_landing_velocity: f32,
-    ///82BB2868 writes ProcessedPhysIn+16420 only on behavior Begin.
-    ///None means no graph request has changed the physical mode yet.
     pub force_mode: Option<ForceMode>,
 }
 impl RidingState {
     pub fn new() -> Self {
-        //8258F488 initializes full5912/5916; final reset825953B0 clears
-        //specific3156/3224.
         Self {
             time_since_teleport: 0.0,
             time_since_kickturn: 0.0,
@@ -154,7 +145,6 @@ impl RidingState {
         match operation {
             RidingOperation::CreateAttribute { name, values, set } => {
                 if let Some(value) = values[usize::from(phase)] {
-                    //82BAEC90 emits the graph record before setting tree data.
                     animation.emit_packet(name, value);
                     if set {
                         animation.set_attribute(SettableAttribute {
@@ -172,7 +162,6 @@ impl RidingState {
                 adjust_for_velocity,
             } => {
                 if phase == 0 {
-                    //82BB04E8: source literal0.65 only when explicitly authored.
                     let height = if manually {
                         f32::from_bits(0x3f266666)
                     } else {
@@ -201,8 +190,6 @@ impl RidingState {
             }
             RidingOperation::TimeSinceTeleport => {
                 if phase == 1 {
-                    //82BB9058: actual filtered category5 resets; all others add
-                    //controller delta through8258F968, with no imposed maximum.
                     if physical_category
                         .ok_or("UpdateTimeSinceTeleport needs filtered physical state")?
                         == 5
@@ -217,19 +204,16 @@ impl RidingState {
                 if phase == 1 {
                     self.time_since_kickturn += frame.dt;
                 }
-            } //82BAE848/8258F940
+            }
             RidingOperation::ManualOutTimer => {
                 if phase == 2 {
                     self.manual_out_timer = 0.0;
-                }
-                //82BB9260/8258F980
-                else if phase == 1 && !manualing {
+                } else if phase == 1 && !manualing {
                     let remaining = self.manual_out_timer - frame.dt;
                     self.manual_out_timer = if remaining >= 0.0 { remaining } else { 0.0 };
-                } //82BB91A8/8258F998
+                }
             }
             RidingOperation::SetManualOutTimer(length) => {
-                //Vtable8232090C: Begin/Update empty; End82BB9158 sets length.
                 if phase == 2 {
                     self.manual_out_timer = length;
                 }

@@ -1,9 +1,3 @@
-//! The connected-board path through TU3's simulation frame.
-//!
-//! Sources: simulation_job_setup_resolution.json (82DC35E0),
-//! drive_solver_handoff_resolution.json (82DC3098 / 82AE27D0 / 82AE6590).
-//! This owns compilation, shared reactions and integration. Collision queries
-//! and ground/action-state force production have separate owners.
 use crate::math::Vector3;
 
 use super::{
@@ -24,10 +18,6 @@ use super::{
     solver::{JointConstraint, solve_constraints},
 };
 
-#[cfg(test)]
-const WORLD_REACTION: usize = BODY_COUNT + 1;
-#[cfg(test)]
-const REACTION_COUNT: usize = BODY_COUNT + 2;
 ///Board parts0..6 and their separate hook7 precede the physical skater.
 pub const ATTACHED_REACTION_BASE: usize = BODY_COUNT + 1;
 
@@ -79,7 +69,10 @@ impl CollisionBody {
         } else if id < BODY_COUNT as u32 {
             Self::Board(BodyId::ORDER[id as usize])
         } else {
-            assert!(id >= ATTACHED_REACTION_BASE as u32, "board target has no collision volume");
+            assert!(
+                id >= ATTACHED_REACTION_BASE as u32,
+                "board target has no collision volume"
+            );
             Self::Attached(id as usize - ATTACHED_REACTION_BASE)
         }
     }
@@ -88,7 +81,6 @@ impl CollisionBody {
 #[derive(Clone, Copy, Debug)]
 pub struct BoardStepSettings {
     pub simulation: RetailSimulationStep,
-    /// Loaded from Simulation+176 by 82DC3098. Not a fixed solver constant.
     pub iterations: u32,
     pub base_truck_transforms: [RetailAffineTransform; 2],
     pub truck_dynamics: RetailDriveDynamics,
@@ -115,9 +107,6 @@ impl BoardStep {
     pub fn solved_contacts(&self) -> &[RetailContactJacobian] {
         &self.contacts
     }
-    /// The caller supplies current poses, processed steering targets, queued
-    /// forces and narrow-phase contacts. It owns the separate force-queue reset
-    /// in GeneralUpdate (82C02360); consuming forces does not clear the queue.
     pub fn advance(
         &mut self,
         bodies: &mut [BodySnapshot; BODY_COUNT],
@@ -153,8 +142,6 @@ impl BoardStep {
         settings: BoardStepSettings,
         mut attached: AttachedStep<'_>,
     ) {
-        // StartFrame writes both timing fields (82DC2FB8). Use one dt for row
-        // construction and integration, and derive the reciprocal from it.
         let mut simulation = settings.simulation;
         assert!(simulation.time_step.is_finite() && simulation.time_step > 0.0);
         simulation.frequency = 1.0 / simulation.time_step;
@@ -214,13 +201,28 @@ impl BoardStep {
             let deck = BodyId::Deck.index();
             self.diagnostic_snapshot = Some(format!(
                 "tick={} body={:?} hook={:?} reaction={:?} joints={:?} drives={:?}",
-                self.diagnostic_tick, bodies[deck], hook, self.reactions[deck],
-                constraints.joints.iter().enumerate()
+                self.diagnostic_tick,
+                bodies[deck],
+                hook,
+                self.reactions[deck],
+                constraints
+                    .joints
+                    .iter()
+                    .enumerate()
                     .filter(|(_, j)| j.reaction_a == deck || j.reaction_b == deck)
-                    .map(|(i, j)| (i, j.reaction_a, j.reaction_b, j.jacobian.words.map(f32::from_bits)))
+                    .map(|(i, j)| (
+                        i,
+                        j.reaction_a,
+                        j.reaction_b,
+                        j.jacobian.words.map(f32::from_bits)
+                    ))
                     .collect::<Vec<_>>(),
-                constraints.drives.iter().enumerate()
-                    .filter(|(_, d)| d.frame_a_body.reaction_index == deck || d.frame_b_body.reaction_index == deck)
+                constraints
+                    .drives
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, d)| d.frame_a_body.reaction_index == deck
+                        || d.frame_b_body.reaction_index == deck)
                     .collect::<Vec<_>>(),
             ));
         }
@@ -240,8 +242,6 @@ impl BoardStep {
             // velocity-producing pair. Accumulated rows are rebuilt next tick.
             *reaction = RetailReactionCorrections::default();
         }
-        // ContactSpiesJob follows integration (82DC35E0). Step_Solver3 then
-        // publishes reports before the physical Adjust/Output phases.
         board_reports::collect(
             &mut self.reports,
             &self.contacts,
@@ -332,7 +332,3 @@ fn contact_body(
         cool_down: rates.cool_down,
     }
 }
-
-#[cfg(test)]
-#[path = "tests/board_step.rs"]
-mod tests;

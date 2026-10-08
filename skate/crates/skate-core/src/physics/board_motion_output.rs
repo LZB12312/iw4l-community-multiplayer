@@ -1,8 +1,5 @@
-//! Observed deck motion from TU3 Skateboard::FillPhysOut82C02A80.
-//! These calculations consume the live solver body and the actual Reckoning
-//! normal. They do not infer contact state from height or vertical velocity.
-use crate::math::{Basis3, Vector3};
 use super::{board::BodyId, board_runtime::BoardRuntime, native_arithmetic};
+use crate::math::{Basis3, Vector3};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BoardMotionOutput {
@@ -26,8 +23,6 @@ impl BoardMotionOutput {
     ) -> Self {
         let deck = board.bodies()[BodyId::Deck.index()].rates;
         let mut effective_basis = board.part_transforms()[BodyId::Deck.index()].basis;
-        // Complete GetEffectiveTransform82C01BF8 axis adjustment; translation
-        // and Y remain the physical part's values.
         if processed_flags_2468 & 0x0010_0000 != 0 {
             for axis in [0, 2] {
                 effective_basis.columns[axis] = effective_basis.columns[axis].map(|v| -v);

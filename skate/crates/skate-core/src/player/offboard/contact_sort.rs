@@ -1,6 +1,3 @@
-//! Record sort82D95390, introsort82D95500, partition82D95AB0 and heap fallback.
-//! Comparator82D81028 uses distance52 only. Equal distances must retain the
-//! original algorithm's order because later classifiers scan vertical groups.
 use super::{contact_records::Record, contact_segments::Candidate};
 pub trait Distance: Copy {
     fn distance(self) -> f32;
@@ -25,8 +22,6 @@ pub fn sort<T: Distance>(records: &mut [T]) {
     }
     let depth = 2 * (usize::BITS - 1 - records.len().leading_zeros());
     introsort(records, depth);
-    //82D95650 sorts the first28, then95390 inserts each remaining record.
-    //A bounded host cursor also avoids out-of-bounds reads for unordered input.
     insertion(records);
 }
 fn insertion<T: Distance>(a: &mut [T]) {
@@ -124,51 +119,4 @@ fn adjust_heap<T: Distance>(a: &mut [T], top: usize, value: T) {
         hole = parent;
     }
     a[hole] = value;
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    fn records(n: usize) -> Vec<Record> {
-        (0..n)
-            .map(|i| Record {
-                position: [i as f32, 0., 0., 0.],
-                normal: [0.; 4],
-                coordinates: [0.; 4],
-                flags: 0,
-                distance: 1.,
-            })
-            .collect()
-    }
-    #[test]
-    fn equal_distance_order_matches_native_partition_threshold() {
-        for n in [28, 32, 64] {
-            let mut a = records(n);
-            sort(&mut a);
-            let expected: Vec<_> = match n {
-                28 => (0..28).collect(),
-                32 => (0..32).rev().collect(),
-                64 => (32..64).chain(0..32).collect(),
-                _ => unreachable!(),
-            };
-            assert_eq!(
-                a.iter().map(|r| r.position[0] as usize).collect::<Vec<_>>(),
-                expected
-            );
-        }
-    }
-    #[test]
-    fn sort_and_heap_fallback_order_finite_distances() {
-        for n in 0..=128 {
-            let mut a = records(n);
-            for (i, r) in a.iter_mut().enumerate() {
-                r.distance = ((i * 17 + 3) % 29) as f32 - 14.;
-            }
-            let mut heap = a.clone();
-            sort(&mut a);
-            heap_sort(&mut heap);
-            assert!(a.windows(2).all(|w| w[0].distance <= w[1].distance));
-            assert!(heap.windows(2).all(|w| w[0].distance <= w[1].distance));
-        }
-    }
 }

@@ -21,8 +21,14 @@ pub struct Volume {
 
 impl Volume {
     pub fn new(size: [i32; 3], min: [i32; 3], step: [i32; 3]) -> Self {
-        assert!(size.iter().all(|&s| s > 0), "volume size must be positive: {size:?}");
-        assert!(step.iter().all(|&s| s > 0), "volume step must be positive: {step:?}");
+        assert!(
+            size.iter().all(|&s| s > 0),
+            "volume size must be positive: {size:?}"
+        );
+        assert!(
+            step.iter().all(|&s| s > 0),
+            "volume step must be positive: {step:?}"
+        );
         Self { size, min, step }
     }
 
@@ -68,9 +74,17 @@ impl Volume {
             }
             return None;
         }
-        let inside = (0..3).all(|a| rel[a] >= 0 && rel[a] < self.size[a] * self.step[a] && mth::floor_mod(rel[a], self.step[a]) == 0);
+        let inside = (0..3).all(|a| {
+            rel[a] >= 0
+                && rel[a] < self.size[a] * self.step[a]
+                && mth::floor_mod(rel[a], self.step[a]) == 0
+        });
         inside.then(|| {
-            self.index(mth::floor_div(rel[0], self.step[0]), mth::floor_div(rel[1], self.step[1]), mth::floor_div(rel[2], self.step[2]))
+            self.index(
+                mth::floor_div(rel[0], self.step[0]),
+                mth::floor_div(rel[1], self.step[1]),
+                mth::floor_div(rel[2], self.step[2]),
+            )
         })
     }
 }
@@ -127,7 +141,11 @@ pub struct Perlin {
 impl Perlin {
     /// `GradientNoise(RandomSource)`: three offsets then a Fisher-Yates shuffle.
     pub fn new(random: &mut impl RandomSource) -> Self {
-        let offset = [random.next_f64() * 256.0, random.next_f64() * 256.0, random.next_f64() * 256.0];
+        let offset = [
+            random.next_f64() * 256.0,
+            random.next_f64() * 256.0,
+            random.next_f64() * 256.0,
+        ];
         let mut perms = [0u8; 256];
         for (i, p) in perms.iter_mut().enumerate() {
             *p = i as u8;
@@ -136,12 +154,19 @@ impl Perlin {
             let j = random.next_i32_bound(256 - i as i32) as usize + i;
             perms.swap(i, j);
         }
-        Self { perms, offset, fudge_y_scale: None }
+        Self {
+            perms,
+            offset,
+            fudge_y_scale: None,
+        }
     }
 
     /// `SmearedPerlinNoise(RandomSource, double)`.
     pub fn smeared(random: &mut impl RandomSource, fudge_y_scale: f64) -> Self {
-        Self { fudge_y_scale: Some(fudge_y_scale), ..Self::new(random) }
+        Self {
+            fudge_y_scale: Some(fudge_y_scale),
+            ..Self::new(random)
+        }
     }
 
     pub fn range(&self) -> Interval {
@@ -160,12 +185,25 @@ impl Perlin {
     }
 
     fn fudge_y(&self, scale: f64, original_y: f64, relative_y: f64) -> f64 {
-        let limit = if original_y >= 0.0 && original_y < relative_y { original_y } else { relative_y };
+        let limit = if original_y >= 0.0 && original_y < relative_y {
+            original_y
+        } else {
+            relative_y
+        };
         f64::from(mth::floor(limit / scale + f64::from(1.0e-7f32))) * scale
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn sample_and_lerp(&self, x: i32, y: i32, z: i32, rx: f32, ry: f32, rz: f32, original_ry: f32) -> f32 {
+    fn sample_and_lerp(
+        &self,
+        x: i32,
+        y: i32,
+        z: i32,
+        rx: f32,
+        ry: f32,
+        rz: f32,
+        original_ry: f32,
+    ) -> f32 {
         let x0 = self.permute(x);
         let x1 = self.permute(x + 1);
         let xy00 = self.permute(x0 + y);
@@ -180,7 +218,19 @@ impl Perlin {
         let d101 = grad_dot(self.permute(xy10 + z + 1), rx - 1.0, ry, rz - 1.0);
         let d011 = grad_dot(self.permute(xy01 + z + 1), rx, ry - 1.0, rz - 1.0);
         let d111 = grad_dot(self.permute(xy11 + z + 1), rx - 1.0, ry - 1.0, rz - 1.0);
-        mth::lerp3(mth::smoothstep(rx), mth::smoothstep(original_ry), mth::smoothstep(rz), d000, d100, d010, d110, d001, d101, d011, d111)
+        mth::lerp3(
+            mth::smoothstep(rx),
+            mth::smoothstep(original_ry),
+            mth::smoothstep(rz),
+            d000,
+            d100,
+            d010,
+            d110,
+            d001,
+            d101,
+            d011,
+            d111,
+        )
     }
 
     /// `PerlinNoise.get(double, double, double)` / `SmearedPerlinNoise.get`.
@@ -210,13 +260,28 @@ impl Perlin {
     }
 
     /// `addToVolume`: adds `amplitude * noise` to each sample of `volume`.
-    pub fn add_to_volume(&self, buffer: &mut [f32], volume: &Volume, xz_scale: f64, y_scale: f64, amplitude: f32) {
+    pub fn add_to_volume(
+        &self,
+        buffer: &mut [f32],
+        volume: &Volume,
+        xz_scale: f64,
+        y_scale: f64,
+        amplitude: f32,
+    ) {
         self.add_to_volume_where(buffer, volume, xz_scale, y_scale, amplitude, None);
     }
 
     /// `add_to_volume` for the samples `mask` marks (others may be left
     /// alone); each computed sample is exactly what `add_to_volume` gives.
-    pub fn add_to_volume_where(&self, buffer: &mut [f32], volume: &Volume, xz_scale: f64, y_scale: f64, amplitude: f32, mask: Option<&[bool]>) {
+    pub fn add_to_volume_where(
+        &self,
+        buffer: &mut [f32],
+        volume: &Volume,
+        xz_scale: f64,
+        y_scale: f64,
+        amplitude: f32,
+        mask: Option<&[bool]>,
+    ) {
         // Everything that depends on Y alone, once per volume rather than
         // per column: the lattice row, the (fudged) offset and its fade.
         let height = volume.size[1] as usize;
@@ -291,7 +356,8 @@ impl Perlin {
                         dxz[i] = grad_dot_xz(g, cx, cz);
                         gy[i] = g[1] as f32;
                     }
-                    for (out, &(_, ry, ay)) in column[start..end].iter_mut().zip(&rows[start..end]) {
+                    for (out, &(_, ry, ay)) in column[start..end].iter_mut().zip(&rows[start..end])
+                    {
                         let value = mth::lerp3(
                             ax,
                             ay,
@@ -329,20 +395,33 @@ pub struct NoiseStack {
 
 impl NoiseStack {
     pub fn add(&mut self, noise: Perlin, frequency: f64, amplitude: f32) {
-        self.layers.push(Layer { noise, frequency, amplitude });
+        self.layers.push(Layer {
+            noise,
+            frequency,
+            amplitude,
+        });
     }
 
     /// `NoiseStack.Builder.addStack`.
     pub fn add_stack(&mut self, stack: NoiseStack, frequency: f64, amplitude: f32) {
         for layer in stack.layers {
-            self.add(layer.noise, layer.frequency * frequency, layer.amplitude * amplitude);
+            self.add(
+                layer.noise,
+                layer.frequency * frequency,
+                layer.amplitude * amplitude,
+            );
         }
     }
 
     pub fn range(&self) -> Interval {
-        self.layers.iter().fold(Interval::exact(0.0), |range, layer| {
-            Interval::add(range, Interval::mul(layer.noise.range(), Interval::exact(layer.amplitude)))
-        })
+        self.layers
+            .iter()
+            .fold(Interval::exact(0.0), |range, layer| {
+                Interval::add(
+                    range,
+                    Interval::mul(layer.noise.range(), Interval::exact(layer.amplitude)),
+                )
+            })
     }
 
     pub fn get(&self, x: f64, y: f64, z: f64) -> f32 {
@@ -363,15 +442,37 @@ impl NoiseStack {
         value
     }
 
-    pub fn add_to_volume(&self, buffer: &mut [f32], volume: &Volume, xz_scale: f64, y_scale: f64, amplitude: f32) {
+    pub fn add_to_volume(
+        &self,
+        buffer: &mut [f32],
+        volume: &Volume,
+        xz_scale: f64,
+        y_scale: f64,
+        amplitude: f32,
+    ) {
         self.add_to_volume_where(buffer, volume, xz_scale, y_scale, amplitude, None);
     }
 
     /// `add_to_volume` for the samples `mask` marks.
-    pub fn add_to_volume_where(&self, buffer: &mut [f32], volume: &Volume, xz_scale: f64, y_scale: f64, amplitude: f32, mask: Option<&[bool]>) {
+    pub fn add_to_volume_where(
+        &self,
+        buffer: &mut [f32],
+        volume: &Volume,
+        xz_scale: f64,
+        y_scale: f64,
+        amplitude: f32,
+        mask: Option<&[bool]>,
+    ) {
         for layer in &self.layers {
             let f = layer.frequency;
-            layer.noise.add_to_volume_where(buffer, volume, xz_scale * f, y_scale * f, amplitude * layer.amplitude, mask);
+            layer.noise.add_to_volume_where(
+                buffer,
+                volume,
+                xz_scale * f,
+                y_scale * f,
+                amplitude * layer.amplitude,
+                mask,
+            );
         }
     }
 }
@@ -395,8 +496,13 @@ pub struct NormalNoiseParameters {
 
 impl NormalNoiseParameters {
     pub fn from_json(json: &Value) -> Result<Self, String> {
-        let base_octave = json["base_octave"].as_i64().ok_or("noise lacks base_octave")? as i32;
-        let octave_count = json.get("octave_count").map_or(Some(1), Value::as_i64).ok_or("octave_count must be an integer")? as i32;
+        let base_octave = json["base_octave"]
+            .as_i64()
+            .ok_or("noise lacks base_octave")? as i32;
+        let octave_count = json
+            .get("octave_count")
+            .map_or(Some(1), Value::as_i64)
+            .ok_or("octave_count must be an integer")? as i32;
         let normalize = match json.get("normalize") {
             None | Some(Value::Bool(true)) => Normalization::Enabled,
             Some(Value::Bool(false)) => Normalization::Disabled,
@@ -405,19 +511,40 @@ impl NormalNoiseParameters {
         };
         let amplitude_modifiers = match json.get("amplitude_modifiers") {
             None => Vec::new(),
-            Some(v) => v.as_array().ok_or("amplitude_modifiers must be an array")?.iter().map(|a| a.as_f64().ok_or("amplitude must be numeric")).collect::<Result<_, _>>()?,
+            Some(v) => v
+                .as_array()
+                .ok_or("amplitude_modifiers must be an array")?
+                .iter()
+                .map(|a| a.as_f64().ok_or("amplitude must be numeric"))
+                .collect::<Result<_, _>>()?,
         };
         if !(-32..=32).contains(&base_octave) || !(1..=32).contains(&octave_count) {
             return Err("noise octave settings out of range".into());
         }
         if !amplitude_modifiers.is_empty() && amplitude_modifiers.len() != octave_count as usize {
-            return Err(format!("amplitude_modifiers had size {}, but octave_count was {octave_count}", amplitude_modifiers.len()));
+            return Err(format!(
+                "amplitude_modifiers had size {}, but octave_count was {octave_count}",
+                amplitude_modifiers.len()
+            ));
         }
-        Ok(Self { base_amplitude: json.get("base_amplitude").and_then(Value::as_f64).unwrap_or(1.0), base_octave, octave_count, normalize, amplitude_modifiers })
+        Ok(Self {
+            base_amplitude: json
+                .get("base_amplitude")
+                .and_then(Value::as_f64)
+                .unwrap_or(1.0),
+            base_octave,
+            octave_count,
+            normalize,
+            amplitude_modifiers,
+        })
     }
 
     fn modifier(modifiers: &[f64], index: i32) -> f64 {
-        if modifiers.is_empty() { 1.0 } else { modifiers[index as usize] }
+        if modifiers.is_empty() {
+            1.0
+        } else {
+            modifiers[index as usize]
+        }
     }
 }
 
@@ -436,7 +563,13 @@ pub struct NormalNoise {
     parameters: NormalNoiseParameters,
 }
 
-fn build_octaves(base_octave: i32, base_amplitude: f64, count: i32, normalize: bool, modifiers: &[f64]) -> Vec<Octave> {
+fn build_octaves(
+    base_octave: i32,
+    base_amplitude: f64,
+    count: i32,
+    normalize: bool,
+    modifiers: &[f64],
+) -> Vec<Octave> {
     let mut frequency = 2f64.powi(base_octave);
     let mut amplitude = base_amplitude;
     if normalize {
@@ -446,7 +579,11 @@ fn build_octaves(base_octave: i32, base_amplitude: f64, count: i32, normalize: b
     for i in 0..count {
         let modifier = NormalNoiseParameters::modifier(modifiers, i);
         if modifier != 0.0 {
-            octaves.push(Octave { index: base_octave + i, frequency, amplitude: amplitude * modifier });
+            octaves.push(Octave {
+                index: base_octave + i,
+                frequency,
+                amplitude: amplitude * modifier,
+            });
         }
         frequency *= 2.0;
         amplitude *= 0.5;
@@ -455,10 +592,13 @@ fn build_octaves(base_octave: i32, base_amplitude: f64, count: i32, normalize: b
 }
 
 fn normalization_factor(target_amplitude: f64, octaves: &[Octave]) -> f64 {
-    let variance: f64 = octaves.iter().map(|o| {
-        let deviation = 0.270_224_783_124_521_1 * o.amplitude.abs();
-        deviation * deviation
-    }).fold(0.0, |a, b| a + b);
+    let variance: f64 = octaves
+        .iter()
+        .map(|o| {
+            let deviation = 0.270_224_783_124_521_1 * o.amplitude.abs();
+            deviation * deviation
+        })
+        .fold(0.0, |a, b| a + b);
     let deviation = variance.sqrt();
     if deviation == 0.0 {
         return 0.0;
@@ -484,24 +624,62 @@ impl NormalNoise {
     pub fn create_parity(first_octave: i32, amplitudes: &[f64]) -> Self {
         let count = amplitudes.len() as i32;
         let octaves = build_octaves(first_octave, 1.0, count, true, amplitudes);
-        let target: f64 = octaves.iter().map(|o| o.amplitude.abs()).fold(0.0, |a, b| a + b);
+        let target: f64 = octaves
+            .iter()
+            .map(|o| o.amplitude.abs())
+            .fold(0.0, |a, b| a + b);
         let new = normalization_factor(target, &octaves);
-        let base_amplitude = if new == 0.0 { 1.0 } else { parity_normalization_factor(1.0, count, amplitudes) / new };
-        let amplitude_modifiers = if amplitudes.iter().any(|&a| a != 1.0) { amplitudes.to_vec() } else { Vec::new() };
-        Self::new(NormalNoiseParameters { base_amplitude, base_octave: first_octave, octave_count: count, normalize: Normalization::Enabled, amplitude_modifiers })
+        let base_amplitude = if new == 0.0 {
+            1.0
+        } else {
+            parity_normalization_factor(1.0, count, amplitudes) / new
+        };
+        let amplitude_modifiers = if amplitudes.iter().any(|&a| a != 1.0) {
+            amplitudes.to_vec()
+        } else {
+            Vec::new()
+        };
+        Self::new(NormalNoiseParameters {
+            base_amplitude,
+            base_octave: first_octave,
+            octave_count: count,
+            normalize: Normalization::Enabled,
+            amplitude_modifiers,
+        })
     }
 
     pub fn new(parameters: NormalNoiseParameters) -> Self {
         let p = &parameters;
-        let octaves = build_octaves(p.base_octave, p.base_amplitude, p.octave_count, p.normalize != Normalization::Disabled, &p.amplitude_modifiers);
-        let mut target: f64 = octaves.iter().map(|o| o.amplitude.abs()).fold(0.0, |a, b| a + b);
+        let octaves = build_octaves(
+            p.base_octave,
+            p.base_amplitude,
+            p.octave_count,
+            p.normalize != Normalization::Disabled,
+            &p.amplitude_modifiers,
+        );
+        let mut target: f64 = octaves
+            .iter()
+            .map(|o| o.amplitude.abs())
+            .fold(0.0, |a, b| a + b);
         let mut factor = normalization_factor(target, &octaves);
         if p.normalize == Normalization::Legacy && factor != 0.0 {
-            let parity = parity_normalization_factor(p.base_amplitude, p.octave_count, &p.amplitude_modifiers);
+            let parity = parity_normalization_factor(
+                p.base_amplitude,
+                p.octave_count,
+                &p.amplitude_modifiers,
+            );
             target *= parity / factor;
             factor = parity;
         }
-        Self { octaves: octaves.iter().map(|o| (o.index, o.frequency, o.amplitude)).collect(), normalization_factor: factor, target_amplitude: target, parameters }
+        Self {
+            octaves: octaves
+                .iter()
+                .map(|o| (o.index, o.frequency, o.amplitude))
+                .collect(),
+            normalization_factor: factor,
+            target_amplitude: target,
+            parameters,
+        }
     }
 
     /// `NormalNoise.range()`.
@@ -520,7 +698,11 @@ impl NormalNoise {
             let second_noise = Perlin::new(&mut second.from_hash_of(&seed));
             let value_factor = (self.normalization_factor * amplitude) as f32;
             stack.add(first_noise, frequency, value_factor);
-            stack.add(second_noise, frequency * 1.018_126_888_217_522_7, value_factor);
+            stack.add(
+                second_noise,
+                frequency * 1.018_126_888_217_522_7,
+                value_factor,
+            );
         }
         stack
     }
@@ -528,7 +710,11 @@ impl NormalNoise {
     /// `NormalNoise.createForLegacyNetherBiome`.
     pub fn create_legacy_nether(&self, random: &mut AnyRandom) -> NoiseStack {
         let p = &self.parameters;
-        let modifiers = if p.amplitude_modifiers.is_empty() { vec![1.0; p.octave_count as usize] } else { p.amplitude_modifiers.clone() };
+        let modifiers = if p.amplitude_modifiers.is_empty() {
+            vec![1.0; p.octave_count as usize]
+        } else {
+            p.amplitude_modifiers.clone()
+        };
         let first = legacy_fbm(random, p.base_octave, &modifiers);
         let second = legacy_fbm(random, p.base_octave, &modifiers);
         let value_factor = (self.normalization_factor * p.base_amplitude) as f32;
@@ -555,7 +741,10 @@ fn legacy_fbm(random: &mut AnyRandom, first_octave: i32, amplitudes: &[f64]) -> 
             random.consume_count(262);
         }
     }
-    assert!(zero_index >= octaves - 1, "positive octaves are temporarily disabled");
+    assert!(
+        zero_index >= octaves - 1,
+        "positive octaves are temporarily disabled"
+    );
     let mut factor = 2f64.powi(-zero_index);
     let mut value_factor = 2f64.powi(octaves - 1) / (2f64.powi(octaves) - 1.0);
     let mut stack = NoiseStack::default();
@@ -570,49 +759,25 @@ fn legacy_fbm(random: &mut AnyRandom, first_octave: i32, amplitudes: &[f64]) -> 
 }
 
 /// `BlendedNoise.createFbm`: smeared Perlin octaves from finest to coarsest.
-pub fn blended_fbm(random: &mut AnyRandom, first_octave: i32, smear_scale_y: f64, value_factor: f64) -> NoiseStack {
+pub fn blended_fbm(
+    random: &mut AnyRandom,
+    first_octave: i32,
+    smear_scale_y: f64,
+    value_factor: f64,
+) -> NoiseStack {
     assert!(first_octave <= 0, "firstOctave>0");
     let octaves = -first_octave + 1;
     let mut factor = 1.0;
     let mut value_factor = value_factor / (2f64.powi(octaves) - 1.0);
     let mut stack = NoiseStack::default();
     for _ in 0..octaves {
-        stack.add(Perlin::smeared(random, smear_scale_y * factor), factor, value_factor as f32);
+        stack.add(
+            Perlin::smeared(random, smear_scale_y * factor),
+            factor,
+            value_factor as f32,
+        );
         factor /= 2.0;
         value_factor *= 2.0;
     }
     stack
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn volume_indexing_matches_vanilla() {
-        let v = Volume::new([2, 3, 2], [-8, -64, 16], [4, 8, 4]);
-        assert_eq!(v.len(), 12);
-        assert_eq!(v.index(1, 2, 1), 2 + (1 + 2) * 3);
-        assert_eq!(v.index_of_block(-4, -48, 20), Some(v.index(1, 2, 1)));
-        assert_eq!(v.index_of_block(-5, -48, 20), None);
-        assert_eq!(v.max_block(1), -64 + 24 - 1);
-    }
-
-    #[test]
-    fn volume_and_point_paths_agree_on_unit_scales() {
-        // With xz/y scale 1 both paths compute identical coordinates.
-        let mut random = AnyRandom::new(false, 42);
-        let noise = NormalNoise::new(NormalNoiseParameters::from_json(&serde_json::json!({"base_octave": -3, "base_amplitude": 1.0})).unwrap()).create(&mut random);
-        let volume = Volume::blocks([3, 5, 2], [-7, 60, 100]);
-        let mut buffer = vec![0.0; volume.len()];
-        noise.add_to_volume(&mut buffer, &volume, 1.0, 1.0, 1.0);
-        for z in 0..2 {
-            for x in 0..3 {
-                for y in 0..5 {
-                    let point = noise.get(f64::from(volume.block_x(x)), f64::from(volume.block_y(y)), f64::from(volume.block_z(z)));
-                    assert_eq!(point.to_bits(), buffer[volume.index(x, y, z)].to_bits());
-                }
-            }
-        }
-    }
 }

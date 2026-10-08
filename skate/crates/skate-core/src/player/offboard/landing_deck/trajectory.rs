@@ -1,5 +1,3 @@
-//! Original82D78EE8 and its82D60B98/82D60C80,82D609E0,82D60B00 arithmetic.
-//! Uses the existing Trajectory evaluations; no alternative trajectory owner.
 use super::{GRAVITY, Input, Manager, STEP, Settings, Trajectory, Vector};
 use crate::physics::board_motion_output::inverse_length_squared;
 use crate::player::wipeout_state::math::{add, dot, length, madd, reciprocal, scale, sub};
@@ -15,8 +13,6 @@ fn square_root(value: f32) -> f32 {
     }
 }
 
-///82D60C80 ->82D60B98. No invented linear/zero-acceleration fallback.
-///The one-root wrapper requires positive time; the two-root wrapper does not.
 fn greatest_plane_time(t: Trajectory, point: Vector, normal: Vector) -> Option<f32> {
     let a = dot(normal, scale(t.acceleration, reciprocal(2.)));
     let b = dot(normal, t.velocity);
@@ -46,7 +42,6 @@ pub(super) fn adjust(t: &mut Trajectory, frame: i32, delta: Vector, maximum: f32
     };
     t.velocity = madd(correction, factor, t.velocity);
 }
-///82D60B00 leaves duration untouched.
 pub(super) fn shift(t: &mut Trajectory, frame: i32) {
     let time = frame as f32 * STEP;
     let position = t.position_at(time);
@@ -55,7 +50,6 @@ pub(super) fn shift(t: &mut Trajectory, frame: i32) {
 }
 
 impl Manager {
-    ///82D78EE8. Failed intersection clears only can-land; other fields retain.
     pub(super) fn consider_board(
         &mut self,
         p: &Input,
@@ -87,7 +81,6 @@ impl Manager {
             self.can_land_256 = false;
             return;
         };
-        //822F8BD4=9.8;82060C50=2. Min-speed time is clamped to [.75t,1.3t].
         let distance = length(sub(position, target));
         let optimal = square_root(reciprocal(f32::from_bits(0x411c_cccd)) * (2. * distance));
         let proposed_time = (time * 1.3).min((time * 0.75).max(optimal));

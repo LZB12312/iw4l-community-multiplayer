@@ -112,7 +112,6 @@ fn capsule(pose: RetailAffineTransform, radius: f32, half_length: f32) -> Contac
     }
 }
 
-// Same multiply/add order as the Volume-to-world vertex path82ADE468.
 fn transform(basis: Basis3, point: Vector3, origin: Vector3) -> Vector3 {
     let translation = [origin.x, origin.y, origin.z];
     let component = |row| {
@@ -130,8 +129,6 @@ fn compose(parent: RetailAffineTransform, child: RetailAffineTransform) -> Retai
     RetailAffineTransform {
         basis: Basis3 {
             columns: child.basis.columns.map(|c| {
-                // CreateGP82AD8758 starts basis composition with a product;
-                // only position composition includes an initial translation.
                 core::array::from_fn(|row| {
                     c[2].mul_add(
                         parent.basis.columns[2][row],

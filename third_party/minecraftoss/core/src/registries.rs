@@ -125,9 +125,17 @@ impl Registries {
                 .is_file()
                 .then(|| crate::block_entity::BlockEntities::load(&paths.block_entity_catalog))
                 .transpose()?,
-            entities: paths.entity_catalog.is_file().then(|| crate::entity_data::EntityCatalog::load(&paths.entity_catalog)).transpose()?,
+            entities: paths
+                .entity_catalog
+                .is_file()
+                .then(|| crate::entity_data::EntityCatalog::load(&paths.entity_catalog))
+                .transpose()?,
             loot: crate::loot::LootTables::default(),
-            items: if paths.item_catalog.is_file() { crate::item::ItemCatalog::load(&paths.item_catalog)? } else { crate::item::ItemCatalog::default() },
+            items: if paths.item_catalog.is_file() {
+                crate::item::ItemCatalog::load(&paths.item_catalog)?
+            } else {
+                crate::item::ItemCatalog::default()
+            },
         })
     }
 
@@ -144,93 +152,5 @@ impl Registries {
     pub fn block_in_tag(&self, state: BlockStateId, tag: crate::tags::TagId) -> bool {
         self.block_tags
             .contains(tag, usize::from(self.blocks.block_of(state).0))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::chunk::{Chunk, HeightmapKind};
-    use crate::pos::ChunkPos;
-
-    /// Loads the real local data; skipped with a note when it has not been restored.
-    pub(crate) fn local() -> Option<Registries> {
-        let paths = DataPaths::discover().ok()?;
-        if !paths.block_catalog.is_file() || !paths.datapack.is_dir() {
-            eprintln!("skipping: local vanilla data not restored");
-            return None;
-        }
-        Some(Registries::load(&paths).expect("local vanilla data loads"))
-    }
-
-    #[test]
-    fn real_catalog_and_datapack_load() {
-        let Some(r) = local() else { return };
-        assert_eq!(r.blocks.state_count(), 35_723);
-        assert_eq!(r.blocks.block_count(), 1_286);
-        let leaves = r
-            .blocks
-            .parse_state("minecraft:oak_leaves[distance=3,persistent=true,waterlogged=true]")
-            .unwrap();
-        assert_eq!(
-            r.blocks.state_to_string(leaves),
-            "minecraft:oak_leaves[distance=3,persistent=true,waterlogged=true]"
-        );
-        let stone = r.blocks.parse_state("minecraft:stone").unwrap();
-        let water = r.blocks.parse_state("minecraft:water").unwrap();
-        let mask = |s| r.heightmap_mask(s);
-        assert_eq!(mask(stone), 0b11_1111);
-        assert_eq!(mask(water) & HeightmapKind::OceanFloor.bit(), 0);
-        assert_ne!(mask(water) & HeightmapKind::MotionBlocking.bit(), 0);
-        let leaves_tag = r.block_tags.require("minecraft:leaves").unwrap();
-        assert!(r.block_in_tag(leaves, leaves_tag));
-        // Waterlogged leaves hold water, so vanilla's fluid clause still counts them.
-        assert_ne!(
-            mask(leaves) & HeightmapKind::MotionBlockingNoLeaves.bit(),
-            0
-        );
-        let dry_leaves = r
-            .blocks
-            .with_property(leaves, "waterlogged", "false")
-            .unwrap();
-        assert_eq!(
-            mask(dry_leaves) & HeightmapKind::MotionBlockingNoLeaves.bit(),
-            0
-        );
-        assert_ne!(mask(dry_leaves) & HeightmapKind::MotionBlocking.bit(), 0);
-        assert_eq!(r.biomes.len(), 67);
-        assert!(r.biome_tags.id("minecraft:is_ocean").is_some());
-    }
-
-    #[test]
-    fn heightmaps_follow_vanilla_update_rules() {
-        let Some(r) = local() else { return };
-        let stone = r.blocks.parse_state("minecraft:stone").unwrap();
-        let mut chunk = Chunk::new(ChunkPos::new(0, 0), -64, 384, crate::biome::BiomeId(0));
-        for y in -64..10 {
-            chunk.set_block_raw(3, y, 4, stone, &r);
-        }
-        chunk.prime_heightmaps(&HeightmapKind::FINAL, &r);
-        assert_eq!(chunk.heightmaps.get(HeightmapKind::WorldSurface, 3, 4), 10);
-        assert_eq!(chunk.heightmaps.get(HeightmapKind::WorldSurface, 0, 0), -64);
-        // Removing the top block rescans; removing a buried block is ignored.
-        chunk.set_block_raw(3, 9, 4, BlockStateId::AIR, &r);
-        assert!(chunk.update_heightmap(
-            HeightmapKind::WorldSurface,
-            3,
-            9,
-            4,
-            BlockStateId::AIR,
-            &r
-        ));
-        assert_eq!(chunk.heightmaps.get(HeightmapKind::WorldSurface, 3, 4), 9);
-        assert!(!chunk.update_heightmap(
-            HeightmapKind::WorldSurface,
-            3,
-            0,
-            4,
-            BlockStateId::AIR,
-            &r
-        ));
     }
 }

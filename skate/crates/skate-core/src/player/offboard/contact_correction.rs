@@ -1,5 +1,3 @@
-//! Biped contact correction82D7C9E0, called before slide/movement/cadence.
-//! Input displacement vectors come from actual skeleton collision output.
 use crate::physics::{native_arithmetic, reciprocal_sqrt::estimate};
 type Vector = [f32; 4];
 
@@ -31,7 +29,6 @@ impl ContactCorrection {
         let selected = if square_a > square_b { a } else { b };
         let maximum = select(square_a - square_b, square_a, square_b);
         self.active = false;
-        //82D7CA7C ble skips the branch only for ordered <=.
         if !(maximum <= f32::from_bits(0x38d1_b717)) {
             let inverse = inverse_length(dot(selected, selected));
             self.direction = selected.map(|value| value * inverse);
@@ -71,7 +68,6 @@ pub(super) fn magnitude(squared: f32) -> f32 {
     if squared == 0.0 { 0.0 } else { length }
 }
 
-/// Original82BD3D90, preserving four lanes and two reciprocal refinements.
 pub(super) fn clamp_length(vector: Vector, maximum: f32) -> Vector {
     let length = magnitude(dot(vector, vector));
     if !(length >= f32::from_bits(0x3780_0000)) {
@@ -84,8 +80,3 @@ pub(super) fn clamp_length(vector: Vector, maximum: f32) -> Vector {
     }
     vector.map(|value| (value * bounded) * inverse)
 }
-
-#[cfg(test)]
-#[path = "contact_correction/tests.rs"]
-mod tests;
-

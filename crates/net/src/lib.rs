@@ -4,6 +4,7 @@ pub mod gaps;
 mod observe;
 pub mod plugin;
 pub mod policy;
+pub mod presentation;
 pub mod reconciliation;
 pub mod role_matrix;
 pub mod schedule;
@@ -16,6 +17,7 @@ mod svc_script_audio;
 pub mod svc_sound;
 mod time_scale;
 pub mod transport;
+pub use presentation::LocalCharacter;
 
 pub use authority::actions::{
     ActionAdmission, ActionRequestIds, ClientActionLedger, MAX_REMEMBERED_ACTIONS_PER_CLIENT,
@@ -169,4 +171,4 @@ pub use transport::wire::{WireError, WireReader, WireWriter};
 
 pub use svc_script_audio::SvcScriptAudio;
 
-pub const PROTOCOL_VERSION: u32 = 94;
+pub const PROTOCOL_VERSION: u32 = 99;

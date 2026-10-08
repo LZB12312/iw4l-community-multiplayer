@@ -98,7 +98,6 @@ impl Effects for BoardEffects<'_> {
         self.board.set_hook_transform(transform(value));
     }
     fn target_position_velocity(&mut self, value: Vector) {
-        //82C04270 reads Body+16 (mass-frame position), not GetPartTransform.
         let origin = self.board.bodies()[BodyId::Deck.index()].rates.position;
         let frequency = 1.0 / self.timestep;
         self.velocity([
@@ -118,8 +117,6 @@ impl Effects for BoardEffects<'_> {
     }
 }
 
-///82C08370..8428 classifies retained per-part normals against the controller's
-///two directions. This is a release observation, not an extra force or joint.
 pub(crate) fn classify_alignment(
     policy: &Policy,
     ground: &mut skate_core::physics::board_ground::BoardGroundState,

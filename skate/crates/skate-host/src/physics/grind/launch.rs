@@ -1,4 +1,3 @@
-//! Concrete SetVelocity82C04168 continuation; retain main's jumper owner.
 use skate_core::{
     math::Vector3,
     physics::{

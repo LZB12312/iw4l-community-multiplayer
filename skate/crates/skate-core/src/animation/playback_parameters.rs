@@ -1,4 +1,3 @@
-//! PlayAnimation's parameter refresh82BB4760 and settable queue82D19100.
 use super::output::attributes::{AnimationAttribute, AttributeName};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -29,7 +28,8 @@ pub struct SettableAttribute {
 pub trait ParameterInputs {
     fn motion_intent(&self, name: &str) -> Option<f32>;
     fn filtered_intent(&self, name: &str) -> Option<f32>;
-    fn last_attribute(&mut self, name: AttributeName) -> Result<Option<AnimationAttribute>, String>;
+    fn last_attribute(&mut self, name: AttributeName)
+    -> Result<Option<AnimationAttribute>, String>;
 }
 
 pub trait AttributeSink {
@@ -81,7 +81,6 @@ impl PlaybackParameter {
                 (
                     self.rename.unwrap_or_else(|| encode(source.as_bytes())),
                     found.or(self.default_value),
-                    //82BB4908..491C goes through4AF8 and explicitly passes0.
                     found.is_some() && self.normalized,
                 )
             }
@@ -90,10 +89,10 @@ impl PlaybackParameter {
                     return Ok(());
                 }
                 let value = match inputs.last_attribute(*source)? {
-                    Some(attribute) if matches!(attribute.kind, 0 | 2) => Some(
-                        f32::from_bits(attribute.payload.0[0]
-                            .ok_or("Last animation scalar payload is uninitialized")?),
-                    ),
+                    Some(attribute) if matches!(attribute.kind, 0 | 2) => Some(f32::from_bits(
+                        attribute.payload.0[0]
+                            .ok_or("Last animation scalar payload is uninitialized")?,
+                    )),
                     Some(_) => return Ok(()),
                     None => self.default_value,
                 };
@@ -102,7 +101,10 @@ impl PlaybackParameter {
         };
         if let Some(value) = value {
             output.set_attribute(SettableAttribute {
-                name, value, normalized, sequence_id: -1,
+                name,
+                value,
+                normalized,
+                sequence_id: -1,
             });
         }
         Ok(())
@@ -116,6 +118,8 @@ pub fn intent_key(text: &str) -> [u32; 6] {
     let first = super::skeleton_input::name::encode(bytes).0;
     let tail = if bytes.len() > 30 && !bytes[..30].contains(&0) {
         super::skeleton_input::name::encode(&bytes[30..]).0[0]
-    } else { 0 };
+    } else {
+        0
+    };
     [first[0], first[1], first[2], first[3], first[4], tail]
 }

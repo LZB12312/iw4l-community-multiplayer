@@ -1,4 +1,3 @@
-//! Candidate record82D82380 and slope-projected approaches82D84D38/82D85070.
 use super::analyzer_math::{intersection, madd, tangent};
 use super::profile::Profile;
 use super::{Input, UP, Vector, ZERO, dot, length, sub};

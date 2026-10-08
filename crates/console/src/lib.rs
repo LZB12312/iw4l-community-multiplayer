@@ -1,4 +1,6 @@
 pub mod binds;
+mod character;
+mod meat;
 mod class_dispatch;
 mod class_menu;
 mod command;

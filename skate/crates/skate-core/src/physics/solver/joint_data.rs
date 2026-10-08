@@ -27,9 +27,6 @@ pub(in crate::physics::solver) fn xyz(values: [f32; 4]) -> Vector3 {
     Vector3::new(values[0], values[1], values[2])
 }
 
-/// `82AE1AE8` and `82AE3BC8` write these same response fields. Columns at
-/// 64/96/128 and 80/112/144 project relative corrections into constraint axes;
-/// 192..224 and 240..272 convert impulse changes back into world space.
 pub(in crate::physics::solver) struct ConstraintGeometry {
     pub arm_a: Vector3,
     pub arm_b: Vector3,
@@ -56,8 +53,6 @@ impl ConstraintGeometry {
         }
     }
 
-    /// Both candidates must read this incoming snapshot before either impulse
-    /// is applied: 82AE2C00..2CC4 (joint), 82AE2E90..2F80 (drive).
     pub fn relative_corrections(&self, a: &ReactionState, b: &ReactionState) -> (Vector3, Vector3) {
         let point_a = point_correction(a, self.arm_a);
         let point_b = point_correction(b, self.arm_b);
@@ -75,8 +70,6 @@ impl ConstraintGeometry {
         )
     }
 
-    /// 82AE2D24..2E40 / 82AE2FE0..30D4. One linear and one angular impulse
-    /// change affect both bodies through their own arm and inverse inertia.
     pub fn apply_impulse_changes(
         &self,
         a: &mut ReactionState,

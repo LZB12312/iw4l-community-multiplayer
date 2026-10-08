@@ -1,6 +1,3 @@
-//! Forward principal moments and volume from TU3 82AE7228/82AE6B78.
-//! These quantities precede mass scaling and inverse-inertia construction.
-
 use crate::math::Vector3;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -22,8 +19,6 @@ pub enum MassShape {
         half_length: f32,
         padding: f32,
     },
-    /// Triangle, aggregate, or another type rejected by 82AE7228. The caller
-    /// must use the aggregate calculation; no moments are produced here.
     Unsupported,
 }
 
@@ -45,16 +40,9 @@ const TWO_PI: f32 = f32::from_bits(0x40c9_0fdb);
 // The native fsubs/fsel chooses the right operand for an unordered difference.
 // Keep this ordered comparison, including its signed-zero operand selection.
 fn greater_extent(left: f32, right: f32) -> f32 {
-    if left - right >= 0.0 {
-        left
-    } else {
-        right
-    }
+    if left - right >= 0.0 { left } else { right }
 }
 
-/// Complete shape dispatch in 82AE7228. Unsupported shapes return no result,
-/// matching the native false return and absence of output writes. All supported
-/// branches retain the native scalar operation order and fused multiply-adds.
 pub fn primitive_mass(shape: MassShape) -> Option<PrimitiveMass> {
     Some(match shape {
         MassShape::Unsupported => return None,
@@ -107,7 +95,6 @@ pub fn primitive_mass(shape: MassShape) -> Option<PrimitiveMass> {
     })
 }
 
-/// Complete 82AE6B78: native rounded-box dimension floor, moments and volume.
 fn rounded_box_mass(half_extents: Vector3, radius: f32) -> PrimitiveMass {
     let largest = greater_extent(
         half_extents.x,

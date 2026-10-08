@@ -12,45 +12,51 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct BotModel {
     #[serde(default = "default_lighting_gain")]
     pub lighting_gain: f32,
     pub joints: Vec<BotJoint>,
     pub surfaces: Vec<BotSurface>,
-    textures: Vec<BotTexture>,
+    pub(crate) textures: Vec<Arc<BotTexture>>,
 }
 fn default_lighting_gain() -> f32 {
     1.0
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct BotJoint {
     pub target: String,
     pub origin: [f32; 3],
     pub end: Option<[f32; 3]>,
     pub target_child: Option<String>,
+    #[serde(default)]
+    pub inverse_bind: Option<[f32; 16]>,
 }
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct BotSurface {
     pub material: String,
     pub texture: usize,
     pub vertices: Vec<BotVertex>,
     pub indices: Vec<u32>,
 }
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct BotVertex {
     pub position: [f32; 3],
     pub normal: [f32; 3],
     pub uv: u32,
+    #[serde(default)]
+    pub uv2: Option<[f32; 2]>,
     pub joints: [usize; 4],
     pub weights: [f32; 4],
 }
-#[derive(Deserialize)]
-struct BotTexture {
-    width: u16,
-    height: u16,
-    rgba: Vec<u8>,
+#[derive(Clone, Deserialize)]
+pub(crate) struct BotTexture {
+    #[serde(default)]
+    pub(crate) image_key: Option<String>,
+    pub(crate) width: u16,
+    pub(crate) height: u16,
+    pub(crate) rgba: Vec<u8>,
 }
 
 pub fn local_bot_model() -> Option<&'static BotModel> {
@@ -72,9 +78,22 @@ pub fn local_bot_model() -> Option<&'static BotModel> {
 fn load(path: &Path) -> Result<BotModel, String> {
     let data = std::fs::read(path).map_err(|e| e.to_string())?;
     let model: BotModel = serde_json::from_slice(&data).map_err(|e| e.to_string())?;
+    validate(&model)?;
+    Ok(model)
+}
+
+pub(crate) fn validate(model: &BotModel) -> Result<(), String> {
     if !model.lighting_gain.is_finite()
         || !(0.25..=4.0).contains(&model.lighting_gain)
         || model.joints.is_empty()
+        || model.joints.iter().any(|j| {
+            j.origin.iter().any(|v| !v.is_finite())
+                || j.end.is_some_and(|end| end.iter().any(|v| !v.is_finite()))
+                || j.inverse_bind.is_some_and(|bind| {
+                    let matrix = Mat4::from_cols_array(&bind);
+                    !matrix.is_finite() || matrix.determinant().abs() < 1e-10
+                })
+        })
         || model.surfaces.is_empty()
         || model.textures.iter().any(|t| {
             t.width == 0
@@ -87,6 +106,7 @@ fn load(path: &Path) -> Result<BotModel, String> {
                 || s.indices.iter().any(|&i| i as usize >= s.vertices.len())
                 || s.vertices.iter().any(|v| {
                     v.joints.iter().any(|&j| j >= model.joints.len())
+                        || v.uv2.is_some_and(|uv| uv.iter().any(|v| !v.is_finite()))
                         || v.position
                             .iter()
                             .chain(&v.normal)
@@ -97,7 +117,92 @@ fn load(path: &Path) -> Result<BotModel, String> {
     {
         return Err("invalid mesh, weights or texture dimensions".into());
     }
-    Ok(model)
+    Ok(())
+}
+
+#[derive(Deserialize)]
+pub struct CharacterPart {
+    pub category: String,
+    pub label: String,
+    pub index: u8,
+    pub slots: Vec<String>,
+    pub walking: BotModel,
+    pub native: BotModel,
+    #[serde(skip)]
+    xray: OnceLock<BotModel>,
+}
+
+impl CharacterPart {
+    pub fn xray(&self) -> &BotModel {
+        self.xray.get_or_init(|| {
+            let mut model = self.native.clone();
+            for surface in &mut model.surfaces {
+                surface.material.push_str("/xray_body");
+            }
+            model
+        })
+    }
+}
+
+pub fn local_characters() -> Option<&'static Vec<CharacterPart>> {
+    static PARTS: OnceLock<Option<Vec<CharacterPart>>> = OnceLock::new();
+    PARTS
+        .get_or_init(|| {
+            let root = std::env::var_os("IW4L_SKATE_ASSETS")?;
+            let data = std::fs::read(Path::new(&root).join("characters.json")).ok()?;
+            let parts: Vec<CharacterPart> = serde_json::from_slice(&data)
+                .map_err(|e| diag::warn!(World, "characters: {e}"))
+                .ok()?;
+            for part in &parts {
+                if part.index > 15
+                    || validate(&part.native).is_err()
+                    || validate(&part.walking).is_err()
+                {
+                    diag::warn!(World, "characters: invalid part {}", part.label);
+                    return None;
+                }
+            }
+            Some(parts)
+        })
+        .as_ref()
+}
+
+pub fn character_parts(selections: [u8; 5], native: bool) -> Vec<&'static BotModel> {
+    let Some(parts) = local_characters() else {
+        return Vec::new();
+    };
+    let index = |category: &str| match category {
+        "skin" => selections[0],
+        "shirt" => selections[1],
+        "pants" => selections[2],
+        "hair" => selections[3],
+        "board" => selections[4],
+        _ => 0,
+    };
+    let chosen: Vec<_> = parts
+        .iter()
+        .filter(|p| p.category != "base" && p.index == index(&p.category) && p.index != 0)
+        .collect();
+    let replaced: Vec<_> = chosen.iter().flat_map(|p| p.slots.iter()).collect();
+    let mut models = Vec::new();
+    for p in parts.iter().filter(|p| p.category == "base") {
+        if !p.slots.iter().any(|s| replaced.contains(&s)) {
+            models.push(if native { &p.native } else { &p.walking });
+        }
+    }
+    models.extend(
+        chosen
+            .into_iter()
+            .filter(|p| p.category != "board")
+            .map(|p| if native { &p.native } else { &p.walking }),
+    );
+    models
+}
+
+pub fn character_option(category: &str, index: u8) -> Option<&'static CharacterPart> {
+    local_characters()?
+        .iter()
+        .find(|p| p.category == category && p.index == index)
 }
 
 pub fn local_skate_board() -> Option<&'static BotModel> {
@@ -112,12 +217,50 @@ pub fn local_skate_board() -> Option<&'static BotModel> {
         .as_ref()
 }
 
+pub fn meat_skeleton() -> Option<&'static [BotModel; 2]> {
+    static MODEL: OnceLock<Option<[BotModel; 2]>> = OnceLock::new();
+    MODEL
+        .get_or_init(|| {
+            let root = std::env::var_os("IW4L_SKATE_ASSETS")?;
+            let normal = load(&Path::new(&root).join("skeleton.json"))
+                .map_err(|e| diag::warn!(World, "Hall of Meat skeleton: {e}"))
+                .ok()?;
+            let mut injured = normal.clone();
+            for surface in &mut injured.surfaces {
+                surface.material.push_str("/injured");
+            }
+            for texture in &mut injured.textures {
+                let texture = Arc::make_mut(texture);
+                for pixel in texture.rgba.chunks_exact_mut(4) {
+                    pixel[1] = (pixel[1] as f32 * 0.12) as u8;
+                    pixel[2] = (pixel[2] as f32 * 0.12) as u8;
+                }
+            }
+            Some([normal, injured])
+        })
+        .as_ref()
+}
+
 pub(crate) fn install_local_bot_materials(catalog: &mut MaterialCatalog) {
     for model in [local_bot_model(), local_skate_board()]
         .into_iter()
         .flatten()
     {
         install_materials(catalog, model);
+    }
+    if let Some(parts) = local_characters() {
+        for part in parts {
+            install_materials(catalog, &part.native);
+            install_materials(catalog, part.xray());
+        }
+    }
+    if let Some(models) = meat_skeleton() {
+        for model in models {
+            install_materials(catalog, model);
+        }
+    }
+    if let Some(library) = crate::character::local_library() {
+        install_materials(catalog, &library.material_placeholders());
     }
 }
 
@@ -206,7 +349,11 @@ fn install_materials(catalog: &mut MaterialCatalog, model: &BotModel) {
             RenderAssetUsages::RENDER_WORLD,
         );
         let image = AuthoredImage {
-            name: AssetRef::Real(format!("{}/diffuse", surface.material)),
+            name: AssetRef::Real(
+                tex.image_key
+                    .clone()
+                    .unwrap_or_else(|| format!("{}/diffuse", surface.material)),
+            ),
             width: tex.width,
             height: tex.height,
             depth: 1,
@@ -222,7 +369,27 @@ fn install_materials(catalog: &mut MaterialCatalog, model: &BotModel) {
         };
         let image_index = catalog.link_image(image);
         let mut material = template.clone();
+        material.extended_sort = tex.image_key.is_some();
         material.name = AssetRef::Real(surface.material.clone());
+        if surface.material.ends_with("/xray_body") {
+            // The donor pixel shader writes opaque alpha. Blend the selected
+            // character around its animated bones independently of that output.
+            material.blend_constant = Some([0.3; 4]);
+            let blend_bits_mask = 0x07ff_3fff;
+            for state in &mut material.state_bits {
+                let blend = 14 | (15 << 4) | (1 << 8);
+                state[0] = (state[0] & !blend_bits_mask)
+                    | blend
+                    | (blend << 16)
+                    | asset_iw4::GFXS0_ATEST_DISABLE;
+                state[1] &= !asset_iw4::GFXS1_DEPTHWRITE;
+            }
+            material.sort_key = 40;
+            material.camera_region = asset_iw4::CAMERA_REGION_LIT_TRANS;
+            if let Some(route) = &mut material.route {
+                route.primary_sort_key = material.sort_key;
+            }
+        }
         for binding in &mut material.textures {
             if binding.semantic == 2 {
                 binding.image = Some(image_index);

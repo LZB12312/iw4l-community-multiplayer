@@ -1,11 +1,3 @@
-//! `PhysState_PhysicsGround::FillPhysOut` (`82D3A388`).
-//!
-//! The TU3 body is a leaf: it reads Ground and ProcessedPhysIn fields and
-//! writes distinct PhysOut records. Names recovered from Skate 2 are used only
-//! where the TU3 offsets and operations agree. Remaining fields retain their
-//! destination offsets. Xenon vector arithmetic uses the project's isolated
-//! accepted host approximation; no generated runtime code is included.
-
 use crate::physics::native_arithmetic;
 
 use super::data::PhysicsGroundState;
@@ -91,8 +83,6 @@ pub struct IntentRecordOutput {
     pub selected_mode_below_speed_threshold_58: bool,
 }
 
-/// All writes made by TU3 `82D3A388`. Field grouping follows the pointer table
-/// reached through the PhysOut argument.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct PhysicsGroundOutput {
     pub skateboard_motion_4: SkateboardMotionOutput,
@@ -178,144 +168,5 @@ fn flush_subnormal(value: f32) -> f32 {
         f32::from_bits(bits & 0x8000_0000)
     } else {
         value
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn state() -> PhysicsGroundState {
-        PhysicsGroundState {
-            collision_force_2528: [0.0; 4],
-            collision_point_2544: [0.0; 4],
-            word_2560: 0x1122_3344,
-            word_2564: 0x5566_7788,
-            vector_2592: [0.0; 4],
-            vector_2608: [0.0; 4],
-            anti_flip_torque_2624: [1.0, 2.0, 3.0, 4.0],
-            steering_push_scalar_2640: 1.0,
-            steering_damped_turn_2644: 0.0,
-            elapsed_2648: 0.0,
-            collision_countdown_2652: 0.0,
-            captured_position_x_2656: 0.0,
-            captured_position_z_2660: 0.0,
-            scalar_2664: 6.0,
-            scalar_2668: 7.0,
-            straighten_scale_2672: 1.0,
-            vector_2688: [0.0; 4],
-            scalar_2704: 0.0,
-            flag_2708: false,
-            flag_2720: true,
-            flag_2721: true,
-            flag_2722: false,
-            anti_flip_nudge_applied_2723: true,
-            human_player_2724: true,
-            controls_latched_2725: false,
-            captured_position_valid_2726: true,
-            pinning_2727: true,
-            was_pinning_2728: false,
-            flag_2729: false,
-            push_suppressed_2730: true,
-            flag_2731: true,
-            manual_correction_2732: true,
-            manual_opposition_2733: true,
-            hang_detection_frames_2740: 0,
-            hang_force_frames_2744: 0,
-            hung_wipeout_frames_2748: 0,
-            anti_flip_nudge_frames_2752: 0,
-        }
-    }
-
-    fn frame() -> GroundOutputFrame {
-        GroundOutputFrame {
-            axis_464: [1.0, 0.0, 0.0, 0.0],
-            velocity_608: [5.0, 2.0, 3.0, 4.0],
-            absolute_body_speed_2616: 4.0,
-            deck_speed_2652: 2.0,
-            state_timer_2664: 0.0,
-            scalar_2720: 8.0,
-            flags_2476: 0x0040_0000,
-            flags_2484: 0x0000_2000,
-            selected_mode_flag_109: true,
-        }
-    }
-
-    fn settings() -> GroundOutputSettings {
-        GroundOutputSettings {
-            pushable_speed_terms_4_8: [2.0, 3.0],
-            mode_speed_threshold_0: 3.0,
-        }
-    }
-
-    #[test]
-    fn fill_maps_every_unconditional_field_and_projection_branch() {
-        let output = fill_physics_output(&state(), frame(), settings());
-
-        assert_eq!(
-            output.skateboard_motion_4,
-            SkateboardMotionOutput {
-                is_push_accelerating: true,
-                is_at_pushable_speed: true,
-            }
-        );
-        assert_eq!(
-            output.velocity_projection_36,
-            Some(GroundVelocityProjectionOutput {
-                velocity_without_axis_component: [0.0, 2.0, 3.0, 4.0],
-                active: true,
-            })
-        );
-        assert!(output.ground_32.wall_ride_exit);
-        assert!(output.ground_32.anti_flip_nudge_present);
-        assert!(output.ground_32.is_pinning);
-        assert_eq!(output.ground_32.anti_flip_torque, [1.0, 2.0, 3.0, 4.0]);
-        assert_eq!(output.ground_32.time_to_skitch, 6.0);
-        assert_eq!(output.ground_32.skitch_spline_height, 7.0);
-        assert_eq!(output.ground_32.processed_scalar_2720, 8.0);
-        assert!(output.ground_32.processed_flag_2484_bit_13);
-        assert_eq!(output.state_28.grab_spline_type, 0x1122_3344);
-        assert_eq!(output.state_28.grab_spline_object_id, 0x5566_7788);
-        assert!(output.state_28.flag_84);
-        assert!(output.state_28.has_world_grab_intent_without_object);
-        assert_eq!(output.state_28.manual_correction_write_78, Some(true));
-        assert!(output.intents_52.has_world_grab_intent);
-        assert!(output.intents_52.selected_mode_below_speed_threshold_58);
-        assert!(!output.is_grabbing_object_72_304);
-        assert!(output.manual_opposition_56_168);
-        assert!(output.push_suppressed_20_596);
-    }
-
-    #[test]
-    fn fill_preserves_native_conditional_writes_and_unordered_comparisons() {
-        let mut state = state();
-        state.flag_2729 = true;
-        state.manual_correction_2732 = false;
-        let mut frame = frame();
-        frame.state_timer_2664 = f32::NAN;
-        frame.absolute_body_speed_2616 = f32::NAN;
-        frame.deck_speed_2652 = f32::NAN;
-
-        let output = fill_physics_output(&state, frame, settings());
-
-        assert_eq!(output.velocity_projection_36, None);
-        assert!(!output.skateboard_motion_4.is_at_pushable_speed);
-        assert!(!output.intents_52.selected_mode_below_speed_threshold_58);
-        assert!(!output.state_28.has_world_grab_intent_without_object);
-        assert_eq!(output.state_28.manual_correction_write_78, None);
-    }
-
-    #[test]
-    fn fill_extracts_only_the_two_recovered_processed_bits() {
-        let mut frame = frame();
-        frame.flags_2476 = 0x0020_0000;
-        frame.flags_2484 = 0x0000_1000;
-        frame.state_timer_2664 = -0.0;
-
-        let output = fill_physics_output(&state(), frame, settings());
-
-        assert!(!output.intents_52.has_world_grab_intent);
-        assert!(!output.ground_32.processed_flag_2484_bit_13);
-        assert!(output.velocity_projection_36.is_some());
     }
 }

@@ -15,6 +15,16 @@ fn main() {
     });
     #[cfg_attr(not(windows), allow(unused_mut))]
     let mut args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|arg| arg == "audio-devices") {
+        match audio::output_device_names() {
+            Ok(devices) => devices.iter().for_each(|device| println!("{device}")),
+            Err(error) => {
+                eprintln!("Cannot list audio outputs: {error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     #[cfg(windows)]
     {
         // Also for a shortcut that names a map, so it works on first launch.

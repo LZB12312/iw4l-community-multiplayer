@@ -1,5 +1,3 @@
-//! TU3 PhysicsAir board update (`0x82D34AB0`).
-
 use super::{
     data::{AirBoardForce, PhysicsAirFrame, PhysicsAirReckoningFields, PhysicsAirState},
     jump_velocity::calculate_velocity_from_jump,

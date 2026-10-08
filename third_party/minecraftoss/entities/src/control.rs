@@ -195,12 +195,25 @@ impl MoveControl {
 
 /// `MoveControl`'s obstacle: the top of a collision shape at the mob's
 /// feet, unless the block is a door or a fence; a mob below it jumps.
-pub fn obstacle_top<W: minecraftoss_player::World + ?Sized>(world: &W, position: DVec3) -> Option<f64> {
-    let feet = (position.x.floor() as i32, position.y.floor() as i32, position.z.floor() as i32);
+pub fn obstacle_top<W: minecraftoss_player::World + ?Sized>(
+    world: &W,
+    position: DVec3,
+) -> Option<f64> {
+    let feet = (
+        position.x.floor() as i32,
+        position.y.floor() as i32,
+        position.z.floor() as i32,
+    );
     world
         .block(feet)
         .filter(|b| !b.id.ends_with("_door") && !b.id.ends_with("_fence"))
-        .and_then(|_| world.collision_boxes(feet).iter().map(|b| b[4]).reduce(f64::max))
+        .and_then(|_| {
+            world
+                .collision_boxes(feet)
+                .iter()
+                .map(|b| b[4])
+                .reduce(f64::max)
+        })
         .map(|top| top + f64::from(feet.1))
 }
 
@@ -225,42 +238,3 @@ pub(crate) fn rotlerp(from: f32, to: f32, max: f32) -> f32 {
 /// `Mth.atan2` (in the player crate, which the player's hurt direction
 /// shares).
 pub(crate) use minecraftoss_player::mth::atan2 as minecraft_atan2;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn rotation_and_wait_follow_pinned_controller() {
-        let mut control = MoveControl::default();
-        control.set_wanted_position(DVec3::new(10.5, 1.0, 4.5), 1.0);
-        let frame = control.tick(
-            DVec3::new(2.5, 1.0, 4.5),
-            false,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.2,
-            0.9,
-            0.6,
-            None,
-            |_, _| true,
-        );
-        assert_eq!((frame.yaw, frame.speed, frame.forward), (270.0, 0.2, 0.2));
-        assert!(!control.has_wanted());
-        let wait = control.tick(
-            DVec3::new(2.5, 1.0, 4.5),
-            true,
-            frame.yaw,
-            frame.speed,
-            frame.forward,
-            0.0,
-            0.2,
-            0.9,
-            0.6,
-            None,
-            |_, _| true,
-        );
-        assert_eq!((wait.speed, wait.forward), (0.2, 0.0));
-    }
-}

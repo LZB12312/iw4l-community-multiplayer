@@ -66,8 +66,6 @@ pub struct StateSelectionInput {
     pub skateboard_contact_count_869: u8,
     pub board_body: BoardBodyState,
     pub skeleton: SkeletonAnimationState,
-    /// Three collection values consumed by TU3 `0x82D8BBB8`.
     pub skitching_off_ground: TwoStageThresholds,
-    /// Three physics-mode values consumed by TU3 `0x82D8BD50`.
     pub normal_off_ground: TwoStageThresholds,
 }

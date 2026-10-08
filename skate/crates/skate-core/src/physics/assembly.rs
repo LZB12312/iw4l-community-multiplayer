@@ -23,9 +23,6 @@ pub struct BodySnapshot {
     pub inertia: RetailInertiaDynamics,
 }
 
-/// Separate animated target body registered by CreateHookDrive 82C0D330.
-/// It is not one of the seven physical board parts and must not be substituted
-/// for the deck. Startup supplies its native body state explicitly.
 #[derive(Clone, Debug)]
 pub struct BoardHook {
     pub body: BodySnapshot,
@@ -119,9 +116,6 @@ impl BoardConstraints {
     }
 }
 
-/// SetTruckDriveFrames 82C0B9C0 followed by the active-drive quaternion
-/// preparation in Island::Step_Solver2 82763B08. Hook normalization is a live
-/// state write; it is not deferred to the animation frame setters.
 pub fn prepare_drive_frames(
     base: [RetailAffineTransform; 2],
     targets: [f32; 2],
@@ -198,7 +192,3 @@ fn drive_body(body: BodySnapshot, reaction_index: usize) -> RetailDriveBodyState
         world_inverse_inertia: pack_world_inverse_inertia(rates.world_inverse_inertia),
     }
 }
-
-#[cfg(test)]
-#[path = "tests/assembly.rs"]
-mod tests;

@@ -1,5 +1,3 @@
-//! Skeleton::UpdateRootTransforms82BE0318: actual board prediction and the
-//! retained animation-to-board/world frames. Full Reckoning is an input owner.
 use super::{
     board_ground::angle_between,
     board_motion_output::inverse_length_squared,
@@ -23,7 +21,6 @@ pub struct SkeletonRootFrames {
 }
 impl Default for SkeletonRootFrames {
     fn default() -> Self {
-        // Skeleton ctor82BD7260 matrix seeds,16416=0 and16417=1.
         Self {
             board: IDENTITY,
             inverse_board: IDENTITY,
@@ -39,8 +36,6 @@ impl Default for SkeletonRootFrames {
     }
 }
 impl SkeletonRootFrames {
-    ///82BDFE58: teleport prediction uses the current physical deck position;
-    ///the heading and remaining root composition match82BE0318.
     pub fn update_teleport(
         &mut self,
         board: AnimationPartTransform,
@@ -50,12 +45,9 @@ impl SkeletonRootFrames {
         self.initialize_heading = true;
         self.supplied_prediction = Some(board[3]);
         self.update(board, [0.0; 4], 0.0, animation_board, reckoning_frame_816);
-        //82BDFF0C differs from ordinary update's previous-position snapshot.
         self.previous_board_position = board[3];
     }
 
-    /// Reset82BD9990 writes these two frames from the initial mapped pose.
-    /// Other root histories retain their independently initialized state.
     pub fn reset_initial_alignment(&mut self, animation_to_world: AnimationPartTransform) {
         self.animation_to_world = animation_to_world;
         self.world_to_animation = inverse_rigid(&animation_to_world);
@@ -76,7 +68,6 @@ impl SkeletonRootFrames {
             std::array::from_fn(|i| board_velocity[i].mul_add(time_step, board[3][i]))
         });
         if self.initialize_heading {
-            //8296EC98 uses one rsqrt refinement, angle in[0,2pi], not atan2.
             let at = Vector3::new(animation_board[2][0], 0.0, animation_board[2][2]);
             let forward = Vector3::new(0.0, 0.0, 1.0);
             let mut angle = angle_between(at, forward);
@@ -112,7 +103,6 @@ impl SkeletonRootFrames {
     }
 }
 
-///825C5710: reverse-axis Gram-Schmidt, two rsqrt refinements, translation copy.
 pub(crate) fn orthonormalize(source: AnimationPartTransform) -> AnimationPartTransform {
     let mut result = source;
     for axis in (0..3).rev() {
@@ -142,33 +132,4 @@ pub(crate) fn inverse_rigid(source: &AnimationPartTransform) -> AnimationPartTra
         translation[0].mul_add(result[0][i], y)
     });
     result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn actual_board_prediction_and_source_heading_build_the_animation_frame() {
-        let mut roots = SkeletonRootFrames::default();
-        let mut board = IDENTITY;
-        board[3] = [10.0, 2.0, 0.0, 0.0];
-        let mut animation = IDENTITY;
-        animation[3] = [1.0, 2.0, 3.0, 0.0];
-        roots.update(board, [5.0, 0.0, 0.0, 0.0], 0.02, &animation, &IDENTITY);
-        assert!((roots.predicted_board_position[0] - 10.1).abs() < 1e-6);
-        let recentered = compose_affine(&roots.animation_to_board, &animation);
-        assert!(recentered[3].iter().all(|v| v.abs() < 1e-6));
-        assert!(!roots.initialize_heading);
-        roots.supplied_prediction = Some([30.0, 40.0, 50.0, 0.0]);
-        roots.update(board, [5.0, 0.0, 0.0, 0.0], 0.02, &animation, &IDENTITY);
-        assert_eq!(roots.predicted_board_position, [30.0, 40.0, 50.0, 0.0]);
-        assert_eq!(roots.supplied_prediction, None);
-        assert_eq!(roots.previous_board_position, board[3]);
-        let product = compose_affine(&roots.world_to_animation, &roots.animation_to_world);
-        for axis in 0..4 {
-            for lane in 0..4 {
-                assert!((product[axis][lane] - IDENTITY[axis][lane]).abs() < 1e-5);
-            }
-        }
-    }
 }

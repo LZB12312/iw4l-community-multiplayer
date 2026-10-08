@@ -7,15 +7,11 @@ use skate_core::animation::{
 pub(super) struct AnimationState {
     pub flags: u32,
     pub publication: SkaterPublicationState,
-    /// Base animator14652: ctor82D17CDC sets zero; virtual40/82531200 writes it.
     pub phase: f32,
 }
 
 impl AnimationState {
     pub fn new(local_player: bool) -> Self {
-        //82B975F4 selects bit27;82B97674 selects bit17 and clears the
-        //orientation,mirror,fakie,weight and request bits used by this owner.
-        //Unrepresented allocator/padding bits are not gameplay state here.
         Self {
             flags: (u32::from(local_player) << 27) | 0x0002_0000,
             phase: 0.0,
@@ -24,7 +20,6 @@ impl AnimationState {
                 mirrored: false,
                 riding_fakie: false,
                 weight_on_nose: false,
-                //82B975B8..82B97674: GOOFY natural stance, NATURAL relative.
                 natural_stance: 1,
                 relative_stance: 0,
                 request_bit16: false,
@@ -46,8 +41,6 @@ impl AnimationState {
         self.publication.relative_stance == 1
     }
 
-    ///82B98980 calls82D19010's first-match query. No scalar/status test:
-    ///presence in the collected tree attribute list toggles the state once.
     pub fn apply_stance_events(&mut self, attributes: &[AnimationAttribute]) {
         let present = |name: &[u8]| attributes.iter().any(|a| a.name == encode(name));
         if present(b"animboardbackward") {
@@ -76,7 +69,6 @@ impl AnimationState {
         self.flags &= !(0x0001_0000 | 0x0000_8000 | 0x0010_0000);
     }
 
-    ///SkaterAnim virtual172/82B98078, selected by local-player bit27.
     pub fn cull_threshold(&self) -> f32 {
         f32::from_bits(if self.flags & 0x0800_0000 != 0 {
             0x3c23_d70a

@@ -1,6 +1,3 @@
-//! Complete TU3 SpeedWobble::CalculateSpeedWobble (82C0DBE8).
-//! UpdateSpeedWobble 82C03638 supplies the selected-mode attributes and body
-//! inputs; Ground Update 82D38800 applies the returned tilt before truck targets.
 use crate::{point_graph::PointGraph, trigonometry::sin};
 
 #[derive(Clone, Copy, Debug)]
@@ -27,7 +24,6 @@ pub struct SpeedWobbleSettings {
 pub struct SpeedWobbleState(pub [u32; 8]);
 
 impl SpeedWobbleState {
-    /// The same six-float/one-byte reset used in Ground Enter 82D376D0.
     pub fn reset(&mut self) {
         for index in [0, 2, 3, 4, 5, 6] {
             self.0[index] = 0;

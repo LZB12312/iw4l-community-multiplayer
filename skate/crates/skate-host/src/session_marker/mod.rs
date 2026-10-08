@@ -1,6 +1,9 @@
 mod state;
 mod validation;
-use crate::{input::ControllerInput, physics::{GamePhysics, SkaterRuntime}};
+use crate::{
+    input::ControllerInput,
+    physics::{GamePhysics, SkaterRuntime},
+};
 use bevy::prelude::*;
 use skate_core::physics::{board::BodyId, skeleton_animation_record::AnimationPartTransform};
 #[derive(Clone, Copy, Debug)]
@@ -29,17 +32,41 @@ pub(crate) struct SessionMarker {
     last_batch: u64,
 }
 
-
-pub(crate) struct Runtime { session: SessionMarker, validation: validation::Validation }
+pub(crate) struct Runtime {
+    session: SessionMarker,
+    validation: validation::Validation,
+}
 impl Runtime {
-    pub fn load(root: &std::path::Path) -> Result<Self,String> { Ok(Self{session:SessionMarker::default(),validation:validation::Validation::load(root)?}) }
-    pub fn suspend(&mut self) { self.session.hold.cancel(); self.session.blocked_until_release=true; self.session.ui_time=0.; }
-    pub fn collect_time(&mut self,dt:f64) { self.session.ui_time+=dt; }
-    pub fn advance(&mut self,input:&ControllerInput,physics:&GamePhysics,skater:&mut SkaterRuntime) {
-        update(&mut self.session,input,physics,skater,&self.validation);
+    pub fn load(root: &std::path::Path) -> Result<Self, String> {
+        Ok(Self {
+            session: SessionMarker::default(),
+            validation: validation::Validation::load(root)?,
+        })
+    }
+    pub fn suspend(&mut self) {
+        self.session.hold.cancel();
+        self.session.blocked_until_release = true;
+        self.session.ui_time = 0.;
+    }
+    pub fn collect_time(&mut self, dt: f64) {
+        self.session.ui_time += dt;
+    }
+    pub fn advance(
+        &mut self,
+        input: &ControllerInput,
+        physics: &GamePhysics,
+        skater: &mut SkaterRuntime,
+    ) {
+        update(&mut self.session, input, physics, skater, &self.validation);
     }
 }
-fn update(session:&mut SessionMarker,input:&ControllerInput,physics:&GamePhysics,skater:&mut SkaterRuntime,validation:&validation::Validation) {
+fn update(
+    session: &mut SessionMarker,
+    input: &ControllerInput,
+    physics: &GamePhysics,
+    skater: &mut SkaterRuntime,
+    validation: &validation::Validation,
+) {
     let (modifier, set, held) = input.session_marker_actions();
     if session.blocked_until_release {
         if !modifier {
@@ -61,8 +88,6 @@ fn update(session:&mut SessionMarker,input:&ControllerInput,physics:&GamePhysics
             deck.translation.z,
             0.,
         ];
-        //82591E30: above .5m/s, project normalized velocity onto world Up.
-        //The cross products are deliberately not normalized a second time.
         let velocity = Vec3::from_slice(&p.skateboard.vector_80.map(f32::from_bits)[..3]);
         if velocity.length_squared() > 0.25 {
             let right = Vec3::Y.cross(velocity.normalize());
@@ -84,10 +109,8 @@ fn update(session:&mut SessionMarker,input:&ControllerInput,physics:&GamePhysics
         && state_allowed
         && p.surface_default_mode != 8
         && validation.check(physics.world(), transform[3]);
-    session.can_return = session
-        .marker
-        .is_some_and(|m| m.generation == 0)
-        && !matches!(state, 104 | 502);
+    session.can_return =
+        session.marker.is_some_and(|m| m.generation == 0) && !matches!(state, 104 | 502);
     session.visible = modifier;
     // A retained Pad publication must not turn one .pressed into repeated sets.
     if set && session.last_batch != input.consumed_batches {
@@ -109,8 +132,6 @@ fn update(session:&mut SessionMarker,input:&ControllerInput,physics:&GamePhysics
         && !(physics.board_wiping_out && p.skeleton.teleport_pending_604 != 0)
         && skater.player_input.pending_teleport().is_none();
     let distance = session.marker.map_or(0., |m| {
-        // 82DB6EC0 -> 82BE1AE8 publishes animation-to-world at output+368;
-        // UpdateSessionMarker reads its translation at output+416.
         Vec3::from_slice(&skater.animated_skeleton.roots.animation_to_world[3][..3])
             .distance(Vec3::from_slice(&m.transform[3][..3]))
     });

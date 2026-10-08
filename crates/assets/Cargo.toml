@@ -28,11 +28,12 @@ lighting_iw4.workspace = true
 bevy.workspace = true
 frame.workspace = true
 bcdec_rs.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["rc"] }
 serde_json.workspace = true
 async-lock.workspace = true
 png.workspace = true
 half = "2.7.1"
+sim = { path = "../sim" }
 # Fetching Minecraft's files from Mojang for the Minecraft map.
 flate2 = "1"
 sha1 = "0.10"

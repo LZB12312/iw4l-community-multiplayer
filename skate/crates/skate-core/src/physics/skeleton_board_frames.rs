@@ -1,6 +1,3 @@
-//! Ground skeleton frame publication82BDF530 and COM lift82BDE310.
-//! The authored board11728, world target15952 and physical board12496 have
-//! different producers. Keep them separate through the animation/physics tick.
 use super::{
     native_arithmetic::reciprocal_estimate,
     skeleton_animation_record::{
@@ -41,9 +38,6 @@ impl Default for SkeletonBoardFrames {
     }
 }
 impl SkeletonBoardFrames {
-    ///Reset82BD9990: the retained COM seed is the supplied spawn position;
-    ///the two COM drive frames initially share spawn plus one world-Y unit.
-    ///The following physical observations replace the seed with weighted COM.
     pub fn reset(&mut self, spawn: Transform) {
         self.com_frame = spawn;
         self.com_frame[3][1] += 1.0;
@@ -51,8 +45,6 @@ impl SkeletonBoardFrames {
         self.centre_of_mass = spawn[3];
         self.local_centre_of_mass = [0.; 4];
     }
-    ///82BD9EA8, after the physical record observation: inverse-transform
-    ///the retained physical COM and actual board position independently.
     pub fn publish_local_observations(
         &mut self,
         roots: &SkeletonRootFrames,
@@ -62,8 +54,6 @@ impl SkeletonBoardFrames {
         self.local_board_position = transform_point(&roots.world_to_animation, physical_board[3]);
     }
 
-    ///82BD9FB0..82BDA060 after animation/physics errors are updated. This is
-    ///physical weighted COM4464, not physical hips23 or authored hips height.
     pub fn publish_centre_of_mass(&mut self, com: [f32; 4], dt: f32, flags_2472: u32) {
         self.previous_centre_of_mass = self.centre_of_mass;
         self.centre_of_mass = com;
@@ -79,8 +69,6 @@ impl SkeletonBoardFrames {
         }
     }
 
-    ///82BDF55C..F774, following UpdateRootTransforms and preceding GeneralUpdate.
-    ///Returns the complete frame published to ProcessedPhysIn0..48.
     pub fn prepare_ground(
         &mut self,
         roots: &SkeletonRootFrames,
@@ -99,8 +87,6 @@ impl SkeletonBoardFrames {
         self.animation_target
     }
 
-    ///82BDF7C0. Teleport shares the authored target composition, but its COM
-    ///drive frame starts one world-Y unit above the physical deck position.
     pub fn prepare_teleport(
         &mut self,
         roots: &SkeletonRootFrames,
@@ -116,19 +102,18 @@ impl SkeletonBoardFrames {
         self.physical_board = actual_board;
         self.skate_root = actual_board;
         let mut position = actual_board[3];
-        position[1] += 1.0; //82BDFA20..30 replaces Y only.
+        position[1] += 1.0;
         self.update_com_lift(&roots.animation_to_world, position, 0.0);
         self.animation_target
     }
 
-    ///82BDE310. Preserve both fsel comparisons and the later vector FMA.
     pub fn update_com_lift(
         &mut self,
         animation_to_world: &Transform,
         position: [f32; 4],
         requested_height: f32,
     ) {
-        let step = f32::from_bits(0x3D23_D70A); //82216FEC .04
+        let step = f32::from_bits(0x3D23_D70A);
         let low = self.lift_height - step;
         let high = self.lift_height + step;
         let above_low = if low - requested_height >= 0.0 {
@@ -145,7 +130,7 @@ impl SkeletonBoardFrames {
         frame[3] = position;
         self.com_frame = orthonormalize(frame);
         self.lifted_com_frame = self.com_frame;
-        let height = self.lift_height + f32::from_bits(0x3E99_999A); //820D06C0 .3
+        let height = self.lift_height + f32::from_bits(0x3E99_999A);
         self.lifted_com_frame[3] =
             std::array::from_fn(|i| self.com_frame[1][i].mul_add(height, self.com_frame[3][i]));
     }

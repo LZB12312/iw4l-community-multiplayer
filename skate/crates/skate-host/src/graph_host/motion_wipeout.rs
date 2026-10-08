@@ -16,7 +16,6 @@ pub struct Controls {
     pub gesture: [f32; 2],
 }
 
-/// Wipeout instance82BC0690: counter8, angles12/16, velocity24, axes28/32, latch36.
 #[derive(Default)]
 pub struct State {
     pub(super) ticks: u32,
@@ -39,7 +38,6 @@ pub struct Settings {
 }
 impl Settings {
     pub fn load(data: &skate_data::collections::Collections) -> Result<Self, String> {
-        //82BC0358/051C and stock anim_wipeout schema offsets0..28.
         let f = |name| data.float("anim_wipeout", "default", name);
         Ok(Self {
             threshold: f("controlled_drives_thresh")?,
@@ -81,7 +79,6 @@ impl Condition {
             "IsDoneWipingOut" => Self::Done,
             "WipeoutTimeToLand" => Self::TimeToLand(super::condition_nodes::numeric(a)),
             "WipeoutTimeSinceContact" => Self::TimeSinceContact(super::condition_nodes::numeric(a)),
-            //82BA82C0: exact authored names; invalid strings leave native storage undefined.
             "GestureType" => Self::GestureType(match a.text("gesture") {
                 Some("Freefall") => 0,
                 Some("CannonBall") => 1,
@@ -90,7 +87,6 @@ impl Condition {
                 Some("Torpedo") => 4,
                 other => return Err(format!("Invalid Wipeout gesture type {other:?}")),
             }),
-            //82BCAAF8: unrecognized orientation has no native initialized value.
             "IsInWater" => Self::InWater(match a.text("orientation") {
                 Some("onback") => 0,
                 Some("onfront") => 1,
@@ -104,12 +100,11 @@ impl Condition {
     pub fn evaluate(self, physical: Option<Physical>) -> Result<bool, String> {
         let p = physical.ok_or("Wipeout condition requires completed physical output")?;
         Ok(match self {
-            Self::Done => p.over_599, //82BC0AB8: skeleton599.
-            Self::TimeToLand(n) => n.matches(p.collision_time_144), //82BC0B28.
-            Self::TimeSinceContact(n) => n.matches(p.no_support_time_548), //82BC0BB0.
-            Self::GestureType(kind) => p.profile_148 == kind, //82BA8468.
+            Self::Done => p.over_599,
+            Self::TimeToLand(n) => n.matches(p.collision_time_144),
+            Self::TimeSinceContact(n) => n.matches(p.no_support_time_548),
+            Self::GestureType(kind) => p.profile_148 == kind,
             Self::InWater(orientation) => {
-                //82BBBE90 returns before the vector read when not submerged.
                 if !p.below_surface_82 {
                     false
                 } else {

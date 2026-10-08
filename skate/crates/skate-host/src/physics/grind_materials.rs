@@ -1,6 +1,3 @@
-//!82D89DC0/82C090C0 material modes, applied to the live board collider slots.
-//! Init82C08C28 clears all three grind materials at82C09084..A4; S2 Init
-//!82B374E8 confirms their identities. Grind resistance is a separate force.
 use super::{player_input::grind::MaterialMode, settings::PhysicsSettings};
 use skate_core::physics::{board_runtime::BoardRuntime, contact::RetailContactMaterial};
 
@@ -42,7 +39,5 @@ impl GrindMaterials {
             settings.truck_material,
             settings.deck_material,
         ] = materials;
-        //These leaves do not change shape enable flags, angular drag, motion
-        //activation or wiping-out state. They are not full SetStandard82C03AF8.
     }
 }

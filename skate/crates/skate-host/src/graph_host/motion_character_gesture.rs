@@ -1,6 +1,3 @@
-//! Original CharacterGesture82BAA320, instance82BAADD0 and helpers
-//!82BAAFB0/82BAB080/82BAB258/82BAAED8. Allocation and channel names are owned
-//! here; the original entry/cycle/exit decisions and channel timing are kept.
 use super::motion_animation::MotionAnimation;
 use skate_core::animation::{
     channel_playback::ChannelSettings,
@@ -14,7 +11,6 @@ const CHANNELS: [&str; 3] = ["GestureBoth", "GestureRight", "GestureLeft"];
 const TENTH: f32 = f32::from_bits(0x3DCC_CCCD);
 
 pub struct CharacterGestureInputs<'a> {
-    /// Actor20 resolves IMotionGraph (8258F180); virtual16 returns this map.
     pub motion_intents: &'a IntentMap,
     /// Specific MotionGraph+C58/C5C. Nonzero counts make a hand busy.
     pub busy_hands: [u32; 2],
@@ -26,7 +22,6 @@ pub struct CharacterGestureInputs<'a> {
     pub distance_to_cog: f32,
     /// ISkaterAnim virtual56: Up, Down, Left, Right gesture catalog indices.
     pub selections: Option<[u32; 4]>,
-    /// ISkaterAnim virtual120, evaluated by82B988B8.
     pub suppress_up: bool,
     /// Actor+44 virtual24. When true ForceBrake does not suppress a start.
     pub force_brake_bypass: bool,
@@ -34,9 +29,7 @@ pub struct CharacterGestureInputs<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct GesturePublication {
-    ///8258FB30 writes specific MotionGraph+CE4 and sets byteCE8 to1.
     pub gesture: u32,
-    ///8258FB38 writes byteCE9 from direction==Down.
     pub down: bool,
 }
 
@@ -52,7 +45,6 @@ impl Default for CharacterGesture {
     }
 }
 impl CharacterGesture {
-    ///82BAAE70/7C/88/8C: no channel is owned until a real gesture starts.
     pub fn new() -> Self {
         Self {
             active: false,
@@ -62,9 +54,6 @@ impl CharacterGesture {
         }
     }
 
-    /// EndGesture82BAA320's explicit teardown path. The native operation ends
-    /// all gesture-owned channels in reverse owner order and clears the
-    /// persistent selection state.
     pub fn end(&mut self, animation: &mut MotionAnimation) {
         end_all(animation);
         self.clear_active();
@@ -125,7 +114,6 @@ impl CharacterGesture {
                 true,
                 true,
             )?;
-            //82BAA954..AA4C ends the other two channels, in source order.
             match hands {
                 0 => {
                     animation.channels.end(CHANNELS[2]);
@@ -195,9 +183,6 @@ impl CharacterGesture {
     ) -> Result<(), String> {
         let name = animation_name(self.direction, self.hands, stage, input.selections)?;
         self.stage = stage;
-        //82BAAED8 -> channel virtual20=82D1D030 chooses embedded Sequence,
-        //vtable8231E1F8. It waits for the old clip's actual end; it is not a
-        //zero-duration blend. The helper enables resurrection and creation.
         let transition = TransitionSettings {
             kind: 4,
             seconds: 0.0,
@@ -254,8 +239,6 @@ fn select_start(intents: &IntentMap) -> i32 {
     .find(|(_, name)| has(intents, name))
     .map_or(-1, |(direction, _)| direction)
 }
-///82BAB258: suppress occupied special channels/mount actions, then choose
-///the actual available hand. Offboard states6/7 have a separate board rule.
 fn select_hands(animation: &MotionAnimation, input: &CharacterGestureInputs<'_>) -> i32 {
     if ["RetrieveBoard", "Shove", "WipeoutPushOff"]
         .iter()
@@ -301,7 +284,6 @@ fn animation_name(
         ["INTO", "CYC", "OUT"][stage as usize]
     ))
 }
-//82F881D0..83C4 constructs this exact37-entry table at830BF5D8.
 const NAMES: [&str; 37] = [
     "B_GSTR_AIRGUITAR",
     "B_GSTR_AIRPLANE",

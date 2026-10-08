@@ -1,5 +1,3 @@
-//! Candidate construction82D6BF90 and query submission82D6CA58.
-//! PredictionResults are produced by the shared82E099A0 collision query.
 use super::air_launch::{Launch, V};
 use crate::air::trajectory::{QueryRequest, Trajectory};
 #[derive(Clone, Debug)]

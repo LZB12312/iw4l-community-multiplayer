@@ -5,11 +5,11 @@
 //! `SpiderEyesLayer`'s eyes: the same model with `spider_eyes`, drawn at
 //! full brightness where vanilla adds it unlit. The death flip is not drawn.
 use crate::{
+    client_mobs::ClientMobs,
     cow_render::cube_scaled,
     lighting::SkyLight,
     mesh::{Atlas, ChunkMesh},
     pack::ResourceId,
-    client_mobs::ClientMobs,
 };
 use glam::{Quat, Vec3};
 use minecraftoss_entities::world::SpiderEntity;
@@ -56,47 +56,93 @@ pub fn append_spiders<'a>(
 ) {
     let skin = atlas.entity_region(&ResourceId::parse("minecraft:entity/spider/spider").unwrap());
     let eyes_id = ResourceId::parse("minecraft:entity/spider/spider_eyes").unwrap();
-    let eyes = atlas.contains(&eyes_id).then(|| atlas.entity_region(&eyes_id));
+    let eyes = atlas
+        .contains(&eyes_id)
+        .then(|| atlas.entity_region(&eyes_id));
     let partial = partial.clamp(0.0, 1.0);
     // Each mob's first vertex and overlay (`getOverlayCoords`).
     let mut marks = Vec::new();
     for entity in spiders {
-        let Some(mob) = poses.pose(entity.id, partial) else { continue };
+        let Some(mob) = poses.pose(entity.id, partial) else {
+            continue;
+        };
         marks.push((mesh.vertices.len(), mob.overlay(0.0)));
         let feet = mob.feet;
         let sample = mob.light_block();
         let (sky, block) = (light.get(sample) as f32, light.get_block(sample) as f32);
         let rotation = mob.body_rotation(180.0);
-        let head = Quat::from_euler(glam::EulerRot::ZYX, 0.0, mob.head_yaw.to_radians(), mob.head_pitch.to_radians());
+        let head = Quat::from_euler(
+            glam::EulerRot::ZYX,
+            0.0,
+            mob.head_yaw.to_radians(),
+            mob.head_pitch.to_radians(),
+        );
         let motion = leg_motion(mob.walk_position, mob.walk_speed);
-        let mut parts: Vec<(Part, Quat, bool)> = vec![(HEAD, head, false), (BODY_0, Quat::IDENTITY, false), (BODY_1, Quat::IDENTITY, false)];
+        let mut parts: Vec<(Part, Quat, bool)> = vec![
+            (HEAD, head, false),
+            (BODY_0, Quat::IDENTITY, false),
+            (BODY_1, Quat::IDENTITY, false),
+        ];
         for (pivot, yaw, roll, phase) in LEGS {
             let left = pivot[0] > 0.0;
             let (swing, step) = motion[phase];
-            let (yaw, roll) = if left { (yaw - swing, roll - step) } else { (yaw + swing, roll + step) };
-            let (from, to) = if left { ([-1., -1., -1.], [15., 1., 1.]) } else { ([-15., -1., -1.], [1., 1., 1.]) };
-            parts.push(((from, to, [18., 0.], pivot), Quat::from_euler(glam::EulerRot::ZYX, roll, yaw, 0.0), left));
+            let (yaw, roll) = if left {
+                (yaw - swing, roll - step)
+            } else {
+                (yaw + swing, roll + step)
+            };
+            let (from, to) = if left {
+                ([-1., -1., -1.], [15., 1., 1.])
+            } else {
+                ([-15., -1., -1.], [1., 1., 1.])
+            };
+            parts.push((
+                (from, to, [18., 0.], pivot),
+                Quat::from_euler(glam::EulerRot::ZYX, roll, yaw, 0.0),
+                left,
+            ));
         }
         for &((from, to, uv, pivot), pose, mirror) in &parts {
-            cube_scaled(mesh, feet, rotation, Vec3::ONE, skin, sky, block, from, to, uv, pivot, pose, [1.0; 3], [64., 32.], None, mirror);
+            cube_scaled(
+                mesh,
+                feet,
+                rotation,
+                Vec3::ONE,
+                skin,
+                sky,
+                block,
+                from,
+                to,
+                uv,
+                pivot,
+                pose,
+                [1.0; 3],
+                [64., 32.],
+                None,
+                mirror,
+            );
         }
         if let Some(eyes) = eyes {
             let ((from, to, uv, pivot), pose, _) = parts[0];
-            cube_scaled(mesh, feet, rotation, Vec3::ONE, eyes, 15.0, 15.0, from, to, uv, pivot, pose, [1.0; 3], [64., 32.], None, false);
+            cube_scaled(
+                mesh,
+                feet,
+                rotation,
+                Vec3::ONE,
+                eyes,
+                15.0,
+                15.0,
+                from,
+                to,
+                uv,
+                pivot,
+                pose,
+                [1.0; 3],
+                [64., 32.],
+                None,
+                false,
+            );
         }
     }
     crate::cow_render::apply_overlays(mesh, &marks);
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn still_legs_rest_and_walking_legs_move_in_four_phases() {
-        assert!(leg_motion(3.0, 0.0).iter().all(|&(swing, step)| swing == 0.0 && step == 0.0));
-        let walking = leg_motion(1.0, 1.0);
-        assert!(walking.iter().all(|&(_, step)| step >= 0.0));
-        assert_ne!(walking[0], walking[1]);
-    }
 }

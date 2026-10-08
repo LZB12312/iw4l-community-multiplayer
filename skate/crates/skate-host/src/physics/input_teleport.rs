@@ -1,4 +1,3 @@
-//! Ordinary local-player teleport82DB8998, operating on the live assemblies.
 use super::*;
 use skate_core::{
     math::{Basis3, Vector3},
@@ -53,7 +52,7 @@ impl Callbacks<'_, '_> {
             self.life,
             self.wiping_out,
         );
-        self.skeleton_air.reset_board(); //Board Reset82C0606C.
+        self.skeleton_air.reset_board();
         self.footplant.full_reset();
         self.handplant.full_reset();
         self.riding.reset_for_teleport();
@@ -81,8 +80,6 @@ impl Callbacks<'_, '_> {
         self.collision.has_pose_error_4077 = self.feedback.flags.has_impulse;
         self.collision.partial_ragdoll = self.collision_mode.partial_ragdoll;
         self.collision.drive_weight_4028 = self.feedback.drive_weight;
-        //ResetSystems82DB92D0 preserves Reckoning filter histories. Seed the
-        //fresh deck heading and recompute its actual Ground transform.
         self.riding.reckoning.reset();
         self.riding.update_ground_reckoning(
             board,
@@ -105,7 +102,6 @@ impl Callbacks<'_, '_> {
         self.life.skeleton_controller.has_request = false;
         self.life.skeleton_controller.override_enabled = false;
         self.life.skeleton_controller.flag_18 = false;
-        //82DB93E8/93EC resets Player1840 through82D749D0, not ballistic work.
         self.offboard_grab.invalidate();
         player.manager_1856_counter_320 = 0;
         player.probe = Default::default();
@@ -130,7 +126,7 @@ impl Callbacks<'_, '_> {
             &self.collision,
             self.settings.step.simulation,
         )?;
-        self.wipeout.state.teleport(); //82DB8DB4, separate from ResetSystems.
+        self.wipeout.state.teleport();
         self.teleported = true;
         Ok(())
     }
@@ -144,8 +140,6 @@ fn affine(m: NativeMatrix) -> RetailAffineTransform {
         translation: Vector3::new(m[3][0], m[3][1], m[3][2]),
     }
 }
-///82DB8A10..8BB4 flattens At before normalization, rejects length<=.001,
-///then adds the original .1m world-Y teleport clearance.
 fn horizontal_spawn(requested: NativeMatrix) -> NativeMatrix {
     let mut result = IDENTITY;
     let x = requested[2][0];

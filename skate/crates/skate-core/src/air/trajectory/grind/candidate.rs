@@ -1,7 +1,5 @@
-//! Original S3 82D60C80/82D60B98/82D6A398/82D6A168.
 use super::*;
 
-///82C1F310 after provider traversal; pairwise rejection preserves global order.
 pub fn trajectory_box_filter(
     indices: &[usize],
     primitives: &[Primitive],
@@ -57,9 +55,6 @@ pub fn trajectory_box_filter(
     accepted
 }
 
-///82D60C80's quadratic roots followed by82D60B98's later-root selection.
-/// A double root must be strictly positive. The two-root branch takes max;
-/// it does not add a positive-time restriction absent from the source.
 pub fn descending_plane_time(t: Trajectory, point: Vector, normal: Vector) -> Option<f32> {
     let c = dot(normal, t.position) - dot(point, normal);
     let b = dot(normal, t.velocity);
@@ -78,7 +73,6 @@ pub fn descending_plane_time(t: Trajectory, point: Vector, normal: Vector) -> Op
     }
 }
 
-///82D6A398. The padding is physics_trajectory+516, not a host snap radius.
 pub fn consider_grind_primitive(
     prediction: Prediction,
     edge: Primitive,
@@ -92,8 +86,6 @@ pub fn consider_grind_primitive(
         inverse_length(dot(normal_unscaled, normal_unscaled)),
     );
     let rail_length = length(delta);
-    //830BD320 is initialized to1 by82F825D0. The original endpoints remain
-    //unchanged; only the direction and endpoint overrun vector are capped.
     if rail_length > 1.0 {
         delta = scale(delta, reciprocal(rail_length));
     }
@@ -109,7 +101,6 @@ pub fn consider_grind_primitive(
     let distance = length(cross(difference, direction));
     let point = madd(direction, dot(direction, difference), edge.start);
     let extension = scale(delta, 0.1);
-    //Strict endpoint test82D6A708. No closest-point clamping.
     if !(dot(
         sub(point, sub(edge.start, extension)),
         sub(point, add(edge.end, extension)),
@@ -135,8 +126,6 @@ pub fn consider_grind_primitive(
     })
 }
 
-///8296EC98's oriented angle then82E09C80's actual fractional-turn fold.
-///Keep the wrap arithmetic: acos(abs(dot)) is not binary32 equivalent.
 fn folded_approach_angle(a: Vector, b: Vector, normal: Vector) -> f32 {
     let mut angle = angle_between(a, b);
     let aa = dot(a, a);
@@ -163,8 +152,6 @@ fn folded_approach_angle(a: Vector, b: Vector, normal: Vector) -> f32 {
     (sign * folded).abs()
 }
 
-///82D6A168 consumes one winner per call. Retrying after a rejected target
-///must retain the remaining insertion order, not sort the list by distance.
 pub fn take_best_grind(
     candidates: &mut Vec<GrindTrajectoryCandidate>,
     difficulty_distance: f32,

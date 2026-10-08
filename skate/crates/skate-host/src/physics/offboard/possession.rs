@@ -55,7 +55,6 @@ pub(crate) fn observe(
             flags_2488: p.flags_2488,
         },
         board_collision_flags_872: physics.riding.ground.collision_flags,
-        //82C08818 produces840 by voting the four retained wheel surfaces.
         board_state_840: choose_surface(
             physics.riding.wheel_lines.physics_surfaces,
             std::array::from_fn(|i| physics.riding.ground.parts[i].in_contact),

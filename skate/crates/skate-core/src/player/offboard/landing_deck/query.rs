@@ -1,12 +1,8 @@
-//! Obstruction request82D79948, moving-contact Sync82D79B40 and79E30.
 use super::trajectory::{frames, shift};
 use super::*;
 use crate::player::wipeout_state::math::{add, dot, madd, reciprocal, scale, sub};
 
 impl Manager {
-    ///82D79948 numeric request. Host submits with processed filter2952.
-    ///Native radius=.3, duration=time, start/end error=.5; no fake world hit.
-    ///Pending is NOT changed here: native sets it after the actual dispatch.
     pub(super) fn prepare_query(&mut self, p: &Input, position: Vector, time: f32) -> QueryRequest {
         let target = add(
             madd(p.board_velocity_400, time, p.board_position_112),
@@ -60,7 +56,6 @@ impl Manager {
         hippy_velocity: impl FnOnce(&Manager) -> Result<Vector, E>,
     ) -> Result<(), E> {
         if let Some(hit) = hit {
-            //82D79B9C uses strict less-than: equality is an obstruction.
             if hit.contact_position[1] < self.obstruction_height_240 {
                 self.blocked_258 = false;
                 self.tested_259 = true;
