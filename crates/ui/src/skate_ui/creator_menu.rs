@@ -10,6 +10,7 @@ pub enum Page {
     Eyes,
     Brow,
     FacialHair,
+    Hair,
     Nose,
     Jaw,
     Mouth,
@@ -26,6 +27,7 @@ pub enum Choice {
     EyeColour,
     BrowStyle,
     FacialHairStyle,
+    HairStyle,
     Undo(UndoScope),
     Unavailable,
 }
@@ -89,7 +91,7 @@ impl Page {
         match self {
             Self::Main | Self::Body | Self::Merchandise => Some(Focus::Standing),
             Self::BodyShape => Some(Focus::Body),
-            Self::Face | Self::FacialHair => Some(Focus::Head),
+            Self::Face | Self::FacialHair | Self::Hair => Some(Focus::Head),
             Self::Eyes => Some(Focus::Eyes),
             Self::Brow => Some(Focus::Brow),
             Self::Nose => Some(Focus::Nose),
@@ -167,7 +169,7 @@ impl Page {
                         label: "ID_CAC_HAIR_TITLE",
                         description: "",
                         kind: "option",
-                        choice: Choice::Unavailable,
+                        choice: Choice::Page(Page::Hair),
                         male_only: false,
                     },
                     Item {
@@ -446,6 +448,28 @@ impl Page {
                         morph("ID_CAC_BROW_PROFILE", "local_brows_depth"),
                         morph("ID_CAC_BROW_ROTATION", "local_brows_rotation"),
                         morph("ID_CAC_BROW_HEIGHT", "local_brows_height"),
+                        UNDO,
+                    ]
+                },
+            ),
+            Self::Hair => morph_menu(
+                "ID_CAC_HAIR_TITLE",
+                &const {
+                    [
+                        Item {
+                            label: "ID_CAC_HAIR_STYLE",
+                            description: "",
+                            kind: "selector",
+                            choice: Choice::HairStyle,
+                            male_only: false,
+                        },
+                        Item {
+                            label: "ID_CAC_HAIR_COLOUR",
+                            description: "",
+                            kind: "color",
+                            choice: Choice::Unavailable,
+                            male_only: false,
+                        },
                         UNDO,
                     ]
                 },

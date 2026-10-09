@@ -65,6 +65,7 @@ impl Bindings {
                         | Choice::EyeColour
                         | Choice::BrowStyle
                         | Choice::FacialHairStyle
+                        | Choice::HairStyle
                 )
             })
     }
@@ -158,7 +159,17 @@ impl Host for Bindings {
                     .into(),
                 ))
             }
-            ("Game", "CAC_GetOptionType") => Ok(Value::Text(self.item(index(0)?)?.kind.into())),
+            ("Game", "CAC_GetOptionType") => {
+                let item = self.item(index(0)?)?;
+                Ok(Value::Text(
+                    if matches!(item.choice, Choice::Unavailable) {
+                        "option"
+                    } else {
+                        item.kind
+                    }
+                    .into(),
+                ))
+            }
             ("Game", "CAC_GetColours") => {
                 if !matches!(self.item(index(0)?)?.choice, Choice::EyeColour) {
                     return Err("Creator item has no colour palette".into());
@@ -204,6 +215,19 @@ impl Host for Bindings {
                 Ok(Value::Undefined)
             }
             ("Game", "CAC_GetIntegerValue" | "CAC_GetStringValue") => {
+                if matches!(self.item(index(0)?)?.choice, Choice::HairStyle) {
+                    if method != "CAC_GetStringValue" {
+                        return Err("Character hair style has no numeric value".into());
+                    }
+                    let library =
+                        assets::character::local_library().ok_or("Missing character library")?;
+                    let styles = library.hair_styles(&self.profile)?;
+                    let current = library.hair_style_index(&self.profile)?;
+                    return Ok(Value::Text(format!(
+                        "ID_CAC_HAIRSTYLE_{}",
+                        styles[current].key.to_ascii_uppercase().replace(' ', "_")
+                    )));
+                }
                 if matches!(self.item(index(0)?)?.choice, Choice::FacialHairStyle) {
                     if method != "CAC_GetStringValue" {
                         return Err("Character facial hair style has no numeric value".into());
@@ -523,6 +547,23 @@ impl Runtime {
         )?;
         apt_host::drain(&mut self.bindings, &mut self.vm)?;
         if matches!(key, "AptLeft" | "AptRight") {
+            if matches!(
+                self.bindings.item(self.bindings.position.index)?.choice,
+                Choice::HairStyle
+            ) {
+                let library =
+                    assets::character::local_library().ok_or("Missing character library")?;
+                let styles = library.hair_styles(&self.bindings.profile)?;
+                let current = library.hair_style_index(&self.bindings.profile)?;
+                let next = if key == "AptLeft" {
+                    (current + styles.len() - 1) % styles.len()
+                } else {
+                    (current + 1) % styles.len()
+                };
+                if next != current {
+                    self.bindings.edit = Some(vec!["hair_style".into(), styles[next].key.clone()]);
+                }
+            }
             if matches!(
                 self.bindings.item(self.bindings.position.index)?.choice,
                 Choice::FacialHairStyle

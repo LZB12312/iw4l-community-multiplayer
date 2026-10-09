@@ -32,6 +32,8 @@ pub struct CharacterMaterialInfo {
     #[serde(default)]
     opacity: Option<String>,
     tint: [f32; 3],
+    #[serde(skip)]
+    separate_opacity: bool,
 }
 
 #[derive(Deserialize)]
@@ -97,6 +99,12 @@ pub struct CharacterColour {
 pub struct CharacterStyle {
     pub key: String,
     group: usize,
+    material: CharacterAsset,
+}
+
+pub struct CharacterHairStyle {
+    pub key: String,
+    model: CharacterAsset,
     material: CharacterAsset,
 }
 
@@ -179,9 +187,20 @@ impl CharacterLibrary {
         let root = root.canonicalize().map_err(|e| e.to_string())?;
         let bytes = std::fs::read(root.join("private/customisation/library.json"))
             .map_err(|e| e.to_string())?;
-        let manifest: Manifest = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        let mut manifest: Manifest = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
         if manifest.version != 3 || manifest.models.is_empty() || manifest.materials.is_empty() {
             return Err("unsupported character library".into());
+        }
+        for model in manifest
+            .models
+            .values()
+            .filter(|model| model.slot == "Hair")
+        {
+            for asset in model.groups.iter().flatten() {
+                if let Some(material) = manifest.materials.get_mut(&String::from(*asset)) {
+                    material.separate_opacity = material.opacity.is_some();
+                }
+            }
         }
         Ok(Self {
             root,
@@ -723,6 +742,202 @@ impl CharacterLibrary {
         self.with_material(profile, CharacterSlot::Face, style.group, style.material)
     }
 
+    pub fn hair_styles(
+        &self,
+        profile: &CharacterProfile,
+    ) -> Result<Vec<CharacterHairStyle>, String> {
+        self.validate(profile)?;
+        let gender = if profile.male { "male" } else { "female" };
+        let mut styles = Vec::new();
+        for (asset, model) in &self.manifest.models {
+            if model.slot != "Hair"
+                || model.flags.get("Gender").map(String::as_str) != Some(gender)
+                || model.flags.get("HairModelType").map(String::as_str) != Some("full")
+            {
+                continue;
+            }
+            if model.groups.len() != 1 || model.groups[0].len() != 1 {
+                return Err("Unsupported character hair material groups".into());
+            }
+            let material = model.groups[0][0];
+            let info = self
+                .manifest
+                .materials
+                .get(&String::from(material))
+                .ok_or("Missing character hair material")?;
+            if matches!(
+                info.flags.get("IsColourizable").map(String::as_str),
+                Some("True" | "true" | "yes" | "1")
+            ) {
+                continue;
+            }
+            let key = model
+                .flags
+                .get("HairStyle")
+                .ok_or("Missing character hair style")?;
+            if key.is_empty()
+                || key.len() > 64
+                || !key
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b' '))
+            {
+                return Err("Invalid character hair style".into());
+            }
+            styles.push(CharacterHairStyle {
+                key: key.clone(),
+                model: asset
+                    .clone()
+                    .try_into()
+                    .map_err(|_| "Invalid character hair model")?,
+                material,
+            });
+        }
+        styles.sort_by(|a, b| b.model.0.cmp(&a.model.0));
+        if styles.is_empty() || styles.len() > 63 {
+            return Err("Character has no supported hair style catalogue".into());
+        }
+        if profile.male {
+            styles.push(CharacterHairStyle {
+                key: "bald".into(),
+                model: CharacterAsset::default(),
+                material: CharacterAsset::default(),
+            });
+        }
+        Ok(styles)
+    }
+
+    pub fn hair_style_index(&self, profile: &CharacterProfile) -> Result<usize, String> {
+        let styles = self.hair_styles(profile)?;
+        let asset = profile.parts[CharacterSlot::Hair as usize].model;
+        if asset.0 == 0 && profile.male {
+            return Ok(styles.len() - 1);
+        }
+        let asset = if asset.0 == 0 {
+            self.default_profile(false)?.parts[CharacterSlot::Hair as usize].model
+        } else {
+            asset
+        };
+        let key = self
+            .manifest
+            .models
+            .get(&String::from(asset))
+            .and_then(|model| model.flags.get("HairStyle"))
+            .ok_or("Missing character hair style")?;
+        Ok(styles
+            .iter()
+            .position(|style| &style.key == key)
+            .unwrap_or(0))
+    }
+
+    pub fn with_hair_style(
+        &self,
+        profile: &CharacterProfile,
+        key: &str,
+    ) -> Result<CharacterProfile, String> {
+        let style = self
+            .hair_styles(profile)?
+            .into_iter()
+            .find(|style| style.key == key)
+            .ok_or("Unknown character hair style")?;
+        let mut next = self.with_model(profile, CharacterSlot::Hair, style.model)?;
+        if style.model.0 != 0 {
+            next.parts[CharacterSlot::Hair as usize].materials = vec![style.material];
+        }
+        self.validate(&next)?;
+        Ok(next)
+    }
+
+    fn assembled_profile(&self, profile: &CharacterProfile) -> Result<CharacterProfile, String> {
+        let mut next = profile.clone();
+        let hair = &profile.parts[CharacterSlot::Hair as usize];
+        if hair.model.0 != 0 {
+            let source = &self.manifest.models[&String::from(hair.model)];
+            let hat = &profile.parts[CharacterSlot::Hat as usize];
+            let required = if hat.model.0 == 0 {
+                "full"
+            } else {
+                self.manifest.models[&String::from(hat.model)]
+                    .flags
+                    .get("RequiresHairModelType")
+                    .map(String::as_str)
+                    .unwrap_or("full")
+            };
+            if required == "none" {
+                next.parts[CharacterSlot::Hair as usize] = CharacterPart::default();
+            } else if source.flags.get("HairModelType").map(String::as_str) != Some(required) {
+                let mut variants = self.manifest.models.iter().filter(|(_, model)| {
+                    model.slot == "Hair"
+                        && model.flags.get("Gender") == source.flags.get("Gender")
+                        && model.flags.get("HairStyle") == source.flags.get("HairStyle")
+                        && model.flags.get("HairModelType").map(String::as_str) == Some(required)
+                });
+                if let Some((asset, model)) = variants.next() {
+                    if variants.next().is_some()
+                        || model.groups.len() != 1
+                        || model.groups[0].len() != 1
+                    {
+                        return Err("Unsupported character hair variant".into());
+                    }
+                    let part = &mut next.parts[CharacterSlot::Hair as usize];
+                    part.model = asset
+                        .clone()
+                        .try_into()
+                        .map_err(|_| "Invalid character hair variant")?;
+                    part.materials = vec![model.groups[0][0]];
+                }
+            }
+        }
+        let hair = &next.parts[CharacterSlot::Hair as usize];
+        if !profile.male && hair.model.0 == 0 {
+            return Ok(next);
+        }
+        let shadow = if hair.model.0 == 0 {
+            None
+        } else {
+            self.manifest.models[&String::from(hair.model)]
+                .flags
+                .get("RequiresHairlineShadowStyle")
+                .filter(|value| value.as_str() == "on")
+        };
+        let face = &mut next.parts[CharacterSlot::Face as usize];
+        if face.model.0 == 0 {
+            return Ok(next);
+        }
+        let model = &self.manifest.models[&String::from(face.model)];
+        for (group, selected) in model.groups.iter().zip(&mut face.materials) {
+            let current = &self.manifest.materials[&String::from(*selected)];
+            if !current.flags.contains_key("SkinTone") {
+                continue;
+            }
+            let same = |a: &CharacterMaterialInfo, b: &CharacterMaterialInfo| {
+                a.flags
+                    .iter()
+                    .filter(|(name, _)| {
+                        !matches!(name.as_str(), "HairlineShadowStyle" | "IsDefault")
+                    })
+                    .all(|(name, value)| b.flags.get(name) == Some(value))
+            };
+            if let Some(asset) = group
+                .iter()
+                .filter(|asset| {
+                    let candidate = &self.manifest.materials[&String::from(**asset)];
+                    candidate
+                        .flags
+                        .get("HairlineShadowStyle")
+                        .filter(|value| value.as_str() == "on")
+                        == shadow
+                        && same(current, candidate)
+                        && same(candidate, current)
+                })
+                .min_by_key(|asset| asset.0)
+            {
+                *selected = *asset;
+            }
+        }
+        self.validate(&next)?;
+        Ok(next)
+    }
+
     pub fn slot(name: &str) -> Option<CharacterSlot> {
         slots()
             .into_iter()
@@ -843,6 +1058,8 @@ impl CharacterLibrary {
 
     pub fn assemble(&self, profile: &CharacterProfile) -> Result<Vec<CharacterMeshPart>, String> {
         self.validate(profile)?;
+        let assembled = self.assembled_profile(profile)?;
+        let profile = &assembled;
         let mut parts = Vec::new();
         for (i, (slot, _)) in slots().into_iter().enumerate() {
             let selected = &profile.parts[i];
@@ -887,8 +1104,7 @@ impl CharacterLibrary {
     }
 
     fn texture(&self, info: &CharacterMaterialInfo) -> Result<Arc<BotTexture>, String> {
-        let key = serde_json::to_string(&(&info.diffuse, &info.opacity, info.tint))
-            .map_err(|e| e.to_string())?;
+        let key = image_key(info);
         let mut cache = self
             .textures
             .lock()
@@ -899,7 +1115,12 @@ impl CharacterLibrary {
         // Weak references let an evicted profile release its decoded pixels.
         cache.retain(|_, texture| texture.strong_count() != 0);
         let opacity = info.opacity.as_deref().map(|p| self.path(p)).transpose()?;
-        let mut decoded = texture(&self.path(&info.diffuse)?, opacity.as_deref(), info.tint)?;
+        let mut decoded = texture(
+            &self.path(&info.diffuse)?,
+            opacity.as_deref(),
+            info.tint,
+            info.separate_opacity,
+        )?;
         decoded.image_key = Some(image_key(info));
         let texture = Arc::new(decoded);
         cache.insert(key, Arc::downgrade(&texture));
@@ -951,8 +1172,12 @@ fn slots() -> [(CharacterSlot, &'static str); 18] {
 }
 
 fn image_key(info: &CharacterMaterialInfo) -> String {
-    let source = serde_json::to_vec(&(&info.diffuse, &info.opacity, info.tint))
-        .expect("finite library image metadata");
+    let source = if info.separate_opacity {
+        serde_json::to_vec(&(&info.diffuse, &info.opacity, info.tint, "separate_opacity"))
+    } else {
+        serde_json::to_vec(&(&info.diffuse, &info.opacity, info.tint))
+    }
+    .expect("finite library image metadata");
     format!("iw4l_character_image/{:016x}", crate::fnv1a64(&source))
 }
 
@@ -1197,7 +1422,12 @@ fn walking(native: &BotModel, glb: &Glb<'_>) -> Result<BotModel, String> {
     Ok(model)
 }
 
-fn texture(path: &Path, opacity: Option<&Path>, tint: [f32; 3]) -> Result<BotTexture, String> {
+fn texture(
+    path: &Path,
+    opacity: Option<&Path>,
+    tint: [f32; 3],
+    separate_opacity: bool,
+) -> Result<BotTexture, String> {
     if tint.iter().any(|v| !v.is_finite() || *v < 0. || *v > 4.) {
         return Err("invalid character material tint".into());
     }
@@ -1207,7 +1437,9 @@ fn texture(path: &Path, opacity: Option<&Path>, tint: [f32; 3]) -> Result<BotTex
         let has_alpha = mask.rgba.as_chunks::<4>().0.iter().any(|p| p[3] != 255);
         let sample = |x: usize, y: usize| {
             let p = &mask.rgba[(y * usize::from(mask.width) + x) * 4..];
-            if has_alpha {
+            if separate_opacity {
+                f32::from(p[0])
+            } else if has_alpha {
                 f32::from(p[3])
             } else {
                 // The owned opacity textures may store their mask in RGB.
@@ -1232,8 +1464,12 @@ fn texture(path: &Path, opacity: Option<&Path>, tint: [f32; 3]) -> Result<BotTex
                 let a = sample(x0, y0) * (1. - dx) + sample(x1, y0) * dx;
                 let b = sample(x0, y1) * (1. - dx) + sample(x1, y1) * dx;
                 let at = (y * usize::from(diffuse.width) + x) * 4 + 3;
-                diffuse.rgba[at] =
-                    (f32::from(diffuse.rgba[at]) * (a * (1. - dy) + b * dy) / 255.).floor() as u8;
+                let alpha = if separate_opacity {
+                    255.
+                } else {
+                    f32::from(diffuse.rgba[at])
+                };
+                diffuse.rgba[at] = (alpha * (a * (1. - dy) + b * dy) / 255.).floor() as u8;
             }
         }
     }
