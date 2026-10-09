@@ -64,6 +64,7 @@ impl Bindings {
                         | Choice::Undo(_)
                         | Choice::EyeColour
                         | Choice::BrowStyle
+                        | Choice::FacialHairStyle
                 )
             })
     }
@@ -203,6 +204,19 @@ impl Host for Bindings {
                 Ok(Value::Undefined)
             }
             ("Game", "CAC_GetIntegerValue" | "CAC_GetStringValue") => {
+                if matches!(self.item(index(0)?)?.choice, Choice::FacialHairStyle) {
+                    if method != "CAC_GetStringValue" {
+                        return Err("Character facial hair style has no numeric value".into());
+                    }
+                    let library =
+                        assets::character::local_library().ok_or("Missing character library")?;
+                    let styles = library.facial_hair_styles(&self.profile)?;
+                    let current = library.facial_hair_style_index(&self.profile)?;
+                    return Ok(Value::Text(format!(
+                        "ID_CAC_FACIAL_HAIR_{}",
+                        styles[current].key.to_ascii_uppercase().replace(' ', "_")
+                    )));
+                }
                 if matches!(self.item(index(0)?)?.choice, Choice::BrowStyle) {
                     if method != "CAC_GetStringValue" {
                         return Err("Character brow style has no numeric value".into());
@@ -509,6 +523,24 @@ impl Runtime {
         )?;
         apt_host::drain(&mut self.bindings, &mut self.vm)?;
         if matches!(key, "AptLeft" | "AptRight") {
+            if matches!(
+                self.bindings.item(self.bindings.position.index)?.choice,
+                Choice::FacialHairStyle
+            ) {
+                let library =
+                    assets::character::local_library().ok_or("Missing character library")?;
+                let styles = library.facial_hair_styles(&self.bindings.profile)?;
+                let current = library.facial_hair_style_index(&self.bindings.profile)?;
+                let next = if key == "AptLeft" {
+                    (current + styles.len() - 1) % styles.len()
+                } else {
+                    (current + 1) % styles.len()
+                };
+                if next != current {
+                    self.bindings.edit =
+                        Some(vec!["facial_hair_style".into(), styles[next].key.clone()]);
+                }
+            }
             if matches!(
                 self.bindings.item(self.bindings.position.index)?.choice,
                 Choice::BrowStyle

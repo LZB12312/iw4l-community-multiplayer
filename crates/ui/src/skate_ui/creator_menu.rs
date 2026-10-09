@@ -9,6 +9,7 @@ pub enum Page {
     Face,
     Eyes,
     Brow,
+    FacialHair,
     Nose,
     Jaw,
     Mouth,
@@ -24,6 +25,7 @@ pub enum Choice {
     Morph(&'static str),
     EyeColour,
     BrowStyle,
+    FacialHairStyle,
     Undo(UndoScope),
     Unavailable,
 }
@@ -87,7 +89,7 @@ impl Page {
         match self {
             Self::Main | Self::Body | Self::Merchandise => Some(Focus::Standing),
             Self::BodyShape => Some(Focus::Body),
-            Self::Face => Some(Focus::Head),
+            Self::Face | Self::FacialHair => Some(Focus::Head),
             Self::Eyes => Some(Focus::Eyes),
             Self::Brow => Some(Focus::Brow),
             Self::Nose => Some(Focus::Nose),
@@ -193,7 +195,7 @@ impl Page {
                         label: "ID_CAC_FACIAL_HAIR_TITLE",
                         description: "",
                         kind: "option",
-                        choice: Choice::Unavailable,
+                        choice: Choice::Page(Page::FacialHair),
                         male_only: true,
                     },
                     Item {
@@ -444,6 +446,21 @@ impl Page {
                         morph("ID_CAC_BROW_PROFILE", "local_brows_depth"),
                         morph("ID_CAC_BROW_ROTATION", "local_brows_rotation"),
                         morph("ID_CAC_BROW_HEIGHT", "local_brows_height"),
+                        UNDO,
+                    ]
+                },
+            ),
+            Self::FacialHair => morph_menu(
+                "ID_CAC_FACIAL_HAIR_TITLE",
+                &const {
+                    [
+                        Item {
+                            label: "ID_CAC_FACIAL_HAIR_STYLE",
+                            description: "",
+                            kind: "selector",
+                            choice: Choice::FacialHairStyle,
+                            male_only: true,
+                        },
                         UNDO,
                     ]
                 },

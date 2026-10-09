@@ -620,6 +620,109 @@ impl CharacterLibrary {
         self.with_material(profile, CharacterSlot::Face, style.group, style.material)
     }
 
+    pub fn facial_hair_styles(
+        &self,
+        profile: &CharacterProfile,
+    ) -> Result<Vec<CharacterStyle>, String> {
+        self.validate(profile)?;
+        if !profile.male {
+            return Err("Character has no facial hair styles".into());
+        }
+        let part = &profile.parts[CharacterSlot::Face as usize];
+        let model = self
+            .manifest
+            .models
+            .get(&String::from(part.model))
+            .ok_or("Missing character face model")?;
+        let mut styles = Vec::new();
+        let mut styled_groups = 0;
+        for (group_index, (group, material)) in model.groups.iter().zip(&part.materials).enumerate()
+        {
+            let current = self
+                .manifest
+                .materials
+                .get(&String::from(*material))
+                .ok_or("Missing character face material")?;
+            if !current.flags.contains_key("FacialHairStyle") {
+                continue;
+            }
+            styled_groups += 1;
+            for asset in group {
+                let info = self
+                    .manifest
+                    .materials
+                    .get(&String::from(*asset))
+                    .ok_or("Missing character facial hair material")?;
+                let Some(key) = info.flags.get("FacialHairStyle") else {
+                    continue;
+                };
+                if !current
+                    .flags
+                    .iter()
+                    .filter(|(name, _)| {
+                        !matches!(
+                            name.as_str(),
+                            "FacialHairStyle" | "FacialHairColour" | "IsDefault"
+                        )
+                    })
+                    .all(|(name, value)| info.flags.get(name) == Some(value))
+                    || !info
+                        .flags
+                        .iter()
+                        .filter(|(name, _)| {
+                            !matches!(
+                                name.as_str(),
+                                "FacialHairStyle" | "FacialHairColour" | "IsDefault"
+                            )
+                        })
+                        .all(|(name, value)| current.flags.get(name) == Some(value))
+                {
+                    continue;
+                }
+                if key.is_empty()
+                    || key.len() > 64
+                    || !key
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'_' | b' '))
+                {
+                    return Err("Invalid character facial hair style".into());
+                }
+                styles.push(CharacterStyle {
+                    key: key.clone(),
+                    group: group_index,
+                    material: *asset,
+                });
+            }
+        }
+        styles.sort_by(|a, b| b.material.0.cmp(&a.material.0));
+        if styled_groups != 1 || styles.is_empty() || styles.len() > 64 {
+            return Err("Character has no supported facial hair style catalogue".into());
+        }
+        Ok(styles)
+    }
+
+    pub fn facial_hair_style_index(&self, profile: &CharacterProfile) -> Result<usize, String> {
+        self.facial_hair_styles(profile)?
+            .iter()
+            .position(|style| {
+                profile.parts[CharacterSlot::Face as usize].materials[style.group] == style.material
+            })
+            .ok_or("Character facial hair style is outside its catalogue".into())
+    }
+
+    pub fn with_facial_hair_style(
+        &self,
+        profile: &CharacterProfile,
+        key: &str,
+    ) -> Result<CharacterProfile, String> {
+        let style = self
+            .facial_hair_styles(profile)?
+            .into_iter()
+            .find(|style| style.key == key)
+            .ok_or("Unknown character facial hair style")?;
+        self.with_material(profile, CharacterSlot::Face, style.group, style.material)
+    }
+
     pub fn slot(name: &str) -> Option<CharacterSlot> {
         slots()
             .into_iter()

@@ -131,7 +131,7 @@ fn edit_profile(
                 saved
             }
         }
-        "model" | "material" | "morph" | "eye_colour" | "brow_style" => {
+        "model" | "material" | "morph" | "eye_colour" | "brow_style" | "facial_hair_style" => {
             let profile = current
                 .profile
                 .as_deref()
@@ -143,6 +143,8 @@ fn edit_profile(
                 library.with_eye_colour(&profile, name)?
             } else if operation == "brow_style" {
                 library.with_brow_style(&profile, name)?
+            } else if operation == "facial_hair_style" {
+                library.with_facial_hair_style(&profile, name)?
             } else if operation == "morph" {
                 let value = args
                     .get(2)
