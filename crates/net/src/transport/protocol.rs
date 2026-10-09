@@ -279,6 +279,8 @@ pub enum ServerPacket {
 const TAG_CLIENT_CONNECT: u8 = 1;
 const TAG_CLIENT_COMMANDS: u8 = 2;
 const TAG_CLIENT_SNAP_ACK: u8 = 3;
+const TAG_CLIENT_PRESENTATION: u8 = 4;
+const TAG_CLIENT_COMPRESSED_PRESENTATION: u8 = 5;
 const TAG_SERVER_ACCEPT: u8 = 10;
 const TAG_SERVER_REJECT: u8 = 11;
 const TAG_SERVER_SNAPSHOT: u8 = 12;
@@ -460,11 +462,26 @@ impl ClientPacket {
                 appearance,
                 skate,
             } => {
-                out.put_u8(4);
+                let mut payload = WireWriter::new();
+                super::presentation::encode_appearance(&mut payload, appearance);
+                super::presentation::encode_skate(&mut payload, skate.as_ref());
+                let compressed = zstd::bulk::compress(payload.as_slice(), 1)
+                    .ok()
+                    .filter(|bytes| bytes.len() + 8 < payload.len());
+                out.put_u8(if compressed.is_some() {
+                    TAG_CLIENT_COMPRESSED_PRESENTATION
+                } else {
+                    TAG_CLIENT_PRESENTATION
+                });
                 put_header(out, header);
                 out.put_u32(*claimed_client);
-                super::presentation::encode_appearance(out, appearance);
-                super::presentation::encode_skate(out, skate.as_ref());
+                if let Some(bytes) = compressed {
+                    out.put_u32(payload.len() as u32);
+                    out.put_u32(bytes.len() as u32);
+                    out.put_bytes(&bytes);
+                } else {
+                    out.put_bytes(payload.as_slice());
+                }
             }
             Self::Connect(hello) => {
                 out.put_u8(TAG_CLIENT_CONNECT);
@@ -510,12 +527,43 @@ impl ClientPacket {
 
     pub fn decode(input: &mut WireReader<'_>) -> Result<Self, WireError> {
         match input.get_u8()? {
-            4 => Ok(Self::Presentation {
+            TAG_CLIENT_PRESENTATION => Ok(Self::Presentation {
                 header: get_header(input)?,
                 claimed_client: input.get_u32()?,
                 appearance: super::presentation::decode_appearance(input)?,
                 skate: super::presentation::decode_skate(input)?,
             }),
+            TAG_CLIENT_COMPRESSED_PRESENTATION => {
+                let header = get_header(input)?;
+                let claimed_client = input.get_u32()?;
+                let decoded_len = input.get_u32()? as usize;
+                let encoded_len = input.get_u32()? as usize;
+                if decoded_len > MAX_PACKET_BYTES as usize
+                    || encoded_len > input.remaining()
+                    || encoded_len > MAX_PACKET_BYTES as usize
+                {
+                    return Err(WireError::Malformed("invalid presentation payload length"));
+                }
+                let mut encoded = vec![0; encoded_len];
+                input.get_bytes(&mut encoded)?;
+                let decoded = zstd::bulk::decompress(&encoded, decoded_len)
+                    .map_err(|_| WireError::Malformed("invalid compressed presentation"))?;
+                if decoded.len() != decoded_len {
+                    return Err(WireError::Malformed("presentation decoded length mismatch"));
+                }
+                let mut payload = WireReader::new(&decoded);
+                let appearance = super::presentation::decode_appearance(&mut payload)?;
+                let skate = super::presentation::decode_skate(&mut payload)?;
+                if !payload.is_empty() {
+                    return Err(WireError::Malformed("trailing presentation data"));
+                }
+                Ok(Self::Presentation {
+                    header,
+                    claimed_client,
+                    appearance,
+                    skate,
+                })
+            }
             TAG_CLIENT_CONNECT => Ok(Self::Connect(get_hello(input)?)),
             TAG_CLIENT_COMMANDS => {
                 let header = get_header(input)?;

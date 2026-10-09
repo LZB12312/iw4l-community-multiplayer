@@ -371,7 +371,10 @@ fn advance(
         let age = tick
             .wrapping_sub(damage.impact.tick)
             .saturating_mul(sim::MATCH_TICK_MS);
-        visible = damage.display_active(tick);
+        visible = damage.display_active(tick)
+            && presented
+                .player(local.0)
+                .is_some_and(|ps| ps.is_live_frame());
         input = runtime::Input {
             score: damage.score,
             speed: hud.speed,

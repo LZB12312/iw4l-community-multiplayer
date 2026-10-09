@@ -2,6 +2,8 @@
 
 Extract the whole ZIP into a folder you can write to, then open **Multiplayer.exe**. Everyone uses the same package and can host or join. Windows 10/11 x64 is required; no Python or PowerShell 7 installation is needed.
 
+First launch waits for Skate extraction before opening the game and remembers your selected folder. Preparing assets can take several minutes. Failures stop setup and save details in iw4l-artifacts/setup/conversion.log; completed local caches are reused. Concurrent launches share one setup lock. Protocol 100 requires everyone to update together. Remote skating and ragdolls use buffered skeleton interpolation and lossless pose compression.
+
 1. **Host Internet** starts your relay, forwards UDP using a compatible UPnP router, and opens an online Rust lobby. Approve the Windows administrator prompt to add a firewall rule for this relay executable and UDP port. The invitation is copied to your clipboard; **Copy invitation** copies it again.
 2. **Join Internet**: paste a friend's invitation in the launcher and click Join Internet. Select their room in **Find Lobbies**. Join before the host chooses **Start Match**; joining a match already running is not supported.
 3. **Play again** uses your saved relay. **Stop my relay** closes all relays belonging to this extracted folder and removes their own router mappings. Closing the launcher leaves the game and relay running so your friends stay connected. A relay started from a different extracted folder must be stopped from that folder.

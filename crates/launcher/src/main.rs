@@ -29,6 +29,9 @@ fn main() {
     {
         // Also for a shortcut that names a map, so it works on first launch.
         first_run::prepare().unwrap_or_else(|e| first_run::fail(&e));
+        if args.first().is_some_and(|arg| arg == "setup") {
+            return;
+        }
         if args.is_empty() {
             args.push("menu".into());
         }

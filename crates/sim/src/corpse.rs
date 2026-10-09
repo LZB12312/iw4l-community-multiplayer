@@ -297,6 +297,11 @@ pub(crate) fn phase_run_corpse_move(world: &mut FrameWorld, time_ms: i32) {
             world.corpses_mut().clear_entnum(slot.entnum);
             continue;
         }
+        if world.corpses().skates[i].as_ref().is_some_and(|pose| {
+            slot.skate_damage.impact.lethal && pose.impact == slot.skate_damage.impact.sequence
+        }) {
+            continue;
+        }
         let ragdoll = is_ragdoll_tr_type(slot.tr_type);
 
         let anim_delta = world

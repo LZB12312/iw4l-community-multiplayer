@@ -1852,6 +1852,7 @@ pub fn publish_presented(
     presented.set_presented_projectiles(merged_projectiles);
     presented.set_view_offset(view_offset);
     presented.set_snapshot_interpolation(interpolation_previous, frame_interpolation);
+    presented.set_skate_pair(proxy.0.presentation_pair(render_time_ms));
     presented.set_trajectory_sample(
         archived.then_some(body_time_ms),
         archived

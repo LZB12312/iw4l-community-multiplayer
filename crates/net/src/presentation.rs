@@ -57,5 +57,5 @@ fn send(
             return;
         }
     }
-    pacer.last = now;
+    pacer.last = (pacer.last + 0.05).max(now - 0.05);
 }

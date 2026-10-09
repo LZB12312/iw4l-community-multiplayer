@@ -180,6 +180,7 @@ fn stream_character_images(
 
 fn update_remote_characters(
     presented: Res<PresentedSnapshot>,
+    proxy: Res<net::RemoteProxyState>,
     mut characters: ResMut<RemoteCharacters>,
 ) {
     characters.skates.clear();
@@ -192,6 +193,10 @@ fn update_remote_characters(
             .appearances
             .insert(client.0, meta.appearance.clone());
         if let Some(pose) = &meta.skate {
+            let pair = presented
+                .skate_time_ms()
+                .and_then(|time| proxy.0.skate_pair_at(client.0, pose.life, *client, time));
+            let (root, bones) = sampled_skate(pose, pair);
             characters.skates.insert(
                 client.0,
                 frame::SkateMode {
@@ -209,9 +214,9 @@ fn update_remote_characters(
                         0
                     },
                     tick: pose.tick,
-                    root: Mat4::from_cols_array(&pose.root),
+                    root,
                     names: pose.names.clone(),
-                    bones: pose.bones.iter().map(Mat4::from_cols_array).collect(),
+                    bones,
                     ..Default::default()
                 },
             );
@@ -231,6 +236,12 @@ fn update_remote_characters(
             .appearances
             .insert(slot.entnum as u32, slot.appearance.clone());
         if let Some(pose) = pose {
+            let pair = presented.skate_time_ms().and_then(|time| {
+                proxy
+                    .0
+                    .skate_pair_at(slot.entnum as u32, slot.life, slot.victim, time)
+            });
+            let (root, bones) = sampled_skate(pose, pair);
             characters.skates.insert(
                 slot.entnum as u32,
                 frame::SkateMode {
@@ -248,14 +259,57 @@ fn update_remote_characters(
                         0
                     },
                     tick: pose.tick,
-                    root: Mat4::from_cols_array(&pose.root),
+                    root,
                     names: pose.names.clone(),
-                    bones: pose.bones.iter().map(Mat4::from_cols_array).collect(),
+                    bones,
                     ..Default::default()
                 },
             );
         }
     }
+}
+
+fn sampled_skate(
+    current: &sim::SkatePose,
+    pair: Option<(&sim::SkatePose, &sim::SkatePose, f32)>,
+) -> (Mat4, Vec<Mat4>) {
+    let Some((a, b, fraction)) = pair.filter(|(a, b, _)| {
+        a.life == b.life
+            && a.life == current.life
+            && a.impact == b.impact
+            && a.names == b.names
+            && a.names == current.names
+            && Vec3::from_slice(&a.root[12..15]).distance(Vec3::from_slice(&b.root[12..15])) < 256.
+    }) else {
+        return (
+            Mat4::from_cols_array(&current.root),
+            current.bones.iter().map(Mat4::from_cols_array).collect(),
+        );
+    };
+    let blend = |a: &[f32; 16], b: &[f32; 16]| {
+        let matrix_a = Mat4::from_cols_array(a);
+        let matrix_b = Mat4::from_cols_array(b);
+        if matrix_a.determinant().abs() < 0.000001 || matrix_b.determinant().abs() < 0.000001 {
+            return Mat4::from_cols_array(&std::array::from_fn(|i| {
+                a[i] + (b[i] - a[i]) * fraction
+            }));
+        }
+        let (scale_a, rotation_a, position_a) = matrix_a.to_scale_rotation_translation();
+        let (scale_b, rotation_b, position_b) = matrix_b.to_scale_rotation_translation();
+        Mat4::from_scale_rotation_translation(
+            scale_a.lerp(scale_b, fraction),
+            rotation_a.slerp(rotation_b, fraction),
+            position_a.lerp(position_b, fraction),
+        )
+    };
+    (
+        blend(&a.root, &b.root),
+        a.bones
+            .iter()
+            .zip(&b.bones)
+            .map(|(a, b)| blend(a, b))
+            .collect(),
+    )
 }
 
 #[derive(Resource, Default)]
@@ -430,7 +484,7 @@ fn occupy_remote_scene_ents(
             .player(local.0)
             .map(|ps| ps.other_flags)
             .unwrap_or(0),
-        rendering_third_person: (skate.active && !skate.bones.is_empty())
+        rendering_third_person: (skate.active && !skate.bones.is_empty() && !in_killcam)
             || puppet.as_ref().is_some_and(|p| p.active)
             || crate::occupancy::third_person::presented_is_third_person(
                 &presented, local.0, in_killcam,
@@ -551,7 +605,7 @@ fn sync_remote_bodies(
             .player(local.0)
             .map(|ps| ps.other_flags)
             .unwrap_or(0),
-        rendering_third_person: (skate.active && !skate.bones.is_empty())
+        rendering_third_person: (skate.active && !skate.bones.is_empty() && !in_killcam)
             || puppet.as_ref().is_some_and(|p| p.active)
             || crate::occupancy::third_person::presented_is_third_person(
                 &presented, local.0, in_killcam,
@@ -615,12 +669,16 @@ fn sync_remote_bodies(
             rotation: Quat::from_rotation_z(yaw.to_radians()),
             scale: Vec3::ONE,
         };
-        // A corpse belongs to its client too; only the living body rides.
         let is_corpse = runtime.next_state.e_type == ET_PLAYER_CORPSE
             || runtime.pose_e_type == ET_PLAYER_CORPSE as u8;
-        if skate.active && !skate.bones.is_empty() && client.0 == skate.client && !is_corpse {
+        if skate.active
+            && !skate.bones.is_empty()
+            && client.0 == skate.client
+            && !is_corpse
+            && !in_killcam
+        {
             pose = Transform::from_matrix(skate.root);
-        } else if !is_corpse && let Some(skate) = characters.skates.get(&client.0) {
+        } else if let Some(skate) = characters.skates.get(&u32::from(identity.number())) {
             pose = Transform::from_matrix(skate.root);
         }
         if let Some(puppet) = puppet.as_ref().filter(|p| p.active && client.0 == p.client) {
@@ -674,6 +732,7 @@ enum RemoteSkinAction<'a> {
 struct RemotePoseFrame<'a> {
     characters: &'a RemoteCharacters,
     skate: &'a frame::SkateMode,
+    render_local_skate: bool,
     puppet: Option<&'a frame::InventoryPuppet>,
     script: &'a asset_anim::ParsedPlayerAnimScript,
     tree: &'a asset_anim::CompiledAnimTreeDefinition,
@@ -744,6 +803,7 @@ fn pose_remote_bodies(
         ResMut<crate::anim::dobj_pose::PosedPlayerFrame>,
         Res<HostGfxScene>,
         Option<Res<FrameClock>>,
+        Res<PresentedSnapshot>,
     ),
     mut roots: Query<
         (
@@ -761,7 +821,7 @@ fn pose_remote_bodies(
         ),
     >,
 ) {
-    let (cameras, lod_skinned, mut dobj_poses, mut posed_players, gfx, cg_clock) = dpvs;
+    let (cameras, lod_skinned, mut dobj_poses, mut posed_players, gfx, cg_clock, presented) = dpvs;
     submit.clear();
     for (_, _, _, mut bolts, _) in &mut roots {
         *bolts = RemoteFxBolts::default();
@@ -849,6 +909,9 @@ fn pose_remote_bodies(
     let mut pose_frame = RemotePoseFrame {
         characters: &characters,
         skate: &skate,
+        render_local_skate: presented
+            .player(sim::ClientId(skate.client))
+            .is_some_and(|ps| ps.is_live_frame()),
         puppet: puppet.as_deref(),
         script,
         tree,
@@ -1055,7 +1118,7 @@ impl<'a> RemotePoseFrame<'a> {
                 return Ok(PoseOneOutcome::NoBodyLod);
             };
             if skip_frozen_corpse_dobj(
-                e_type == ET_PLAYER_CORPSE,
+                e_type == ET_PLAYER_CORPSE && !self.characters.skates.contains_key(&persist_key),
                 reuse,
                 last_cache_hits.contains(&persist_key),
                 pose_hashes.has_lods(persist_key, lods.tuple()),
@@ -1074,11 +1137,13 @@ impl<'a> RemotePoseFrame<'a> {
                 .expect("composed");
             validate_remote_tracks(dobj, clips.as_ref(), body, &model_set.body_name)?;
 
-            let skate = if self.skate.active && persist_key == self.skate.client {
-                Some(self.skate)
-            } else {
-                self.characters.skates.get(&persist_key)
-            };
+            let skate =
+                if self.skate.active && persist_key == self.skate.client && self.render_local_skate
+                {
+                    Some(self.skate)
+                } else {
+                    self.characters.skates.get(&persist_key)
+                };
             let skate = skate.filter(|s| !s.bones.is_empty());
             let skating = skate.is_some();
             let world = if skating {
@@ -1121,6 +1186,9 @@ impl<'a> RemotePoseFrame<'a> {
             appearance.selections().hash(&mut hasher);
             appearance.profile.hash(&mut hasher);
             skate.map_or(0, |s| s.xray).hash(&mut hasher);
+            if let Some(skate) = skate {
+                hash_skin_matrices(&skate.bones).hash(&mut hasher);
+            }
             let hash = hasher.finish();
             let pose_same = pose_hashes.remember_pose_hash(persist_key, hash);
 

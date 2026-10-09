@@ -127,17 +127,6 @@ impl RemoteProxy {
         {
             return;
         }
-        if self.buffer.back().is_some_and(|last| {
-            snapshot.players.iter().any(|(id, ps)| {
-                last.snap.players.iter().any(|(old_id, old)| {
-                    id == old_id
-                        && (old.is_live_frame() != ps.is_live_frame()
-                            || old.kill_cam_client_num != ps.kill_cam_client_num)
-                })
-            })
-        }) {
-            self.buffer.clear();
-        }
         self.buffer.push_back(BufferedSnapshot {
             time_ms,
             snap: snapshot,
@@ -223,6 +212,94 @@ impl RemoteProxy {
     pub fn interpolate_at(&self, client: ClientId, render_time_ms: i32) -> ProxySample {
         let sample = self.sample_at(client, render_time_ms);
         self.hold_across_teleport(client, sample)
+    }
+
+    pub(crate) fn presentation_pair(
+        &self,
+        render_time_ms: i32,
+    ) -> Option<(Arc<Snapshot>, Arc<Snapshot>, f32)> {
+        let effective = render_time_ms.saturating_sub(PROXY_DELAY_MS);
+        let left = self
+            .buffer
+            .iter()
+            .rev()
+            .find(|s| s.time_ms <= effective)
+            .or_else(|| self.buffer.front())?;
+        let right = self
+            .buffer
+            .iter()
+            .find(|s| s.time_ms >= effective)
+            .unwrap_or(left);
+        let span = right.time_ms - left.time_ms;
+        let fraction = if span > 0 {
+            ((effective - left.time_ms) as f32 / span as f32).clamp(0., 1.)
+        } else {
+            0.
+        };
+        Some((Arc::clone(&left.snap), Arc::clone(&right.snap), fraction))
+    }
+
+    pub fn skate_pair_at(
+        &self,
+        entity: u32,
+        life: u32,
+        victim: ClientId,
+        time_ms: i32,
+    ) -> Option<(&sim::SkatePose, &sim::SkatePose, f32)> {
+        fn pose_for_life(
+            snapshot: &Snapshot,
+            entity: u32,
+            life: u32,
+            victim: ClientId,
+        ) -> Option<&sim::SkatePose> {
+            snapshot
+                .meta
+                .for_client(ClientId(entity))
+                .filter(|m| m.life_sequence.0 == life)
+                .and_then(|m| m.skate.as_ref())
+                .or_else(|| {
+                    snapshot
+                        .meta
+                        .corpses
+                        .slots
+                        .iter()
+                        .zip(&snapshot.meta.corpses.skates)
+                        .find(|(slot, _)| {
+                            slot.occupied
+                                && slot.entnum as u32 == entity
+                                && slot.life == life
+                                && slot.victim == victim
+                        })
+                        .and_then(|(_, pose)| pose.as_ref())
+                })
+        }
+        let index = self
+            .buffer
+            .iter()
+            .rposition(|entry| entry.time_ms <= time_ms)
+            .unwrap_or(0);
+        let a = pose_for_life(&self.buffer.get(index)?.snap, entity, life, victim)?;
+        let mut first = index;
+        while first > 0
+            && pose_for_life(&self.buffer[first - 1].snap, entity, life, victim)
+                .is_some_and(|p| p.tick == a.tick && p.life == a.life && p.impact == a.impact)
+        {
+            first -= 1;
+        }
+        for entry in self.buffer.iter().skip(index + 1) {
+            let b = pose_for_life(&entry.snap, entity, life, victim)?;
+            if b.tick == a.tick && b.life == a.life && b.impact == a.impact {
+                continue;
+            }
+            let span = entry.time_ms - self.buffer[first].time_ms;
+            let fraction = if span > 0 {
+                ((time_ms - self.buffer[first].time_ms) as f32 / span as f32).clamp(0., 1.)
+            } else {
+                0.
+            };
+            return Some((a, b, fraction));
+        }
+        Some((a, a, 0.))
     }
 
     fn hold_across_teleport(&self, client: ClientId, sample: ProxySample) -> ProxySample {
@@ -343,7 +420,10 @@ impl RemoteProxy {
             .for_client(client)
             .zip(right.snap.meta.for_client(client))
             .is_some_and(|(a, b)| a.life_sequence != b.life_sequence);
-        if life_changed {
+        if life_changed
+            || ps0.is_live_frame() != ps1.is_live_frame()
+            || ps0.kill_cam_client_num != ps1.kill_cam_client_num
+        {
             return ProxySample::Pose {
                 ps: *ps1,
                 provenance: PresentationSampleProvenance {

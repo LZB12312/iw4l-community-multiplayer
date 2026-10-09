@@ -10,13 +10,13 @@ use std::sync::{Arc, Mutex, mpsc};
 enum Job {
     Activate(u64, Vec3, f32, f32),
     Step(u64, f32, InputFrame, f32),
-    Impact(u64, [f32; 3], bool),
+    Impact(u64, u32, [f32; 3], bool),
     Suspend,
 }
 enum Reply {
     Ready,
     Activated(u64, Pose, u128),
-    Pose(u64, Pose),
+    Pose(u64, u32, Pose),
     Error { message: String, initialized: bool },
 }
 #[derive(Resource, Default)]
@@ -35,6 +35,7 @@ struct Host {
     keyboard_jump: bool,
     keyboard_flick_left: f32,
     dead_until: Option<f64>,
+    requested_impact: u32,
 }
 
 pub fn register(app: &mut App) {
@@ -194,10 +195,12 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
                 let mut skater_at: Option<Vec3> = None;
                 let mut accumulated = 0.;
                 let mut epoch = 0;
+                let mut applied_impact = 0;
                 while let Ok(job) = receive.recv() {
                     match job {
                         Job::Activate(new_epoch, spawn, yaw, aspect_ratio) => {
                             epoch = new_epoch;
+                            applied_impact = 0;
                             accumulated = 0.;
                             let start = std::time::Instant::now();
                             session.set_aspect_ratio(aspect_ratio);
@@ -231,9 +234,10 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
                             accumulated = 0.;
                             session.suspend_input();
                         }
-                        Job::Impact(request, impulse, lethal) => {
+                        Job::Impact(request, sequence, impulse, lethal) => {
                             if request == epoch {
                                 session.combat_impact(impulse, lethal)?;
+                                applied_impact = sequence;
                             }
                         }
                         Job::Step(request, dt, input, aspect_ratio) => {
@@ -291,7 +295,7 @@ fn preload_map(host: &mut Host, clip: Arc<asset_world::ClipCollision>) -> Result
                                     return Err("Skate published a non-finite pose".into());
                                 }
                                 skater_at = Some(collision::from_skate(p.root.w_axis.truncate()));
-                                if publish.send(Reply::Pose(epoch, p)).is_err() {
+                                if publish.send(Reply::Pose(epoch, applied_impact, p)).is_err() {
                                     break;
                                 }
                             }
@@ -379,6 +383,7 @@ fn update(
     local: Res<net::LocalPresentClient>,
     actions: Res<net::ClientActionInput>,
     presented: Res<net::PresentedSnapshot>,
+    adopted: Res<net::LastAdoptedSnapshot>,
     clip: Res<crate::DynEntPhysClip>,
     mut authority: Option<ResMut<net::AuthorityWorld>>,
     mut mode: ResMut<SkateMode>,
@@ -393,15 +398,15 @@ fn update(
         .map(|w| w.width() / w.height().max(1.))
         .unwrap_or(16. / 9.);
     let ps = presented.player(local.0);
-    let alive = ps.is_some_and(|p| p.pm_type == 0) && *screen == AppScreen::InGame;
-    let meta = presented
-        .snapshot()
-        .and_then(|s| s.meta.for_client(local.0));
+    let alive =
+        ps.is_some_and(|p| p.pm_type == 0 && p.is_live_frame()) && *screen == AppScreen::InGame;
+    let live_snapshot = adopted.next().or_else(|| presented.snapshot());
+    let meta = live_snapshot.and_then(|s| s.meta.for_client(local.0));
     let same_life = meta.is_some_and(|m| m.life_sequence.0 == mode.life);
     mode.xray = meta
         .filter(|m| m.life_sequence.0 == mode.life)
         .filter(|m| {
-            presented.snapshot().is_some_and(|s| {
+            live_snapshot.is_some_and(|s| {
                 s.tick
                     .0
                     .wrapping_sub(m.skate_damage.impact.tick)
@@ -415,14 +420,23 @@ fn update(
         && let Some(meta) = meta
     {
         let impact = meta.skate_damage.impact;
-        if impact.sequence != 0 && impact.sequence != mode.impact {
-            mode.impact = impact.sequence;
+        if impact.sequence != 0
+            && impact.sequence != host.requested_impact
+            && impact.sequence.wrapping_sub(host.requested_impact) < 0x8000_0000
+            && (alive || impact.lethal)
+        {
+            host.requested_impact = impact.sequence;
             let i = impact.impulse;
             if let Some(send) = &host.send {
-                let _ = send.send(Job::Impact(host.epoch, [i[0], i[2], -i[1]], impact.lethal));
+                let _ = send.send(Job::Impact(
+                    host.epoch,
+                    impact.sequence,
+                    [i[0], i[2], -i[1]],
+                    impact.lethal,
+                ));
             }
             if impact.lethal {
-                host.dead_until = Some(time.elapsed_secs_f64() + 4.);
+                host.dead_until = Some(time.elapsed_secs_f64() + 5.);
             }
             diag::info!(
                 World,
@@ -551,7 +565,8 @@ fn update(
                 present(&mut mode, p, authority.as_deref_mut());
                 diag::info!(World, "Skate activation from retained session: {ms}ms");
             }
-            Reply::Pose(epoch, p) if epoch == host.epoch && mode.active => {
+            Reply::Pose(epoch, impact, p) if epoch == host.epoch && mode.active => {
+                mode.impact = impact;
                 if p.tick / 120 != host.logged_tick / 120 {
                     diag::info!(
                         World,
@@ -627,7 +642,8 @@ fn update(
         host.enter_requested = false;
         host.activating = true;
         mode.life = meta.map_or(0, |m| m.life_sequence.0);
-        mode.impact = meta.map_or(0, |m| m.skate_damage.impact.sequence);
+        host.requested_impact = meta.map_or(0, |m| m.skate_damage.impact.sequence);
+        mode.impact = 0;
         host.dead_until = None;
         if let Some(send) = &host.send {
             let _ = send.send(Job::Activate(

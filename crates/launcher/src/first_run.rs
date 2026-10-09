@@ -16,6 +16,18 @@ const MW2_FOLDER: &str = "Call of Duty Modern Warfare 2";
 
 pub fn prepare() -> Result<(), String> {
     let root = std::env::current_dir().map_err(|error| error.to_string())?;
+    let setup_dir = root.join("iw4l-artifacts/setup");
+    std::fs::create_dir_all(&setup_dir).map_err(|error| error.to_string())?;
+    let setup_lock = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(setup_dir.join("setup.lock"))
+        .map_err(|error| error.to_string())?;
+    setup_lock
+        .lock()
+        .map_err(|error| format!("Cannot wait for game setup: {error}"))?;
     let env_path = root.join(".env");
     let mut env = EnvFile::read(&env_path);
 
@@ -35,9 +47,12 @@ pub fn prepare() -> Result<(), String> {
         .get("IW4L_SKATE_ASSETS")
         .map(PathBuf::from)
         .filter(|path| skate_ready(path))
-    {
+        .or_else(|| {
+            let assets = root.join("skate-data/assets");
+            skate_ready(&assets).then_some(assets)
+        }) {
         Some(assets) => assets,
-        None => match convert_skate(&root)? {
+        None => match convert_skate(&root, &mut env, &env_path)? {
             Some((assets, xex)) => {
                 env.set("IW4L_SKATE_ASSETS", &assets);
                 env.set("IW4L_SKATE_XEX", &xex);
@@ -51,6 +66,13 @@ pub fn prepare() -> Result<(), String> {
             }
         },
     };
+    if env
+        .get("IW4L_SKATE_ASSETS")
+        .is_none_or(|path| Path::new(path) != assets)
+    {
+        env.set("IW4L_SKATE_ASSETS", &assets);
+        env.write(&env_path)?;
+    }
     prepare_creator(&root, &assets, &mut env, &env_path)?;
     assets::skate_board::ensure(&assets)
         .map_err(|error| format!("Could not prepare the skateboard: {error}"))
@@ -148,13 +170,33 @@ fn skate_ready(assets: &Path) -> bool {
 }
 
 /// The converted Skate 3 data, or none when the player plays without it.
-fn convert_skate(root: &Path) -> Result<Option<(PathBuf, PathBuf)>, String> {
+fn convert_skate(
+    root: &Path,
+    env: &mut EnvFile,
+    env_path: &Path,
+) -> Result<Option<(PathBuf, PathBuf)>, String> {
     let converter = root.join("skate").join("iw4l-skate-convert.exe");
     if !converter.is_file() {
         return Err(format!(
             "{} is missing.\nRe-extract the release zip.",
             converter.display()
         ));
+    }
+    let out = root.join("skate-data");
+    if let Some(xex) = env.get("IW4L_SKATE_XEX").map(PathBuf::from).filter(|path| {
+        path.is_file()
+            && path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.eq_ignore_ascii_case("default.xex"))
+    }) {
+        if !skate_ready(&out.join("assets")) {
+            run_converter(&converter, &xex, &out, None)?;
+        }
+        if skate_ready(&out.join("assets")) {
+            return Ok(Some((out.join("assets"), xex)));
+        }
+        return Err("Skate preparation finished with missing files. See iw4l-artifacts/setup/conversion.log.".into());
     }
     let answer = MessageDialog::new()
         .set_title(TITLE)
@@ -170,8 +212,7 @@ fn convert_skate(root: &Path) -> Result<Option<(PathBuf, PathBuf)>, String> {
     if answer != MessageDialogResult::Yes {
         return Ok(None);
     }
-    let out = root.join("skate-data");
-    let xex = loop {
+    let xex = {
         let Some(xex) = rfd::FileDialog::new()
             .set_title("Select your Skate 3 default.xex")
             .add_filter("Skate 3 default.xex", &["xex"])
@@ -179,11 +220,10 @@ fn convert_skate(root: &Path) -> Result<Option<(PathBuf, PathBuf)>, String> {
         else {
             return Ok(None);
         };
-        println!("Converting Skate 3 data from {}", xex.display());
-        match run_converter(&converter, &xex, &out, None) {
-            Ok(()) => break xex,
-            Err(error) => inform(&format!("{error}\n\nSelect default.xex again.")),
-        }
+        env.set("IW4L_SKATE_XEX", &xex);
+        env.write(env_path)?;
+        run_converter(&converter, &xex, &out, None)?;
+        xex
     };
     let assets = out.join("assets");
     if skate_ready(&assets) {
@@ -196,8 +236,6 @@ fn convert_skate(root: &Path) -> Result<Option<(PathBuf, PathBuf)>, String> {
     }
 }
 
-/// Runs the converter with its progress echoed to this console, returning the
-/// converter's own error line when it fails.
 fn run_converter(
     converter: &Path,
     xex: &Path,
@@ -209,24 +247,35 @@ fn run_converter(
     if let Some(assets) = creator_assets {
         command.arg("--creator-only").arg("--assets").arg(assets);
     }
+    let log_dir = out.parent().unwrap_or(out).join("iw4l-artifacts/setup");
+    std::fs::create_dir_all(&log_dir).map_err(|error| error.to_string())?;
+    let log_path = log_dir.join("conversion.log");
+    let log = std::fs::File::create(&log_path).map_err(|error| error.to_string())?;
     let mut child = command
-        .stdout(Stdio::piped())
+        .stdin(Stdio::null())
+        .stderr(Stdio::from(
+            log.try_clone().map_err(|error| error.to_string())?,
+        ))
+        .stdout(Stdio::from(log))
         .spawn()
         .map_err(|error| format!("Could not start the Skate 3 converter: {error}"))?;
     let mut failure = None;
-    if let Some(stdout) = child.stdout.take() {
-        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            println!("  {line}");
+    let status = child.wait().map_err(|error| error.to_string())?;
+    if let Ok(log) = std::fs::File::open(&log_path) {
+        for line in BufReader::new(log).lines().map_while(Result::ok) {
             if let Some(message) = line.strip_prefix("ERROR: ") {
                 failure = Some(message.to_owned());
             }
         }
     }
-    let status = child.wait().map_err(|error| error.to_string())?;
     if status.success() {
         return Ok(());
     }
-    Err(failure.unwrap_or_else(|| format!("The Skate 3 converter stopped ({status}).")))
+    Err(format!(
+        "{}\n\nDetails: {}",
+        failure.unwrap_or_else(|| format!("The Skate 3 converter stopped ({status}).")),
+        log_path.display()
+    ))
 }
 
 fn creator_ready(assets: &Path) -> bool {

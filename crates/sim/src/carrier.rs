@@ -306,7 +306,8 @@ impl SimWorld {
         {
             return;
         }
-        let alive = self.player(id).is_some_and(|p| p.pm_type == 0);
+        let alive = self.player(id).is_some_and(|p| p.pm_type == 0)
+            && meta.is_some_and(|m| m.lifecycle == crate::ClientLifecycle::Alive);
         let collision = skate
             .as_ref()
             .filter(|pose| {
@@ -359,7 +360,18 @@ impl SimWorld {
                             .zip(slot.tr_base)
                             .all(|(a, b)| (*a - b).abs() < 4096.)
                     {
-                        pool.skates[i] = Some(pose.clone());
+                        if pool.skates[i]
+                            .as_ref()
+                            .is_none_or(|previous| pose.tick > previous.tick)
+                        {
+                            pool.skates[i] = Some(pose.clone());
+                            let slot = &mut pool.slots[i];
+                            slot.origin = [pose.root[12], pose.root[13], pose.root[14]];
+                            slot.tr_base = slot.origin;
+                            slot.tr_delta = [0.; 3];
+                            slot.tr_type = entity_iw4::TR_INTERPOLATE;
+                            slot.falling = false;
+                        }
                     }
                 }
             }

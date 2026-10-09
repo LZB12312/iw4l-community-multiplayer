@@ -51,6 +51,7 @@ pub struct PresentedSnapshot {
     frame_interpolation: f32,
     trajectory_time_ms: Option<i32>,
     trajectory_next: Option<Arc<Snapshot>>,
+    skate_pair: Option<(Arc<Snapshot>, Arc<Snapshot>, f32)>,
 
     pose: HashMap<ClientId, PlayerState>,
     view_offset: [f32; 3],
@@ -66,6 +67,7 @@ impl PresentedSnapshot {
         self.frame_interpolation = 0.0;
         self.trajectory_time_ms = None;
         self.trajectory_next = None;
+        self.skate_pair = None;
         self.pose.clear();
         self.view_offset = [0.0; 3];
         self.remote_provenance.clear();
@@ -73,6 +75,7 @@ impl PresentedSnapshot {
     }
 
     pub fn publish_decoded(&mut self, snapshot: Snapshot) {
+        self.skate_pair = None;
         self.trajectory_time_ms = None;
         self.trajectory_next = None;
         self.presented_projectiles = authoritative_projectiles(&snapshot);
@@ -149,6 +152,7 @@ impl PresentedSnapshot {
     ) {
         self.trajectory_time_ms = None;
         self.trajectory_next = None;
+        self.skate_pair = None;
         self.presented_projectiles = authoritative_projectiles(&snapshot);
         self.pose.clear();
         self.pose.insert(local, predicted_ps);
@@ -165,6 +169,22 @@ impl PresentedSnapshot {
             self.inner.as_deref()?,
             self.frame_interpolation,
         ))
+    }
+
+    pub(crate) fn set_skate_pair(&mut self, pair: Option<(Arc<Snapshot>, Arc<Snapshot>, f32)>) {
+        self.skate_pair = pair;
+    }
+
+    pub fn skate_pair(&self) -> Option<(&Snapshot, &Snapshot, f32)> {
+        self.skate_pair
+            .as_ref()
+            .map(|(left, right, fraction)| (left.as_ref(), right.as_ref(), *fraction))
+    }
+
+    pub fn skate_time_ms(&self) -> Option<i32> {
+        let (left, right, fraction) = self.skate_pair()?;
+        let start = sim::level_time_ms(left.tick);
+        Some(start + ((sim::level_time_ms(right.tick) - start) as f32 * fraction) as i32)
     }
 
     pub fn trajectory_time_ms(&self, render_time_ms: i32) -> i32 {

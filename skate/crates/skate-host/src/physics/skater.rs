@@ -28,6 +28,7 @@ use std::path::Path;
 #[derive(Resource)]
 pub(crate) struct SkaterRuntime {
     pub environment_impact: Option<(f32, [f32; 3])>,
+    pub combat_hold: bool,
     pub hall_of_meat_enabled: bool,
     pub scoring: crate::scoring_runtime::Runtime,
     pub climbing: super::climbing::Runtime,
@@ -224,6 +225,7 @@ impl SkaterRuntime {
         ];
         Ok(Self {
             environment_impact: None,
+            combat_hold: false,
             hall_of_meat_enabled: false,
             respawn,
             scoring: crate::scoring_runtime::Runtime::load(&data)?,

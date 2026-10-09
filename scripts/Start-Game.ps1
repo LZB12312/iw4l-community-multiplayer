@@ -13,6 +13,28 @@ if ($address -match '^(127\.0\.0\.1|localhost):([0-9]+)$') {
 }
 $env:IW4L_MASTER_JOIN = $null
 $env:IW4L_MASTER_HOST_NAME = $null
+Write-Output 'Preparing game files. Skate 3 extraction can take several minutes on first launch; wait for it to finish.'
+$setupLogs = Join-Path $directoryPath 'iw4l-artifacts/setup'
+[IO.Directory]::CreateDirectory($setupLogs) | Out-Null
+$setup = Start-Process -FilePath $binary -ArgumentList @('setup') -WorkingDirectory $directoryPath -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $setupLogs 'startup.log') -RedirectStandardError (Join-Path $setupLogs 'startup-errors.log')
+# Windows PowerShell needs the retained handle to read the exit code after setup exits.
+$setup.Handle | Out-Null
+$lastProgress = ''
+try {
+    while (!$setup.HasExited) {
+        $conversionLog = Join-Path $setupLogs 'conversion.log'
+        if (Test-Path -LiteralPath $conversionLog) {
+            $progress = Get-Content -LiteralPath $conversionLog -Tail 1 -ErrorAction SilentlyContinue
+            if ($progress -and $progress -ne $lastProgress) { Write-Output $progress; $lastProgress = $progress }
+        }
+        Start-Sleep -Milliseconds 500
+        $setup.Refresh()
+    }
+    $setup.WaitForExit()
+    $setup.Refresh()
+    if ($setup.ExitCode -ne 0) { throw ('Game setup failed. Details are in ' + $setupLogs + '. Your selected Skate folder is saved; retry after correcting the error.') }
+} finally { $setup.Dispose() }
+Write-Output 'Game files are ready. Opening the game.'
 $arguments = @('menu')
 if ($HostGame) {
     if ($Map -notmatch '^[a-zA-Z0-9_]+$') { throw 'Map must be a map name such as mp_rust.' }

@@ -111,6 +111,7 @@ impl Session {
     /// resets physical bodies and animation state at the new MW2 position.
     pub fn activate(&mut self, spawn: [f32; 3], heading: f32) -> Result<Pose, String> {
         self.combat_dead = false;
+        self.skater.combat_hold = false;
         self.bail_until = 0;
         self.collision_sequence = 0;
         self.collision_speed = 0.;
@@ -169,6 +170,7 @@ impl Session {
             self.physics.animation_profile.physics_mode,
             self.skater.player_input.physical.state.state_16,
         );
+        self.skater.combat_hold = self.combat_dead || self.physics.ticks < self.bail_until;
         super::frame::advance(
             &mut self.physics,
             &mut self.skater,
