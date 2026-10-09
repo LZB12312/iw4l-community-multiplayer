@@ -23,6 +23,7 @@ pub enum Choice {
     Wheels,
     Morph(&'static str),
     EyeColour,
+    BrowStyle,
     Undo(UndoScope),
     Unavailable,
 }
@@ -436,8 +437,8 @@ impl Page {
                         Item {
                             label: "ID_CAC_BROW_STYLE",
                             description: "",
-                            kind: "option",
-                            choice: Choice::Unavailable,
+                            kind: "selector",
+                            choice: Choice::BrowStyle,
                             male_only: false,
                         },
                         morph("ID_CAC_BROW_PROFILE", "local_brows_depth"),

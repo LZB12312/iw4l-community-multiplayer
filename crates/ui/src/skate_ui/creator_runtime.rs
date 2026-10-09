@@ -63,6 +63,7 @@ impl Bindings {
                         | Choice::Morph(_)
                         | Choice::Undo(_)
                         | Choice::EyeColour
+                        | Choice::BrowStyle
                 )
             })
     }
@@ -202,6 +203,19 @@ impl Host for Bindings {
                 Ok(Value::Undefined)
             }
             ("Game", "CAC_GetIntegerValue" | "CAC_GetStringValue") => {
+                if matches!(self.item(index(0)?)?.choice, Choice::BrowStyle) {
+                    if method != "CAC_GetStringValue" {
+                        return Err("Character brow style has no numeric value".into());
+                    }
+                    let library =
+                        assets::character::local_library().ok_or("Missing character library")?;
+                    let styles = library.brow_styles(&self.profile)?;
+                    let current = library.brow_style_index(&self.profile)?;
+                    return Ok(Value::Text(format!(
+                        "ID_CAC_EYEBROW_{}",
+                        styles[current].key.to_ascii_uppercase()
+                    )));
+                }
                 if matches!(self.item(index(0)?)?.choice, Choice::EyeColour) {
                     if method != "CAC_GetIntegerValue" {
                         return Err("Character colour has no text value".into());
@@ -495,6 +509,23 @@ impl Runtime {
         )?;
         apt_host::drain(&mut self.bindings, &mut self.vm)?;
         if matches!(key, "AptLeft" | "AptRight") {
+            if matches!(
+                self.bindings.item(self.bindings.position.index)?.choice,
+                Choice::BrowStyle
+            ) {
+                let library =
+                    assets::character::local_library().ok_or("Missing character library")?;
+                let styles = library.brow_styles(&self.bindings.profile)?;
+                let current = library.brow_style_index(&self.bindings.profile)?;
+                let next = if key == "AptLeft" {
+                    (current + styles.len() - 1) % styles.len()
+                } else {
+                    (current + 1) % styles.len()
+                };
+                if next != current {
+                    self.bindings.edit = Some(vec!["brow_style".into(), styles[next].key.clone()]);
+                }
+            }
             if let Choice::Morph(target) = self.bindings.item(self.bindings.position.index)?.choice
             {
                 let (value, range) = self.bindings.morph_value(target)?;

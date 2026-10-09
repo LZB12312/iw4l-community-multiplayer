@@ -94,6 +94,12 @@ pub struct CharacterColour {
     material: String,
 }
 
+pub struct CharacterStyle {
+    pub key: String,
+    group: usize,
+    material: CharacterAsset,
+}
+
 type CachedCharacter = Result<Arc<Vec<CharacterMeshPart>>, String>;
 type CharacterMeshCache = VecDeque<(CharacterProfile, CachedCharacter)>;
 
@@ -533,6 +539,85 @@ impl CharacterLibrary {
         part.palette = Some(colour.key);
         self.validate(&next)?;
         Ok(next)
+    }
+
+    pub fn brow_styles(&self, profile: &CharacterProfile) -> Result<Vec<CharacterStyle>, String> {
+        self.validate(profile)?;
+        let part = &profile.parts[CharacterSlot::Face as usize];
+        let model = self
+            .manifest
+            .models
+            .get(&String::from(part.model))
+            .ok_or("Missing character face model")?;
+        let mut styles = BTreeMap::new();
+        let mut styled_groups = 0;
+        for (group_index, (group, material)) in model.groups.iter().zip(&part.materials).enumerate()
+        {
+            let current = self
+                .manifest
+                .materials
+                .get(&String::from(*material))
+                .ok_or("Missing character face material")?;
+            if !current.flags.contains_key("EyebrowStyle") {
+                continue;
+            }
+            styled_groups += 1;
+            for asset in group {
+                let info = self
+                    .manifest
+                    .materials
+                    .get(&String::from(*asset))
+                    .ok_or("Missing character brow material")?;
+                let Some(key) = info.flags.get("EyebrowStyle") else {
+                    continue;
+                };
+                if !current
+                    .flags
+                    .iter()
+                    .filter(|(name, _)| !matches!(name.as_str(), "EyebrowStyle" | "IsDefault"))
+                    .all(|(name, value)| info.flags.get(name) == Some(value))
+                {
+                    continue;
+                }
+                if key.is_empty()
+                    || key.len() > 64
+                    || !key.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                {
+                    return Err("Invalid character brow style".into());
+                }
+                styles.entry(key.clone()).or_insert(CharacterStyle {
+                    key: key.clone(),
+                    group: group_index,
+                    material: *asset,
+                });
+            }
+        }
+        if styled_groups != 1 || styles.is_empty() || styles.len() > 64 {
+            return Err("Character has no supported brow style catalogue".into());
+        }
+        Ok(styles.into_values().collect())
+    }
+
+    pub fn brow_style_index(&self, profile: &CharacterProfile) -> Result<usize, String> {
+        self.brow_styles(profile)?
+            .iter()
+            .position(|style| {
+                profile.parts[CharacterSlot::Face as usize].materials[style.group] == style.material
+            })
+            .ok_or("Character brow style is outside its catalogue".into())
+    }
+
+    pub fn with_brow_style(
+        &self,
+        profile: &CharacterProfile,
+        key: &str,
+    ) -> Result<CharacterProfile, String> {
+        let style = self
+            .brow_styles(profile)?
+            .into_iter()
+            .find(|style| style.key == key)
+            .ok_or("Unknown character brow style")?;
+        self.with_material(profile, CharacterSlot::Face, style.group, style.material)
     }
 
     pub fn slot(name: &str) -> Option<CharacterSlot> {

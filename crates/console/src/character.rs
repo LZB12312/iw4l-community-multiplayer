@@ -131,7 +131,7 @@ fn edit_profile(
                 saved
             }
         }
-        "model" | "material" | "morph" | "eye_colour" => {
+        "model" | "material" | "morph" | "eye_colour" | "brow_style" => {
             let profile = current
                 .profile
                 .as_deref()
@@ -141,6 +141,8 @@ fn edit_profile(
             let name = args.get(1).ok_or("Missing character part or morph.")?;
             if operation == "eye_colour" {
                 library.with_eye_colour(&profile, name)?
+            } else if operation == "brow_style" {
+                library.with_brow_style(&profile, name)?
             } else if operation == "morph" {
                 let value = args
                     .get(2)
